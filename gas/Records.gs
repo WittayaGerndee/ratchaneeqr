@@ -56,6 +56,7 @@ function saveRecord_(sheetName, obj, isNew, oldId) {
     lock.releaseLock();
   }
   if (sheetName === 'Settings') _settingsMemo = null;
+  if (sheetName === 'Settings' || sheetName === 'Teachers') invalidateTableCache_(sheetName);
   return findOne_(sheetName, key, id);
 }
 
@@ -67,6 +68,7 @@ function deleteRecord_(sheetName, id) {
     var row = findOne_(sheetName, key, id);
     if (!row) throw new Error('ไม่พบข้อมูล');
     deleteRow_(sheetName, row._row);
+    if (sheetName === 'Settings' || sheetName === 'Teachers') invalidateTableCache_(sheetName);
     return true;
   } finally {
     lock.releaseLock();

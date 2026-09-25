@@ -116,6 +116,7 @@ function setSettingValue_(key, value) {
   if (row) updateRow_('Settings', row._row, { value: value });
   else appendRow_('Settings', { key: key, value: value, description: '' });
   _settingsMemo = null;
+  invalidateTableCache_('Settings');
 }
 
 /** ติดตั้ง Trigger: แจ้งเตือนทุกชั่วโมง + สรุปรายวัน 18:00 */

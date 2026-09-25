@@ -273,7 +273,6 @@ function submitBatch_(items, actor) {
       var sh = sheet_('Submissions');
       sh.getRange(sh.getLastRow() + 1, 1, newRows.length, hs.length).setValues(newRows);
     }
-    log_('SUBMIT_BATCH', { line_user_id: actor.userId, result: newRows.length + '/' + items.length });
     return results;
   } finally {
     lock.releaseLock();

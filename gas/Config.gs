@@ -105,7 +105,7 @@ function getSetting_(key, fallback) {
   if (!_settingsMemo) {
     _settingsMemo = {};
     try {
-      readTable_('Settings').forEach(function (r) {
+      cachedTable_('Settings').forEach(function (r) {
         _settingsMemo[String(r.key).trim()] = r.value;
       });
     } catch (err) { /* ยังไม่ได้ setup */ }

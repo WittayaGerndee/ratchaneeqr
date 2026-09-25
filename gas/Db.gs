@@ -17,12 +17,10 @@ function sheet_(name) {
 
 /** อ่านทั้ง Sheet เป็น array ของ object (มี _row = เลขแถวจริงใน Sheet) */
 function readTable_(name) {
-  var sh = sheet_(name);
-  var lastRow = sh.getLastRow();
-  var lastCol = sh.getLastColumn();
-  if (lastRow < 2 || lastCol < 1) return [];
-  var values = sh.getRange(1, 1, lastRow, lastCol).getValues();
+  var values = sheet_(name).getDataRange().getValues(); // อ่านครั้งเดียว (เร็วกว่าเรียกหลายครั้ง)
+  if (values.length < 2) return [];
   var headers = values[0].map(function (h) { return String(h).trim(); });
+  _headersMemo[name] = headers;
   var out = [];
   for (var i = 1; i < values.length; i++) {
     var row = values[i];
@@ -36,10 +34,29 @@ function readTable_(name) {
   return out;
 }
 
+var _headersMemo = {};
+
 function headers_(name) {
+  if (_headersMemo[name]) return _headersMemo[name];
   var sh = sheet_(name);
-  return sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0]
+  _headersMemo[name] = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0]
     .map(function (h) { return String(h).trim(); });
+  return _headersMemo[name];
+}
+
+/** อ่านตารางผ่าน CacheService (ใช้กับ Settings/Teachers ที่อ่านทุกคำขอแต่แก้ไม่บ่อย) */
+var TABLE_CACHE_SECONDS = 120;
+function cachedTable_(name) {
+  var cache = CacheService.getScriptCache();
+  var key = 'tbl_' + name;
+  var hit = cache.get(key);
+  if (hit) return JSON.parse(hit);
+  var rows = readTable_(name).map(function (r) { var o = {}; Object.keys(r).forEach(function (k) { o[k] = r[k]; }); return o; });
+  try { cache.put(key, JSON.stringify(rows), TABLE_CACHE_SECONDS); } catch (e) { /* ใหญ่เกิน 100KB */ }
+  return rows;
+}
+function invalidateTableCache_(name) {
+  CacheService.getScriptCache().remove('tbl_' + name);
 }
 
 function appendRow_(name, obj) {

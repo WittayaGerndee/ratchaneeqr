@@ -21,7 +21,7 @@ function handleApi_(body) {
     return serialize_(fn(body, actor));
   } catch (err) {
     var msg = String(err && err.message || err);
-    log_('API_ERROR', { result: body && body.action, error: err && err.stack || msg });
+    if (msg.indexOf('UNAUTHORIZED') !== 0) log_('API_ERROR', { result: body && body.action, error: err && err.stack || msg });
     return { ok: false, code: msg.indexOf('UNAUTHORIZED') === 0 ? 'UNAUTHORIZED' : 'ERROR', message: msg };
   }
 }
@@ -43,7 +43,7 @@ function resolveActor_(body) {
 
 function findTeacherByLineId_(userId) {
   if (!userId) return null;
-  return readTable_('Teachers').filter(function (t) {
+  return cachedTable_('Teachers').filter(function (t) {
     return t.line_user_id && t.line_user_id === userId && String(t.status || 'active').toLowerCase() === 'active';
   })[0] || null;
 }
