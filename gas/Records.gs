@@ -25,6 +25,7 @@ function saveRecord_(sheetName, obj, isNew, oldId) {
     if (clean.status) clean.status = String(clean.status).toUpperCase();
   }
 
+  var saved;
   var lock = LockService.getScriptLock();
   lock.waitLock(20000);
   try {
@@ -44,6 +45,7 @@ function saveRecord_(sheetName, obj, isNew, oldId) {
         clean.reminded_at = ''; // เปลี่ยนกำหนดส่ง → เตือนใหม่ได้
       }
       updateRow_(sheetName, existing._row, clean);
+      saved = Object.assign({}, existing, clean);
     } else {
       if (sheetName === 'Assignments') {
         clean.created_at = new Date();
@@ -51,13 +53,14 @@ function saveRecord_(sheetName, obj, isNew, oldId) {
       }
       if ((sheetName === 'Students' || sheetName === 'Teachers' || sheetName === 'Classes') && !clean.status) clean.status = 'active';
       appendRow_(sheetName, clean);
+      saved = clean;
     }
   } finally {
     lock.releaseLock();
   }
   if (sheetName === 'Settings') _settingsMemo = null;
   if (sheetName === 'Settings' || sheetName === 'Teachers') invalidateTableCache_(sheetName);
-  return findOne_(sheetName, key, id);
+  return saved;
 }
 
 function deleteRecord_(sheetName, id) {
@@ -98,6 +101,8 @@ function importStudents_(text) {
     lines.forEach(function (l) {
       var c = l.split(/\t|,/).map(function (x) { return x.trim(); });
       if (!c[0] || !c[1] || /student_id|รหัส/i.test(c[0])) { skipped++; return; }
+      var cr = splitClassRoom_(c[2], c[3]);
+      c[2] = cr.cls; c[3] = cr.room;
       var i = index[normId_(c[0])];
       if (i === undefined) {
         var row = hs.map(function () { return ''; });
@@ -115,7 +120,7 @@ function importStudents_(text) {
       }
     });
     if (data.length) {
-      sh.getRange(2, col.student_id + 1, data.length, 1).setNumberFormat('@');
+      setTextFormat_(sh, hs, 2, data.length);
       sh.getRange(2, 1, data.length, hs.length).setValues(data);
     }
   } finally {
@@ -123,4 +128,16 @@ function importStudents_(text) {
   }
   log_('IMPORT_STUDENTS', { result: 'added ' + added + ', updated ' + updated });
   return { ok: true, added: added, updated: updated, skipped: skipped };
+}
+
+/** แยก "ป.4/5" → { cls: "ป.4", room: "5" } (ถ้าห้องว่าง) */
+function splitClassRoom_(cls, room) {
+  cls = String(cls || '').trim();
+  room = String(room || '').trim();
+  if (!room && cls.indexOf('/') > 0) {
+    var p = cls.split('/');
+    room = p.pop().trim();
+    cls = p.join('/').trim();
+  }
+  return { cls: cls, room: room };
 }

@@ -128,3 +128,31 @@ function installTriggers() {
   ScriptApp.newTrigger('sendDueReminders').timeBased().everyHours(1).create();
   ScriptApp.newTrigger('sendDailySummary').timeBased().everyDays(1).atHour(18).create();
 }
+
+/**
+ * ปรับข้อมูลเวอร์ชันเก่าให้เป็นปัจจุบัน (รันอัตโนมัติครั้งเดียวต่อเวอร์ชัน เมื่อมีคำขอแรกเข้ามา)
+ */
+var MIGRATION_VERSION = '3';
+function runMigrations_() {
+  var props = PropertiesService.getScriptProperties();
+  if (props.getProperty('MIGRATION_VERSION') === MIGRATION_VERSION) return;
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(10000)) return;
+  try {
+    if (props.getProperty('MIGRATION_VERSION') === MIGRATION_VERSION) return;
+    // v3: ชื่อโรงเรียน/ครู ตามที่ผู้ใช้กำหนด + ตั้งคอลัมน์รหัสให้เป็นข้อความ
+    var school = getSetting_('SCHOOL_NAME', '');
+    if (!school || school === 'โรงเรียนตัวอย่าง') setSettingValue_('SCHOOL_NAME', 'โรงเรียนอนุบาลศรีสุทโธ');
+    if (!findOne_('Settings', 'key', 'ADMIN_NAME')) setSettingValue_('ADMIN_NAME', 'ครูรัชนี');
+    ['Students', 'Assignments', 'Submissions'].forEach(function (name) {
+      var sh = sheet_(name);
+      setTextFormat_(sh, headers_(name), 2, Math.max(sh.getMaxRows() - 1, 1));
+    });
+    props.setProperty('MIGRATION_VERSION', MIGRATION_VERSION);
+    log_('MIGRATION', { result: 'v' + MIGRATION_VERSION });
+  } catch (err) {
+    log_('MIGRATION_ERROR', { error: err && err.stack || err });
+  } finally {
+    lock.releaseLock();
+  }
+}

@@ -6,6 +6,7 @@
  */
 
 function doPost(e) {
+  runMigrations_();
   var body = {};
   try {
     body = JSON.parse(e && e.postData && e.postData.contents || '{}');
@@ -28,6 +29,7 @@ function doGet(e) {
   if (page === 'health') {
     return json_({ ok: true, app: APP_NAME, version: APP_VERSION, time: new Date().toISOString() });
   }
+  runMigrations_();
   var auth = adminAuth_();
   if (!auth.ok) {
     var t = HtmlService.createTemplateFromFile('Denied');

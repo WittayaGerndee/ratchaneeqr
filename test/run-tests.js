@@ -14,7 +14,7 @@ function makeSheet(name){ const data=[]; return {
     setValue(v){ data[r-1]=data[r-1]||[]; data[r-1][col-1]=v; return this;},
     setFontWeight(){return this}, setBackground(){return this}, setNumberFormat(){return this}};},
   getDataRange(){ return this.getRange(1,1,Math.max(data.length,1),Math.max(this.getLastColumn(),1)); },
-  appendRow(row){ data.push(row.slice()); }, deleteRow(n){ data.splice(n-1,1); }, setFrozenRows(){}
+  appendRow(row){ data.push(row.slice()); }, deleteRow(n){ data.splice(n-1,1); }, setFrozenRows(){}, getMaxRows(){ return Math.max(data.length, 1000); }
 };}
 const sheets={}; const cacheStore=new Map();
 const ss={ getId:()=> 'SSID', getUrl:()=>'https://sheet', getSheetByName:n=>sheets[n]||null,
@@ -97,22 +97,43 @@ r = call('deleteStudent', {studentId:'65021'});
 assert(r.ok && !R("getStudent_('65021')"), 'delete student');
 r = call('importStudents', {text:'รหัส\tชื่อ\tชั้น\tห้อง\n65030\tนางสาวเอ บี\tม.6\t1\n65001\tนายสมชาย ใจดีมาก\tม.5\t1\n\n'});
 assert(r.ok && r.added===1 && r.updated===1 && r.skipped===1 && r.students.length===7, 'import: 1 added, 1 updated, header skipped');
+r = call('importStudents', {text:'0003\tเด็กหญิงเอ\tป.4/5'});
+assert(r.ok && r.added===1 && r.students.some(x=>x[0]==='0003' && x[2]==='ป.4' && x[3]==='5'), 'import "ป.4/5" in one column');
 assert(R("getStudent_('65001').name")==='นายสมชาย ใจดีมาก', 'import updates name');
+
+// leading zeros + class/room split (bug: "Cannot read properties of null (reading 'student_id')")
+r = call('saveStudent', {student:{student_id:'0001', name:'ใจดี มีโชค', class:'ป.4', room:'5'}});
+assert(r.ok && r.student[0]==='0001' && r.student[3]==='5', 'add student 0001 returns record (was null)');
+r = call('saveStudent', {student:{student_id:'0002', name:'สมศรี ดีใจ', class:'ป.4/5', room:''}});
+assert(r.ok && r.student[2]==='ป.4' && r.student[3]==='5', 'class "ป.4/5" split into class+room');
+r = call('saveStudent', {student:{student_id:'1', name:'ซ้ำกับ 0001', class:'ป.4', room:'5'}});
+assert(!r.ok, '"1" treated as same id as "0001"');
+r = call('saveAssignment', {assignment:{subject:'ไทย', assignment_name:'ป4 งาน', class_target:'ป.4/5'}});
+const p4 = r.assignment.assignment_id;
+r = call('submitBatch', {items:[{cid:'z1', studentId:'STU-0001', assignmentId:p4},{cid:'z2', studentId:'2', assignmentId:p4}]});
+assert(r.results.every(x=>x.ok), 'scan STU-0001 and "2" both match (leading zeros)');
+r = call('bootstrap');
+assert(r.students.some(x=>x[0]==='0001'), 'bootstrap keeps "0001" text');
+r = call('saveSettings', {settings:{SCHOOL_NAME:'โรงเรียนอนุบาลศรีสุทโธ', ADMIN_NAME:'ครูรัชนี', EVIL:'x'}});
+assert(r.ok && r.school==='โรงเรียนอนุบาลศรีสุทโธ' && r.adminName==='ครูรัชนี' && !R("findOne_('Settings','key','EVIL')"), 'admin saves settings (whitelisted keys)');
+r = call('bootstrap');
+assert(r.user.teacherName==='ครูรัชนี' && r.school==='โรงเรียนอนุบาลศรีสุทโธ' && r.user.isAdmin, 'header shows school + teacher name');
 
 // assignments
 r = call('saveAssignment', {assignment:{subject:'ไทย', assignment_name:'เรียงความ', class_target:'ม.5/2', due_date:'2026-10-01T16:00'}});
-assert(r.ok && r.assignment.assignment_id==='HW003' && r.assignment.status==='OPEN', 'create assignment HW003');
+assert(r.ok && /^HW\d{3}$/.test(r.assignment.assignment_id) && r.assignment.status==='OPEN', 'create assignment');
+const HW3=r.assignment.assignment_id;
 let rr1 = call('saveAssignment', {reqId:'retry-1', assignment:{subject:'ไทย', assignment_name:'ทดสอบส่งซ้ำ'}});
 let rr2 = call('saveAssignment', {reqId:'retry-1', assignment:{subject:'ไทย', assignment_name:'ทดสอบส่งซ้ำ'}});
 assert(rr1.ok && rr2.assignment.assignment_id===rr1.assignment.assignment_id && R("readTable_('Assignments').filter(a=>a.assignment_name==='ทดสอบส่งซ้ำ').length")===1, 'retry with same reqId does not create twice');
 R("deleteRecord_('Assignments','"+rr1.assignment.assignment_id+"')");
-r = call('saveAssignment', {assignment:{assignment_id:'HW003', subject:'ไทย', assignment_name:'เรียงความ', class_target:'ม.5/2', status:'CLOSED'}});
+r = call('saveAssignment', {assignment:{assignment_id:HW3, subject:'ไทย', assignment_name:'เรียงความ', class_target:'ม.5/2', status:'CLOSED'}});
 assert(r.ok && r.assignment.status==='CLOSED', 'close assignment');
-r = call('submitBatch', {items:[{cid:'g', studentId:'65004', assignmentId:'HW003'}]});
+r = call('submitBatch', {items:[{cid:'g', studentId:'65004', assignmentId:HW3}]});
 assert(r.results[0].code==='ASSIGNMENT_CLOSED', 'closed assignment rejects scans');
 r = call('deleteAssignment', {assignmentId:'HW001'});
 assert(!r.ok, 'cannot delete assignment with submissions');
-r = call('deleteAssignment', {assignmentId:'HW003'});
+r = call('deleteAssignment', {assignmentId:HW3});
 assert(r.ok, 'delete unused assignment');
 
 // webhook
@@ -131,15 +152,17 @@ assert(sheets.Submissions.data[1][9]==='ผ่าน', 'teacher sets status ผ�
 const imp = R("adminImportStudents('65010\\tนายใหม่ มาแล้ว\\tม.6\\t1\\n65001\\tนายสมชาย ใจดีมาก\\tม.5\\t1')");
 assert(imp.added===1 && imp.updated===1, 'import students upsert');
 const rep = R("adminStudentReport('')");
-assert(rep.length===8, 'student report rows');
+assert(rep.length===R("readTable_('Students').filter(isStudentActive_).length"), 'student report rows');
 const soon = new Date(Date.now()+2*3600e3); const p2=n=>String(n).padStart(2,'0');
 const soonStr = `${soon.getFullYear()}-${p2(soon.getMonth()+1)}-${p2(soon.getDate())}T${p2(soon.getHours())}:${p2(soon.getMinutes())}`;
-R(`adminSave('Assignments',{assignment_id:'HW003',subject:'ไทย',assignment_name:'เรียงความ',class_target:'ALL',due_date:'${soonStr}',status:'open'},true)`);
-const a3 = R("getAssignment_('HW003')");
+R(`adminSave('Assignments',{assignment_id:'HW099',subject:'ไทย',assignment_name:'เรียงความ',class_target:'ALL',due_date:'${soonStr}',status:'open'},true)`);
+const a3 = R("getAssignment_('HW099')");
 assert(a3 && a3.status==='OPEN' && typeof a3.due_date.getTime==='function', 'admin create assignment w/ datetime');
 ctx.__email='stranger@x.com';
 let denied=false; try{ R("adminDashboard('')"); }catch(e){denied=true;} assert(denied,'non-teacher denied');
 // reminders
 pushed.length=0; R('sendDueReminders()');
 assert(pushed.length===1 && pushed[0].to.includes('U1') && pushed[0].messages[0].text.includes('ยังไม่ส่ง'), 'due reminder → teachers with missing list');
+R("PropertiesService.getScriptProperties().setProperty('MIGRATION_VERSION','0')"); R("setSettingValue_('SCHOOL_NAME','โรงเรียนตัวอย่าง')"); R('runMigrations_()');
+assert(R("getSetting_('SCHOOL_NAME')")==='โรงเรียนอนุบาลศรีสุทโธ', 'migration sets school name');
 console.log(R("fmtDateTimeTH_(new Date())"), R("parseStudentCode_('STU-2026-00125')"));

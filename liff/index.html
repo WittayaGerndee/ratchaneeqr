@@ -1,997 +1,1225 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>เช็คการส่งงาน</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap" rel="stylesheet">
-  <style>
-    :root { --brand: #06c755; --brand-dark: #05a847; }
-    body { font-family: 'Sarabun', sans-serif; background: #f2f4f6; padding-bottom: 84px; }
-    .topbar { background: var(--brand); color: #fff; padding: 12px 16px 42px; }
-    .topbar h1 { font-size: 1.15rem; margin: 0; font-weight: 700; }
-    .wrap { max-width: 720px; margin: -30px auto 0; padding: 0 12px; }
-    .card { border: 0; border-radius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,.06); margin-bottom: 12px; }
-    .btn-brand { background: var(--brand); border-color: var(--brand); color: #fff; }
-    .btn-brand:hover, .btn-brand:focus, .btn-brand:active { background: var(--brand-dark) !important; color: #fff !important; }
-    .btn-lg { border-radius: 12px; }
-    .hidden { display: none !important; }
-    .pick { cursor: pointer; }
-    .pick:active { background: #eefbf3; }
-    .progress { height: 14px; border-radius: 8px; }
-    .progress-bar { background: var(--brand); }
-    #reader { width: 100%; border-radius: 12px; overflow: hidden; background: #000; }
-    .flash { border-radius: 14px; padding: 14px 16px; min-height: 76px; }
-    .flash .big { font-size: 1.4rem; font-weight: 700; line-height: 1.25; }
-    .flash.ok { background: #e3f9ea; color: #05662f; }
-    .flash.dup { background: #fff4d6; color: #7a5300; }
-    .flash.err { background: #fde2e1; color: #9b1c16; }
-    .flash.wait { background: #eef1f4; color: #555; }
-    .row-item { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid #f0f0f0; }
-    .row-item:last-child { border-bottom: 0; }
-    .row-item .ic { width: 26px; text-align: center; flex: none; }
-    .row-item .main { flex: 1; min-width: 0; }
-    .row-item .n { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .row-item.undone { opacity: .45; text-decoration: line-through; }
-    .sync { font-size: .8rem; }
-    .tabs { position: fixed; bottom: 0; left: 0; right: 0; background: #fff; border-top: 1px solid #e5e7eb; display: flex; padding-bottom: env(safe-area-inset-bottom); z-index: 10; }
-    .tabs a { flex: 1; text-align: center; padding: 7px 0 9px; color: #777; text-decoration: none; font-size: .74rem; }
-    .tabs a .i { display: block; font-size: 1.25rem; }
-    .tabs a.active { color: var(--brand-dark); font-weight: 600; }
-    .stat { text-align: center; }
-    .stat .v { font-size: 1.7rem; font-weight: 700; line-height: 1.1; }
-    .stat .l { font-size: .8rem; color: #888; }
-    .sticker-sheet { display: grid; gap: 4mm; justify-content: start; }
-    .sticker { border: 1px dashed #bbb; border-radius: 6px; padding: 2mm; text-align: center; background: #fff; break-inside: avoid; overflow: hidden; }
-    .sticker .q { display: flex; justify-content: center; }
-    .sticker .q img, .sticker .q canvas { width: 100% !important; height: auto !important; }
-    .sticker .sid { font-weight: 700; line-height: 1.1; }
-    .sticker .nm { line-height: 1.15; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .sticker .cl { color: #666; line-height: 1.1; }
-    @media print {
-      body { background: #fff; padding: 0; }
-      .no-print, .topbar, .tabs, #alertBox { display: none !important; }
-      .wrap { max-width: none; margin: 0; padding: 0; }
-      .card { box-shadow: none; margin: 0; }
-      .card-body { padding: 0 !important; }
-      section { display: none !important; }
-      #view-qr { display: block !important; }
-      @page { size: A4; margin: 8mm; }
-    }
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<title>เช็คการส่งงาน</title>
+<link rel="preconnect" href="https://script.google.com">
+<link rel="preconnect" href="https://script.googleusercontent.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f6f7f9; --surface: #fff; --text: #0f172a; --muted: #64748b; --faint: #94a3b8; --line: #e2e8f0;
+    --accent: #00a651; --accent-weak: #e7f7ee; --warn: #b45309; --warn-weak: #fef3c7; --bad: #dc2626; --bad-weak: #fee2e2;
+    --radius: 16px; --shadow: 0 1px 2px rgba(15,23,42,.04), 0 4px 16px rgba(15,23,42,.04);
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.5 'IBM Plex Sans Thai', system-ui, sans-serif; }
+  body { padding-bottom: calc(76px + env(safe-area-inset-bottom)); }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  .hidden { display: none !important; }
+  .muted { color: var(--muted); } .faint { color: var(--faint); } .small { font-size: .85rem; } .xs { font-size: .75rem; }
+  .row { display: flex; align-items: center; gap: 10px; } .between { justify-content: space-between; } .grow { flex: 1; min-width: 0; }
+  .ellipsis { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* header */
+  .appbar { position: sticky; top: 0; z-index: 20; background: rgba(255,255,255,.92); backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--line); padding: 10px 16px; padding-top: calc(10px + env(safe-area-inset-top)); }
+  .appbar .school { font-weight: 700; font-size: 1.02rem; line-height: 1.25; }
+  .appbar .by { font-size: .8rem; color: var(--muted); }
+  .pill { display: inline-flex; align-items: center; gap: 6px; font-size: .75rem; padding: 4px 10px; border-radius: 99px; background: var(--bg); color: var(--muted); white-space: nowrap; }
+  .pill.ok { background: var(--accent-weak); color: var(--accent); } .pill.wait { background: var(--warn-weak); color: var(--warn); }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+
+  main { max-width: 640px; margin: 0 auto; padding: 14px 14px 0; }
+  .card { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); padding: 16px; margin-bottom: 12px; }
+  h2 { font-size: 1.15rem; margin: 0 0 10px; } h3 { font-size: 1rem; margin: 0 0 8px; }
+
+  /* buttons & fields */
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 1px solid var(--line); background: var(--surface);
+    border-radius: 12px; padding: 10px 14px; font-weight: 600; cursor: pointer; min-height: 44px; }
+  .btn:active { transform: scale(.98); } .btn:disabled { opacity: .5; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.danger { color: var(--bad); } .btn.ghost { border-color: transparent; background: transparent; }
+  .btn.block { width: 100%; } .btn.lg { min-height: 52px; font-size: 1.05rem; } .btn.sm { min-height: 34px; padding: 6px 10px; font-size: .85rem; border-radius: 10px; }
+  .btn svg { width: 20px; height: 20px; flex: none; }
+  .field { display: block; margin-bottom: 12px; }
+  .field > span { display: block; font-size: .82rem; color: var(--muted); margin-bottom: 4px; }
+  .input { width: 100%; border: 1px solid var(--line); border-radius: 12px; padding: 11px 12px; background: #fff; min-height: 46px; outline: none; }
+  .input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-weak); }
+  textarea.input { min-height: 140px; font-family: ui-monospace, monospace; font-size: .85rem; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+  /* lists */
+  .list-item { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+  .list-item:last-child { border-bottom: 0; }
+  .tap { cursor: pointer; } .tap:active { background: var(--bg); }
+  .bar { height: 8px; border-radius: 99px; background: var(--line); overflow: hidden; }
+  .bar > i { display: block; height: 100%; background: var(--accent); border-radius: 99px; transition: width .3s; }
+  .badge { font-size: .72rem; padding: 2px 8px; border-radius: 99px; background: var(--bg); color: var(--muted); white-space: nowrap; }
+  .badge.warn { background: var(--warn-weak); color: var(--warn); } .badge.off { background: #f1f5f9; color: var(--faint); }
+  .empty { text-align: center; color: var(--muted); padding: 24px 8px; }
+
+  /* scan */
+  .task-head .name { font-size: 1.15rem; font-weight: 700; line-height: 1.3; }
+  .count { font-size: 2rem; font-weight: 700; line-height: 1; letter-spacing: -.5px; }
+  .count small { font-size: 1rem; color: var(--muted); font-weight: 500; }
+  .stage { position: relative; background: #0b1220; border-radius: 20px; overflow: hidden; aspect-ratio: 1 / 1; margin-bottom: 12px; }
+  #reader { position: absolute; inset: 0; }
+  #reader video { width: 100% !important; height: 100% !important; object-fit: cover; }
+  #reader img[alt="Info icon"], #reader__dashboard, #reader__header_message { display: none !important; }
+  .frame { position: absolute; inset: 15%; border-radius: 18px; pointer-events: none;
+    box-shadow: 0 0 0 9999px rgba(11,18,32,.35); outline: 3px solid rgba(255,255,255,.9); outline-offset: -3px; transition: outline-color .15s; }
+  .stage.flash-ok .frame { outline-color: #22c55e; } .stage.flash-dup .frame { outline-color: #f59e0b; } .stage.flash-err .frame { outline-color: #ef4444; }
+  .stage-msg { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; color: #e2e8f0; text-align: center; padding: 20px; }
+  .stage-msg svg { width: 44px; height: 44px; }
+  .stage-chip { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); background: rgba(15,23,42,.6); color: #fff; font-size: .8rem; padding: 5px 12px; border-radius: 99px; white-space: nowrap; }
+  .result { position: absolute; left: 12px; right: 12px; bottom: 12px; border-radius: 14px; padding: 12px 14px; display: flex; gap: 12px; align-items: center;
+    background: #fff; box-shadow: 0 8px 24px rgba(0,0,0,.25); transform: translateY(0); transition: transform .2s, opacity .2s; }
+  .result.gone { transform: translateY(20px); opacity: 0; pointer-events: none; }
+  .result .ic { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex: none; }
+  .result .ic svg { width: 24px; height: 24px; }
+  .result.ok .ic { background: var(--accent); color: #fff; } .result.dup .ic { background: #f59e0b; color: #fff; } .result.err .ic { background: var(--bad); color: #fff; }
+  .result .t { font-weight: 700; font-size: 1.1rem; line-height: 1.25; } .result .s { font-size: .82rem; color: var(--muted); }
+  .controls { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
+  .controls .btn { flex-direction: column; gap: 2px; font-size: .78rem; font-weight: 500; min-height: 58px; padding: 6px; }
+  .controls .btn.on { background: var(--accent-weak); border-color: var(--accent); color: var(--accent); }
+  .log .list-item { padding: 9px 0; }
+  .log .st { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex: none; }
+  .log .st svg { width: 16px; height: 16px; }
+  .log .st.ok { background: var(--accent-weak); color: var(--accent); } .log .st.dup { background: var(--warn-weak); color: var(--warn); }
+  .log .st.err { background: var(--bad-weak); color: var(--bad); } .log .st.undone { background: var(--bg); color: var(--faint); }
+  .log .undone .grow { text-decoration: line-through; opacity: .5; }
+
+  /* summary */
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 12px 0; }
+  .stat { background: var(--bg); border-radius: 12px; padding: 10px; text-align: center; }
+  .stat b { display: block; font-size: 1.6rem; line-height: 1.1; } .stat span { font-size: .75rem; color: var(--muted); }
+  .stat.ok b { color: var(--accent); } .stat.bad b { color: var(--bad); }
+  .room-title { font-weight: 600; margin: 14px 0 4px; display: flex; justify-content: space-between; }
+  .name-line { padding: 6px 0; border-bottom: 1px dashed var(--line); display: flex; gap: 10px; }
+  .name-line:last-child { border-bottom: 0; }
+  details summary { cursor: pointer; font-weight: 600; padding: 8px 0; }
+
+  /* bottom nav */
+  .tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; background: rgba(255,255,255,.96); backdrop-filter: blur(10px);
+    border-top: 1px solid var(--line); display: flex; padding-bottom: env(safe-area-inset-bottom); }
+  .tabbar a { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 0 8px; color: var(--faint); text-decoration: none; font-size: .7rem; font-weight: 500; }
+  .tabbar a svg { width: 24px; height: 24px; }
+  .tabbar a.active { color: var(--accent); }
+
+  /* sheet (modal) */
+  .sheet-bg { position: fixed; inset: 0; background: rgba(15,23,42,.4); z-index: 40; display: flex; align-items: flex-end; justify-content: center; }
+  .sheet { background: var(--surface); width: 100%; max-width: 640px; border-radius: 20px 20px 0 0; padding: 18px 16px calc(18px + env(safe-area-inset-bottom));
+    max-height: 90vh; overflow: auto; animation: up .2s ease-out; }
+  @keyframes up { from { transform: translateY(40px); opacity: .5; } }
+  .sheet .grab { width: 40px; height: 4px; border-radius: 4px; background: var(--line); margin: -6px auto 12px; }
+
+  .toast { position: fixed; left: 50%; top: calc(70px + env(safe-area-inset-top)); transform: translateX(-50%); z-index: 60; max-width: 92vw;
+    background: var(--text); color: #fff; padding: 10px 16px; border-radius: 12px; font-size: .9rem; box-shadow: 0 8px 24px rgba(0,0,0,.2); }
+  .toast.err { background: var(--bad); } .toast.warn { background: #92400e; }
+
+  /* QR stickers */
+  .sticker-sheet { display: grid; gap: 4mm; }
+  .sticker { border: 1px dashed #cbd5e1; border-radius: 6px; padding: 2mm; text-align: center; background: #fff; break-inside: avoid; overflow: hidden; }
+  .sticker .q img, .sticker .q canvas { width: 100% !important; height: auto !important; display: block; }
+  .sticker .sid { font-weight: 700; line-height: 1.1; margin-top: 1mm; }
+  .sticker .nm { line-height: 1.15; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sticker .cl { color: #475569; line-height: 1.1; }
+  @media print {
+    body { background: #fff; padding: 0; }
+    .appbar, .tabbar, .no-print, .toast { display: none !important; }
+    main { max-width: none; padding: 0; }
+    section { display: none !important; } #view-qr { display: block !important; }
+    .card { box-shadow: none; padding: 0; margin: 0; }
+    @page { size: A4; margin: 8mm; }
+  }
+</style>
 </head>
 <body>
-  <div class="topbar">
-    <div class="d-flex justify-content-between align-items-center">
-      <h1>📚 เช็คการส่งงาน</h1>
-      <span class="sync opacity-75" id="syncBadge"></span>
+<header class="appbar">
+  <div class="row between">
+    <div class="grow">
+      <div class="school ellipsis" id="schoolName">เช็คการส่งงาน</div>
+      <div class="by ellipsis" id="byLine">กำลังเชื่อมต่อ…</div>
     </div>
-    <div class="small opacity-75" id="school">กำลังเชื่อมต่อ…</div>
+    <span class="pill hidden" id="syncPill"><span class="dot"></span><span id="syncText"></span></span>
+    <button class="btn ghost sm hidden" id="settingsBtn" aria-label="ตั้งค่า"><svg><use href="#i-gear"/></svg></button>
   </div>
+</header>
 
-  <div class="wrap">
-    <div id="alertBox"></div>
+<main>
+  <!-- ไม่มีสิทธิ์ -->
+  <section id="view-denied" class="hidden">
+    <div class="card" style="text-align:center;padding:28px 18px">
+      <svg style="width:48px;height:48px;color:var(--faint)"><use href="#i-lock"/></svg>
+      <h2 style="margin-top:10px">สำหรับครูเท่านั้น</h2>
+      <p class="muted small">ส่งรหัสด้านล่างให้ผู้ดูแลระบบ เพื่อเพิ่มสิทธิ์ในแผ่น Teachers</p>
+      <div class="row"><input class="input grow" id="myUserId" readonly style="font-family:monospace;font-size:.8rem"><button class="btn" id="copyId">คัดลอก</button></div>
+    </div>
+  </section>
 
-    <!-- ================= ไม่มีสิทธิ์ ================= -->
-    <section id="view-denied" class="hidden">
-      <div class="card"><div class="card-body text-center py-4">
-        <div style="font-size:52px">🔒</div>
-        <h5 class="mt-2">ระบบนี้สำหรับครูเท่านั้น</h5>
-        <p class="small text-muted mb-2">ส่ง LINE userId ด้านล่างให้ผู้ดูแลระบบ เพื่อเพิ่มในแผ่น <b>Teachers</b></p>
-        <div class="input-group">
-          <input class="form-control font-monospace small" id="myUserId" readonly>
-          <button class="btn btn-outline-secondary" id="copyId">คัดลอก</button>
-        </div>
-      </div></div>
-    </section>
+  <!-- ===== สแกน ===== -->
+  <section id="view-scan" class="hidden">
+    <div id="pickTask">
+      <div class="row between" style="margin:4px 2px 10px"><h2 style="margin:0">เลือกงานที่จะตรวจ</h2>
+        <button class="btn sm primary" data-new-task><svg><use href="#i-plus"/></svg>งานใหม่</button></div>
+      <div id="taskCards"></div>
+    </div>
 
-    <!-- ================= สแกน ================= -->
-    <section id="view-scan" class="hidden">
-      <div class="card"><div class="card-body">
-        <div id="assignPicker">
-          <div class="fw-semibold mb-2">เลือกงานที่จะเช็ค</div>
-          <div id="assignList" class="d-grid gap-2"></div>
-          <button class="btn btn-outline-success w-100 mt-2" data-go="tasks-new">➕ เพิ่มงานใหม่</button>
-        </div>
-        <div id="assignSelected" class="hidden">
-          <div class="d-flex justify-content-between align-items-start gap-2">
-            <div>
-              <div class="small text-muted" id="selSubject"></div>
-              <div class="fw-bold fs-5" id="selName"></div>
-              <div class="small text-muted" id="selMeta"></div>
-            </div>
-            <button class="btn btn-sm btn-light text-nowrap" id="changeAssign">เปลี่ยนงาน</button>
+    <div id="scanner" class="hidden">
+      <div class="card task-head">
+        <div class="row between" style="align-items:flex-start">
+          <div class="grow">
+            <div class="muted small ellipsis" id="tSub"></div>
+            <div class="name" id="tName"></div>
           </div>
-          <div class="d-flex justify-content-between small mt-2"><span>ส่งแล้ว</span><b id="progText">-</b></div>
-          <div class="progress mt-1"><div class="progress-bar" id="progBar" style="width:0%"></div></div>
+          <button class="btn sm" id="changeTask">เปลี่ยนงาน</button>
         </div>
-      </div></div>
-
-      <div class="card hidden" id="scanCard"><div class="card-body">
-        <div id="reader" class="hidden mb-2"></div>
-        <div class="flash wait mb-2" id="flash"><div class="big">พร้อมสแกน</div><div class="small">กด "เริ่มสแกน" แล้วส่องกล้องไปที่ QR บนสมุด</div></div>
-        <button class="btn btn-brand btn-lg w-100" id="camBtn">▶ เริ่มสแกน</button>
-        <button class="btn btn-outline-secondary w-100 mt-2 hidden" id="lineScanBtn">📷 ใช้ตัวสแกนของ LINE</button>
-        <div class="input-group mt-2">
-          <input class="form-control" id="manualId" placeholder="หรือพิมพ์รหัสนักเรียน" inputmode="numeric" enterkeyhint="done">
-          <button class="btn btn-outline-secondary" id="manualBtn">บันทึก</button>
+        <div class="row between" style="margin-top:12px;align-items:flex-end">
+          <div class="count" id="tCount">0<small> / 0</small></div>
+          <div class="small muted" id="tLeft"></div>
         </div>
-      </div></div>
+        <div class="bar" style="margin-top:8px"><i id="tBar" style="width:0"></i></div>
+      </div>
 
-      <div class="card hidden" id="logCard"><div class="card-body">
-        <div class="d-flex justify-content-between mb-1"><b>สแกนรอบนี้</b><span class="small text-muted" id="logCount"></span></div>
+      <div class="stage" id="stage">
+        <div id="reader"></div>
+        <div class="frame hidden" id="frame"></div>
+        <div class="stage-chip hidden" id="chip">ส่องกล้องไปที่ QR บนสมุด</div>
+        <div class="stage-msg" id="stageMsg">
+          <svg><use href="#i-scan"/></svg>
+          <div id="stageText">แตะเพื่อเปิดกล้อง</div>
+          <button class="btn primary" id="startCamBtn"><svg><use href="#i-play"/></svg>เริ่มสแกน</button>
+          <div id="camFallback" class="hidden" style="display:grid;gap:8px;width:100%;max-width:280px">
+            <button class="btn primary" id="openExternal">เปิดใน Chrome / Safari (สแกนต่อเนื่อง)</button>
+            <button class="btn" id="lineScanBtn">ใช้ตัวสแกนของ LINE</button>
+          </div>
+        </div>
+        <div class="result gone" id="result"><div class="ic" id="rIc"></div><div class="grow"><div class="t ellipsis" id="rT"></div><div class="s ellipsis" id="rS"></div></div></div>
+      </div>
+
+      <div class="controls">
+        <button class="btn" id="camToggle"><svg><use href="#i-pause"/></svg><span>หยุดกล้อง</span></button>
+        <button class="btn" id="torchBtn" disabled><svg><use href="#i-flash"/></svg><span>ไฟฉาย</span></button>
+        <button class="btn" id="typeBtn"><svg><use href="#i-keyboard"/></svg><span>พิมพ์รหัส</span></button>
+      </div>
+      <div class="card hidden" id="typeCard" style="padding:12px">
+        <div class="row"><input class="input grow" id="typeInput" placeholder="รหัสนักเรียน" inputmode="numeric" enterkeyhint="go" autocomplete="off">
+          <button class="btn primary" id="typeGo">บันทึก</button></div>
+      </div>
+
+      <div class="card log hidden" id="logCard">
+        <div class="row between"><h3 style="margin:0">ล่าสุด</h3><span class="small muted" id="logCount"></span></div>
         <div id="logList"></div>
-      </div></div>
-    </section>
+      </div>
+    </div>
+  </section>
 
-    <!-- ================= สรุป ================= -->
-    <section id="view-summary" class="hidden">
-      <div class="card"><div class="card-body">
-        <div class="d-flex gap-2">
-          <select class="form-select" id="sumSel"></select>
-          <button class="btn btn-light" id="sumRefresh" title="โหลดข้อมูลล่าสุด">🔄</button>
-        </div>
-        <div id="sumBox" class="mt-3"></div>
-      </div></div>
-    </section>
+  <!-- ===== สรุป ===== -->
+  <section id="view-summary" class="hidden">
+    <div class="card">
+      <div class="row"><select class="input grow" id="sumSel"></select>
+        <button class="btn" id="sumRefresh" aria-label="โหลดใหม่"><svg><use href="#i-refresh"/></svg></button></div>
+      <div id="sumBox"></div>
+    </div>
+  </section>
 
-    <!-- ================= งาน ================= -->
-    <section id="view-tasks" class="hidden">
-      <div class="card hidden" id="taskFormCard"><div class="card-body">
-        <h6 class="mb-3" id="taskFormTitle">➕ เพิ่มงานใหม่</h6>
-        <form id="taskForm">
-          <input type="hidden" name="assignment_id">
-          <div class="mb-2"><label class="form-label small mb-1">วิชา *</label>
-            <input class="form-control" name="subject" list="subjectList" required placeholder="เช่น คอมพิวเตอร์"><datalist id="subjectList"></datalist></div>
-          <div class="mb-2"><label class="form-label small mb-1">ชื่องาน *</label>
-            <input class="form-control" name="assignment_name" required placeholder="เช่น ใบงานที่ 3"></div>
-          <div class="mb-2"><label class="form-label small mb-1">ห้องที่สั่งงาน</label>
-            <select class="form-select" name="class_target" id="classTargetSel"></select></div>
-          <div class="mb-3"><label class="form-label small mb-1">กำหนดส่ง (ถ้ามี)</label>
-            <input class="form-control" type="datetime-local" name="due_date"></div>
-          <div class="d-flex gap-2">
-            <button class="btn btn-light flex-fill" type="button" id="taskCancel">ยกเลิก</button>
-            <button class="btn btn-brand flex-fill" type="submit">บันทึก</button>
-          </div>
-        </form>
-      </div></div>
-      <div class="card"><div class="card-body">
-        <div class="d-flex justify-content-between align-items-center mb-2">
-          <b>งานทั้งหมด</b><button class="btn btn-brand btn-sm" id="taskAdd">➕ เพิ่มงาน</button>
-        </div>
-        <div id="taskList"></div>
-      </div></div>
-    </section>
+  <!-- ===== งาน ===== -->
+  <section id="view-tasks" class="hidden">
+    <div class="row between" style="margin:4px 2px 10px"><h2 style="margin:0">งานทั้งหมด</h2>
+      <button class="btn sm primary" data-new-task><svg><use href="#i-plus"/></svg>งานใหม่</button></div>
+    <div class="card" style="padding:4px 16px"><div id="taskList"></div></div>
+  </section>
 
-    <!-- ================= นักเรียน ================= -->
-    <section id="view-students" class="hidden">
-      <div class="card hidden" id="stuFormCard"><div class="card-body">
-        <h6 class="mb-3" id="stuFormTitle">➕ เพิ่มนักเรียน</h6>
-        <form id="stuForm">
-          <input type="hidden" name="oldId">
-          <div class="row g-2">
-            <div class="col-6"><label class="form-label small mb-1">รหัสนักเรียน *</label><input class="form-control" name="student_id" required inputmode="numeric"></div>
-            <div class="col-6"><label class="form-label small mb-1">ชื่อ-สกุล *</label><input class="form-control" name="name" required></div>
-            <div class="col-6"><label class="form-label small mb-1">ชั้น *</label><input class="form-control" name="class" list="levelList" required placeholder="ม.5"><datalist id="levelList"></datalist></div>
-            <div class="col-6"><label class="form-label small mb-1">ห้อง *</label><input class="form-control" name="room" required inputmode="numeric" placeholder="1"></div>
-          </div>
-          <div class="d-flex gap-2 mt-3">
-            <button class="btn btn-light flex-fill" type="button" id="stuCancel">ยกเลิก</button>
-            <button class="btn btn-brand flex-fill" type="submit">บันทึก</button>
-          </div>
-        </form>
-      </div></div>
+  <!-- ===== นักเรียน ===== -->
+  <section id="view-students" class="hidden">
+    <div class="row between" style="margin:4px 2px 10px"><h2 style="margin:0">นักเรียน <span class="muted small" id="stuCount"></span></h2>
+      <div class="row" style="gap:6px"><button class="btn sm" id="stuImport">วางจาก Excel</button>
+      <button class="btn sm primary" id="stuAdd"><svg><use href="#i-plus"/></svg>เพิ่ม</button></div></div>
+    <div class="card" style="padding:12px 16px 4px">
+      <div class="row"><select class="input" style="max-width:42%" id="stuClass"></select><input class="input grow" id="stuSearch" placeholder="ค้นหารหัส / ชื่อ"></div>
+      <div id="stuList"></div>
+    </div>
+  </section>
 
-      <div class="card hidden" id="importCard"><div class="card-body">
-        <h6>📋 วางรายชื่อจาก Excel / Google Sheets</h6>
-        <p class="small text-muted mb-2">คัดลอก 4 คอลัมน์ <b>รหัส | ชื่อ-สกุล | ชั้น | ห้อง</b> แล้ววางด้านล่าง (รหัสที่มีอยู่แล้วจะถูกแก้ไขให้ตรง)</p>
-        <textarea class="form-control font-monospace" rows="8" id="importText" placeholder="65001	นายสมชาย ใจดี	ม.5	1"></textarea>
-        <div class="d-flex gap-2 mt-2">
-          <button class="btn btn-light flex-fill" id="importCancel">ยกเลิก</button>
-          <button class="btn btn-brand flex-fill" id="importBtn">นำเข้า</button>
-        </div>
-      </div></div>
+  <!-- ===== พิมพ์ QR ===== -->
+  <section id="view-qr" class="hidden">
+    <div class="card no-print">
+      <h2>พิมพ์สติกเกอร์ QR ติดสมุด</h2>
+      <div class="grid2">
+        <label class="field"><span>ห้อง</span><select class="input" id="qrClass"></select></label>
+        <label class="field"><span>ขนาด</span><select class="input" id="qrSize">
+          <option value="30">เล็ก 3 ซม. · 5 ดวง/แถว</option>
+          <option value="38" selected>กลาง 3.8 ซม. · 4 ดวง/แถว</option>
+          <option value="50">ใหญ่ 5 ซม. · 3 ดวง/แถว</option></select></label>
+      </div>
+      <button class="btn primary block lg" id="qrPrint"><svg><use href="#i-print"/></svg>พิมพ์ / บันทึกเป็น PDF</button>
+      <p class="small muted" id="qrHint" style="margin:10px 0 0"></p>
+    </div>
+    <div class="card"><div class="sticker-sheet" id="qrSheet"></div></div>
+  </section>
+</main>
 
-      <div class="card"><div class="card-body">
-        <div class="d-flex flex-wrap gap-2 mb-2">
-          <select class="form-select" style="max-width:160px" id="stuClass"></select>
-          <input class="form-control" style="max-width:220px" id="stuSearch" placeholder="🔍 ค้นหารหัส/ชื่อ">
-        </div>
-        <div class="d-flex gap-2 mb-2">
-          <button class="btn btn-brand btn-sm flex-fill" id="stuAdd">➕ เพิ่มนักเรียน</button>
-          <button class="btn btn-outline-secondary btn-sm flex-fill" id="stuImport">📋 วางจาก Excel</button>
-        </div>
-        <div class="small text-muted mb-1" id="stuCount"></div>
-        <div id="stuList"></div>
-      </div></div>
-    </section>
+<nav class="tabbar hidden no-print" id="tabbar">
+  <a href="#" data-view="scan" class="active"><svg><use href="#i-scan"/></svg>สแกน</a>
+  <a href="#" data-view="summary"><svg><use href="#i-chart"/></svg>สรุป</a>
+  <a href="#" data-view="tasks"><svg><use href="#i-list"/></svg>งาน</a>
+  <a href="#" data-view="students"><svg><use href="#i-users"/></svg>นักเรียน</a>
+  <a href="#" data-view="qr"><svg><use href="#i-qr"/></svg>พิมพ์ QR</a>
+</nav>
 
-    <!-- ================= พิมพ์ QR ================= -->
-    <section id="view-qr" class="hidden">
-      <div class="card no-print"><div class="card-body">
-        <h6>🔳 พิมพ์สติกเกอร์ QR ติดสมุด</h6>
-        <div class="d-flex flex-wrap gap-2">
-          <select class="form-select" style="max-width:160px" id="qrClass"></select>
-          <select class="form-select" style="max-width:190px" id="qrSize">
-            <option value="30">เล็ก 3 ซม. (5 ดวง/แถว)</option>
-            <option value="38" selected>กลาง 3.8 ซม. (4 ดวง/แถว)</option>
-            <option value="50">ใหญ่ 5 ซม. (3 ดวง/แถว)</option>
-          </select>
-        </div>
-        <button class="btn btn-brand w-100 mt-2" id="qrPrint">🖨️ พิมพ์ / บันทึกเป็น PDF</button>
-        <div class="small text-muted mt-2" id="qrHint"></div>
-      </div></div>
-      <div class="card"><div class="card-body"><div class="sticker-sheet" id="qrSheet"></div></div></div>
-    </section>
-  </div>
+<div id="sheetHost"></div>
+<div id="toastHost"></div>
 
-  <nav class="tabs hidden no-print" id="tabs">
-    <a href="#" data-view="scan" class="active"><span class="i">📷</span>สแกน</a>
-    <a href="#" data-view="summary"><span class="i">📊</span>สรุป</a>
-    <a href="#" data-view="tasks"><span class="i">📝</span>งาน</a>
-    <a href="#" data-view="students"><span class="i">👨‍🎓</span>นักเรียน</a>
-    <a href="#" data-view="qr"><span class="i">🔳</span>พิมพ์ QR</a>
-  </nav>
+<!-- icons -->
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <symbol id="i-scan" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2M4 12h16"/></symbol>
+    <symbol id="i-chart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5 20V11M12 20V5M19 20v-6"/></symbol>
+    <symbol id="i-list" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01"/></symbol>
+    <symbol id="i-users" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.6a3.5 3.5 0 0 1 0 6.8M21.5 20a6.5 6.5 0 0 0-4-6"/></symbol>
+    <symbol id="i-qr" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><path d="M14 14h2v2h-2zM18 18h2v2h-2zM14 18h2M18 14h2"/></symbol>
+    <symbol id="i-gear" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M12 6v8M12 18.5h.01"/></symbol>
+    <symbol id="i-undo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6v12M15 6v12"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l10.5-6.5z"/></symbol>
+    <symbol id="i-flash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M13 2L5 13h6l-1 9 8-11h-6z"/></symbol>
+    <symbol id="i-keyboard" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="2.5" y="6" width="19" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 0 0-14.9-3.5M4 4v4h4M4 13a8 8 0 0 0 14.9 3.5M20 20v-4h-4"/></symbol>
+    <symbol id="i-print" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M6 9V3h12v6M6 18H4a1 1 0 0 1-1-1v-6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v6a1 1 0 0 1-1 1h-2"/><rect x="6" y="14" width="12" height="7"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></symbol>
+    <symbol id="i-more" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></symbol>
+  </defs>
+</svg>
 
-  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-  <script src="config.js"></script>
-  <script>
-  /* CONFIG มาจาก config.js : { LIFF_ID, API_URL }
-     ถ้า LIFF_ID ว่าง = โหมดทดสอบ (ต้องตั้ง REQUIRE_ID_TOKEN = FALSE ใน Settings) */
-  var CFG = window.APP_CONFIG || {};
-  var params = new URLSearchParams(location.search);
-  var STATE = { idToken: '', assignment: null, log: [], sessionOk: 0, view: 'scan' };
-  var DATA = null;     // { students:[[id,name,class,room]], assignments:[], subs:{aid:{sid:[ts,subId,late]}} }
-  var BY_ID = {};      // normId → student object
-  var QUEUE = [];      // รายการที่รอบันทึกขึ้น server
-  var LS_DATA = 'rq_data_v2', LS_QUEUE = 'rq_queue_v2';
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="config.js"></script>
+<script>
+/* ============================================================
+   RatchaneeQR — หน้า LIFF สำหรับครู
+   - โหลดข้อมูลครั้งเดียว (cache ในเครื่อง) → สแกนแล้วตรวจผลบนมือถือทันที
+   - บันทึกขึ้น Google Sheet เป็นชุดเบื้องหลัง (คิวเก็บในเครื่อง กันหาย)
+   - เรียก API ซ้ำอัตโนมัติ + reqId กันบันทึกซ้ำ
+   ============================================================ */
+var CFG = window.APP_CONFIG || {};
+var LS_DATA = 'rq_data_v3', LS_QUEUE = 'rq_queue_v2';
+var STATE = { idToken: '', view: 'scan', task: null, log: [], camWanted: false };
+var DATA = null, BY_ID = {}, QUEUE = [];
 
-  /* ---------------- helpers ---------------- */
-  function $(id) { return document.getElementById(id); }
-  function show(id, on) { $(id).classList.toggle('hidden', on === false); }
-  function hide(id) { show(id, false); }
-  function esc(s) {
-    return String(s === null || s === undefined ? '' : s).replace(/[&<>"']/g, function (c) {
-      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
-    });
-  }
-  function norm(v) { return String(v === null || v === undefined ? '' : v).trim().toUpperCase(); }
-  function lsGet(k) { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { return null; } }
-  function lsSet(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
-  function alertMsg(msg, type) {
-    $('alertBox').innerHTML = msg ? '<div class="alert alert-' + (type || 'danger') + ' py-2 d-flex justify-content-between align-items-start gap-2 no-print">' +
-      '<span>' + esc(msg) + '</span><button type="button" class="btn-close" onclick="alertMsg(\'\')"></button></div>' : '';
-    if (msg) window.scrollTo({ top: 0, behavior: 'smooth' });
-  }
-  function pad(n) { return ('0' + n).slice(-2); }
-  function fmtTime(d) { d = new Date(d); return pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds()); }
-  function fmtDT(iso) {
-    if (!iso) return '-';
-    var d = new Date(iso);
-    return pad(d.getDate()) + '/' + pad(d.getMonth() + 1) + '/' + (d.getFullYear() + 543) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ' น.';
-  }
-  function toLocalInput(iso) {
-    if (!iso) return '';
-    var d = new Date(iso);
-    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
-  }
-  function natCmp(a, b) { return String(a).localeCompare(String(b), 'th', { numeric: true }); }
+/* ---------------- helpers ---------------- */
+function $(id) { return document.getElementById(id); }
+function show(el, on) { (typeof el === 'string' ? $(el) : el).classList.toggle('hidden', on === false); }
+function hide(el) { show(el, false); }
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; });
+}
+/** รหัสสำหรับเปรียบเทียบ (ตรงกับ server): ไม่สนตัวพิมพ์ และตัวเลขล้วนไม่สนเลข 0 นำหน้า */
+function norm(v) {
+  var s = String(v == null ? '' : v).trim().toUpperCase();
+  return /^\d+$/.test(s) ? s.replace(/^0+(?=\d)/, '') : s;
+}
+function lsGet(k) { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { return null; } }
+function lsSet(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+function pad(n) { return ('0' + n).slice(-2); }
+function hhmmss(d) { d = new Date(d); return pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds()); }
+function thDate(iso) {
+  if (!iso) return '-';
+  var d = new Date(iso);
+  if (isNaN(d)) return '-';
+  return d.getDate() + '/' + (d.getMonth() + 1) + '/' + String(d.getFullYear() + 543).slice(2) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+}
+function localInput(iso) {
+  if (!iso) return '';
+  var d = new Date(iso);
+  return isNaN(d) ? '' : d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+}
+function natCmp(a, b) { return String(a).localeCompare(String(b), 'th', { numeric: true }); }
+function icon(id) { return '<svg><use href="#i-' + id + '"/></svg>'; }
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
 
-  /**
-   * เรียก API พร้อมลองใหม่อัตโนมัติ
-   * Google Apps Script บางครั้งรันคำสั่งสำเร็จ แต่ส่งผลกลับไม่ถึง (ได้หน้า error / ค้าง)
-   * จึงส่งซ้ำด้วย reqId เดิม — server จำผลครั้งแรกไว้ จึงไม่บันทึกซ้ำ
-   */
-  var MAX_TRIES = 4, TIMEOUT_MS = 20000;
-  function api(action, data) {
-    var body = Object.assign({ action: action, idToken: STATE.idToken, reqId: Date.now().toString(36) + Math.random().toString(36).slice(2, 8) }, data || {});
-    if (!CFG.LIFF_ID) { body.userId = 'DEV_USER'; body.displayName = 'ทดสอบ'; }
-    var payload = JSON.stringify(body);
+var toastTimer;
+function toast(msg, kind, ms) {
+  $('toastHost').innerHTML = msg ? '<div class="toast ' + (kind || '') + '">' + esc(msg) + '</div>' : '';
+  clearTimeout(toastTimer);
+  if (msg) toastTimer = setTimeout(function () { $('toastHost').innerHTML = ''; }, ms || 2600);
+}
 
-    function attempt(n) {
-      var ctrl = window.AbortController ? new AbortController() : null;
-      var timer = ctrl ? setTimeout(function () { ctrl.abort(); }, TIMEOUT_MS) : null;
-      return fetch(CFG.API_URL, { method: 'POST', body: payload, signal: ctrl ? ctrl.signal : undefined })
-        .then(function (r) { return r.text(); })
-        .then(function (t) {
-          clearTimeout(timer);
-          try { return JSON.parse(t); } catch (e) { throw new Error('BAD_RESPONSE'); }
-        })
-        .catch(function (err) {
-          clearTimeout(timer);
-          if (n >= MAX_TRIES) throw new Error('เชื่อมต่อ Google ไม่สำเร็จ (ลองแล้ว ' + n + ' ครั้ง)');
-          setBusy('กำลังลองใหม่… (' + (n + 1) + '/' + MAX_TRIES + ')');
-          return new Promise(function (res) { setTimeout(res, 800 * n); }).then(function () { return attempt(n + 1); });
-        });
-    }
-
-    return attempt(1).then(function (res) {
-      setBusy('');
-      if (res.code === 'UNAUTHORIZED' && window.liff && CFG.LIFF_ID && liff.isLoggedIn()) {
-        liff.logout(); liff.login({ redirectUri: location.href }); // ID Token หมดอายุ → login ใหม่
-        return new Promise(function () {});
-      }
-      return res;
-    }, function (err) { setBusy(''); throw err; });
-  }
-
-  /** แจ้งเมื่อลองครบแล้วยังไม่สำเร็จ แล้วโหลดข้อมูลล่าสุด (คำสั่งอาจบันทึกไปแล้ว) */
-  function netError(e, noReload) {
-    alertMsg((e && e.message || 'เชื่อมต่อไม่สำเร็จ') + ' — ระบบกำลังโหลดข้อมูลล่าสุด ถ้ารายการที่ทำขึ้นแล้วแสดงว่าบันทึกสำเร็จ ไม่ต้องทำซ้ำ', 'warning');
-    if (!noReload) refresh().catch(function () {});
-  }
-
-  function setBusy(msg) {
-    if (msg) $('syncBadge').textContent = '🔄 ' + msg;
-    else updateSync();
-  }
-
-  /* ---------------- ข้อมูล (โหลดครั้งเดียว + cache ในเครื่อง) ---------------- */
-  function setData(d) {
-    DATA = { students: d.students || [], assignments: d.assignments || [], subs: d.subs || {},
-      school: d.school, user: d.user, studentPrefix: d.studentPrefix || 'STU-', liffId: d.liffId };
-    // ใส่รายการที่ยังรอบันทึกกลับเข้าไป (กันหายเมื่อโหลดข้อมูลใหม่)
-    QUEUE.forEach(function (q) {
-      var m = DATA.subs[q.assignmentId] = DATA.subs[q.assignmentId] || {};
-      if (!m[q.studentId]) m[q.studentId] = [q.ts, null, false];
-    });
-    BY_ID = {};
-    DATA.students.forEach(function (s) {
-      BY_ID[norm(s[0])] = { id: s[0], name: s[1], cls: s[2], room: s[3], className: s[3] !== '' ? s[2] + '/' + s[3] : s[2] };
-    });
-    lsSet(LS_DATA, DATA);
-    if (STATE.assignment) {
-      var a = findAssignment(STATE.assignment.assignment_id);
-      if (a) STATE.assignment = a;
-    }
-    renderAll();
-  }
-
-  function refresh() {
-    return api('bootstrap').then(function (r) {
-      if (!r.ok) { alertMsg(r.message); return r; }
-      if (!r.user.isTeacher) return r;
-      setData(r);
-      return r;
-    });
-  }
-
-  function findAssignment(id) {
-    return (DATA.assignments || []).filter(function (a) { return norm(a.assignment_id) === norm(id); })[0] || null;
-  }
-  function openAssignments() { return DATA.assignments.filter(function (a) { return a.status === 'OPEN'; }); }
-  function studentList() { return Object.keys(BY_ID).map(function (k) { return BY_ID[k]; }); }
-  function classNames() {
-    var set = {};
-    studentList().forEach(function (s) { set[s.className] = true; });
-    return Object.keys(set).sort(natCmp);
-  }
-  function isTarget(a, s) {
-    var t = String(a.class_target || 'ALL').trim();
-    if (!t || norm(t) === 'ALL' || t === 'ทั้งหมด') return true;
-    return t.split(/[,;]/).some(function (x) { x = norm(x); return x && (x === norm(s.cls) || x === norm(s.className)); });
-  }
-  function targetStudents(a) { return studentList().filter(function (s) { return isTarget(a, s); }); }
-  function subsOf(aid) { return DATA.subs[aid] = DATA.subs[aid] || {}; }
-  function progressOf(a) {
-    var m = subsOf(a.assignment_id);
-    var t = targetStudents(a);
-    return { target: t.length, submitted: t.filter(function (s) { return m[s.id]; }).length };
-  }
-  function parseStudent(raw) {
-    var s = String(raw || '').trim();
-    if (/^https?:\/\//i.test(s)) { var m = s.match(/[?&](student|stu)=([^&#]+)/); return m ? decodeURIComponent(m[2]) : ''; }
-    var p = norm(DATA.studentPrefix || 'STU-');
-    if (p && norm(s).indexOf(p) === 0) return s.substring(p.length).trim();
-    var m2 = s.match(/^STU-?(.+)$/i);
-    return m2 ? m2[1].trim() : s;
-  }
-
-  function renderAll() {
-    $('school').textContent = (DATA.school || '') + ' · 🧑‍🏫 ' + ((DATA.user && (DATA.user.teacherName || DATA.user.displayName)) || '');
-    renderAssignList();
-    fillSelectors();
-    if (STATE.assignment) setProgress();
-    if (STATE.view === 'summary') renderSummary();
-    if (STATE.view === 'tasks') renderTasks();
-    if (STATE.view === 'students') renderStudents();
-    if (STATE.view === 'qr') renderQr();
-  }
-
-  function fillSelectors() {
-    var classes = classNames();
-    var levels = {};
-    classes.forEach(function (c) { var l = c.split('/')[0]; if (l !== c) levels[l] = true; });
-    var opts = '<option value="ALL">ทุกห้อง</option>' + Object.keys(levels).sort(natCmp).map(function (l) {
-      return '<option value="' + esc(l) + '">' + esc(l) + ' ทุกห้อง</option>';
-    }).join('') + classes.map(function (c) { return '<option>' + esc(c) + '</option>'; }).join('');
-    var keep = $('classTargetSel').value;
-    $('classTargetSel').innerHTML = opts;
-    if (keep) $('classTargetSel').value = keep;
-    var subj = {};
-    DATA.assignments.forEach(function (a) { subj[a.subject] = true; });
-    $('subjectList').innerHTML = Object.keys(subj).map(function (s) { return '<option value="' + esc(s) + '">'; }).join('');
-    $('levelList').innerHTML = Object.keys(levels).sort(natCmp).map(function (s) { return '<option value="' + esc(s) + '">'; }).join('');
-    ['stuClass', 'qrClass'].forEach(function (id) {
-      var cur = $(id).value;
-      $(id).innerHTML = '<option value="">ทุกห้อง</option>' + classes.map(function (c) { return '<option>' + esc(c) + '</option>'; }).join('');
-      $(id).value = classes.indexOf(cur) >= 0 ? cur : '';
-    });
-  }
-
-  /* ---------------- เสียง / สั่น ---------------- */
-  var audioCtx = null;
-  function unlockAudio() {
-    try { audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)(); if (audioCtx.state === 'suspended') audioCtx.resume(); } catch (e) {}
-  }
-  function beep(kind) {
-    try { if (navigator.vibrate) navigator.vibrate(kind === 'ok' ? 70 : [60, 60, 60]); } catch (e) {}
-    if (!audioCtx) return;
-    var tones = kind === 'ok' ? [[1320, 0, .12]] : kind === 'dup' ? [[660, 0, .1], [660, .15, .1]] : [[220, 0, .35]];
-    tones.forEach(function (t) {
-      var o = audioCtx.createOscillator(), g = audioCtx.createGain();
-      o.frequency.value = t[0];
-      g.gain.setValueAtTime(.25, audioCtx.currentTime + t[1]);
-      g.gain.exponentialRampToValueAtTime(.001, audioCtx.currentTime + t[1] + t[2]);
-      o.connect(g); g.connect(audioCtx.destination);
-      o.start(audioCtx.currentTime + t[1]); o.stop(audioCtx.currentTime + t[1] + t[2] + .02);
-    });
-  }
-
-  /* ================= สแกน ================= */
-  function renderAssignList() {
-    var list = openAssignments();
-    $('assignList').innerHTML = list.length ? list.map(function (a) {
-      var p = progressOf(a);
-      return '<div class="border rounded-3 p-2 pick" data-aid="' + esc(a.assignment_id) + '">' +
-        '<div class="d-flex justify-content-between"><div class="fw-semibold">' + esc(a.assignment_name) + ' <span class="text-muted fw-normal">· ' + esc(a.subject) + '</span></div>' +
-        '<span class="small text-nowrap">' + p.submitted + '/' + p.target + '</span></div>' +
-        '<div class="small text-muted">' + esc(a.class_target === 'ALL' ? 'ทุกห้อง' : a.class_target) + ' · กำหนดส่ง ' + esc(a.due_text) +
-        (a.is_overdue ? ' <span class="badge text-bg-warning">เลยกำหนด</span>' : '') + '</div></div>';
-    }).join('') : '<div class="text-muted small text-center py-2">ยังไม่มีงานที่เปิดรับ</div>';
-  }
-
-  $('assignList').addEventListener('click', function (e) {
-    var el = e.target.closest('[data-aid]');
-    if (el) selectAssignment(el.dataset.aid);
+/* ---------------- bottom sheet ---------------- */
+function openSheet(html, onMount) {
+  $('sheetHost').innerHTML = '<div class="sheet-bg" id="sheetBg"><div class="sheet" role="dialog"><div class="grab"></div>' + html + '</div></div>';
+  $('sheetBg').addEventListener('click', function (e) { if (e.target.id === 'sheetBg') closeSheet(); });
+  if (onMount) onMount($('sheetHost').querySelector('.sheet'));
+}
+function closeSheet() { $('sheetHost').innerHTML = ''; }
+function confirmSheet(title, text, okLabel, danger) {
+  return new Promise(function (resolve) {
+    openSheet('<h2>' + esc(title) + '</h2><p class="muted">' + esc(text) + '</p><div class="grid2"><button class="btn" id="cfNo">ยกเลิก</button>' +
+      '<button class="btn primary" id="cfYes"' + (danger ? ' style="background:var(--bad);border-color:var(--bad)"' : '') + '>' + esc(okLabel) + '</button></div>',
+      function () {
+        $('cfNo').onclick = function () { closeSheet(); resolve(false); };
+        $('cfYes').onclick = function () { closeSheet(); resolve(true); };
+      });
   });
-  $('changeAssign').onclick = function () {
-    stopCam();
-    STATE.assignment = null;
-    show('assignPicker'); hide('assignSelected'); hide('scanCard');
-    renderAssignList();
-  };
+}
 
-  function selectAssignment(aid) {
-    var a = findAssignment(aid);
-    if (!a) { alertMsg('ไม่พบงาน ' + aid); return; }
-    if (a.status !== 'OPEN') { alertMsg('งาน "' + a.assignment_name + '" ปิดรับแล้ว'); return; }
-    STATE.assignment = a;
-    switchView('scan');
-    hide('assignPicker'); show('assignSelected'); show('scanCard');
-    $('selSubject').textContent = a.subject;
-    $('selName').textContent = a.assignment_name;
-    $('selMeta').textContent = (a.class_target === 'ALL' ? 'ทุกห้อง' : a.class_target) + ' · กำหนดส่ง ' + a.due_text;
-    setProgress();
-    setFlash('wait', 'พร้อมสแกน', 'กด "เริ่มสแกน" แล้วส่องกล้องไปที่ QR บนสมุด');
-  }
-
-  function setProgress() {
-    var p = progressOf(STATE.assignment);
-    $('progText').textContent = p.submitted + ' / ' + p.target + ' คน' + (p.target && p.submitted >= p.target ? ' 🎉' : '');
-    $('progBar').style.width = (p.target ? Math.round(p.submitted / p.target * 100) : 0) + '%';
-  }
-
-  function setFlash(kind, big, small) {
-    $('flash').className = 'flash mb-2 ' + kind;
-    $('flash').innerHTML = '<div class="big">' + esc(big) + '</div>' + (small ? '<div class="small">' + esc(small) + '</div>' : '');
-  }
-
-  /* ---- กล้อง: สแกนต่อเนื่อง ---- */
-  var cam = null, camOn = false, lastCode = '', lastAt = 0;
-  $('camBtn').onclick = function () { unlockAudio(); camOn ? stopCam() : startCam(); };
-
-  function startCam() {
-    show('reader');
-    cam = cam || new Html5Qrcode('reader', { verbose: false });
-    cam.start({ facingMode: 'environment' }, { fps: 15, qrbox: { width: 240, height: 240 }, aspectRatio: 1 }, onCode, function () {})
-      .then(function () { camOn = true; $('camBtn').textContent = '⏹ หยุดสแกน'; $('camBtn').className = 'btn btn-outline-danger btn-lg w-100'; })
-      .catch(function (err) {
-        hide('reader');
-        if (hasLineScanner()) { alertMsg('เปิดกล้องในหน้านี้ไม่ได้ จะใช้ตัวสแกนของ LINE แทน', 'warning'); lineLoop(); }
-        else alertMsg('เปิดกล้องไม่ได้ (' + err + ') — พิมพ์รหัสแทนได้');
+/* ---------------- API (ลองใหม่อัตโนมัติ) ---------------- */
+var MAX_TRIES = 4, TIMEOUT_MS = 20000;
+function api(action, data) {
+  var body = Object.assign({ action: action, idToken: STATE.idToken, reqId: uid() }, data || {});
+  if (!CFG.LIFF_ID) { body.userId = 'DEV_USER'; body.displayName = 'ทดสอบ'; }
+  var payload = JSON.stringify(body);
+  function attempt(n) {
+    var ctrl = window.AbortController ? new AbortController() : null;
+    var timer = ctrl ? setTimeout(function () { ctrl.abort(); }, TIMEOUT_MS) : null;
+    return fetch(CFG.API_URL, { method: 'POST', body: payload, signal: ctrl ? ctrl.signal : undefined })
+      .then(function (r) { return r.text(); })
+      .then(function (t) { clearTimeout(timer); try { return JSON.parse(t); } catch (e) { throw new Error('BAD_RESPONSE'); } })
+      .catch(function () {
+        clearTimeout(timer);
+        if (n >= MAX_TRIES) throw new Error('เชื่อมต่อ Google ไม่สำเร็จ');
+        setSync('wait', 'กำลังลองใหม่ ' + (n + 1) + '/' + MAX_TRIES);
+        return new Promise(function (res) { setTimeout(res, 700 * n); }).then(function () { return attempt(n + 1); });
       });
   }
-  function stopCam() {
-    if (!cam || !camOn) return;
-    camOn = false;
-    cam.stop().catch(function () {}).then(function () { hide('reader'); });
-    $('camBtn').textContent = '▶ เริ่มสแกน'; $('camBtn').className = 'btn btn-brand btn-lg w-100';
-  }
-  function hasLineScanner() {
-    return !!(window.liff && CFG.LIFF_ID && liff.isInClient() && liff.isApiAvailable && liff.isApiAvailable('scanCodeV2'));
-  }
-  function lineLoop() {
-    liff.scanCodeV2().then(function (r) {
-      if (!r || !r.value) return;
-      onCode(r.value);
-      setTimeout(lineLoop, 300);
-    }).catch(function () {});
-  }
-  $('lineScanBtn').onclick = function () { unlockAudio(); stopCam(); lineLoop(); };
-
-  function onCode(text) {
-    text = String(text || '').trim();
-    if (!text) return;
-    var now = Date.now();
-    if (text === lastCode && now - lastAt < 3000) return; // กันอ่านเล่มเดิมซ้ำทันที
-    lastCode = text; lastAt = now;
-    var task = text.match(/[?&]task=([^&#]+)/);
-    if (task) { selectAssignment(decodeURIComponent(task[1])); return; }
-    record(text);
-  }
-
-  $('manualBtn').onclick = function () {
-    var v = $('manualId').value.trim();
-    if (!v) return;
-    unlockAudio();
-    $('manualId').value = '';
-    record(v);
-  };
-  $('manualId').addEventListener('keydown', function (e) { if (e.key === 'Enter') $('manualBtn').click(); });
-
-  /** ตรวจผลบนมือถือทันที แล้วเข้าคิวบันทึก */
-  function record(raw) {
-    var a = STATE.assignment;
-    if (!a) return;
-    var sid = parseStudent(raw);
-    var s = BY_ID[norm(sid)];
-    var entry = { id: 'e' + Date.now() + Math.random().toString(36).slice(2, 6), code: sid || raw, time: fmtTime(new Date()), aid: a.assignment_id };
-    STATE.log.unshift(entry);
-
-    if (!s) {
-      entry.state = 'err'; entry.msg = 'ไม่พบรหัสนี้ในรายชื่อ';
-      setFlash('err', '❌ ไม่พบรหัส ' + (sid || raw), 'เพิ่มนักเรียนได้ที่แท็บ "นักเรียน"'); beep('err');
-    } else if (!isTarget(a, s)) {
-      Object.assign(entry, { state: 'err', name: s.name, sid: s.id, cls: s.className, msg: 'ไม่ใช่ห้องที่สั่งงานนี้' });
-      setFlash('err', '❌ ' + s.name, 'ห้อง ' + s.className + ' ไม่ได้รับงานนี้'); beep('err');
-    } else if (subsOf(a.assignment_id)[s.id]) {
-      var prev = subsOf(a.assignment_id)[s.id];
-      Object.assign(entry, { state: 'dup', name: s.name, sid: s.id, cls: s.className, msg: 'ส่งแล้วเมื่อ ' + fmtDT(prev[0]) });
-      setFlash('dup', '⚠️ ' + s.name + ' ส่งแล้ว', 'เมื่อ ' + fmtDT(prev[0])); beep('dup');
-    } else {
-      var ts = new Date().toISOString();
-      var due = a.due_date ? new Date(a.due_date) : null;
-      var late = !!(due && Date.now() > due.getTime());
-      subsOf(a.assignment_id)[s.id] = [ts, null, late];
-      Object.assign(entry, { state: 'ok', name: s.name, sid: s.id, cls: s.className, late: late, pending: true });
-      QUEUE.push({ cid: entry.id, studentId: s.id, assignmentId: a.assignment_id, ts: ts });
-      lsSet(LS_QUEUE, QUEUE);
-      STATE.sessionOk++;
-      setFlash('ok', '✅ ' + s.name, s.id + ' · ' + s.className + (late ? ' · ส่งช้า' : ''));
-      beep('ok');
-      setProgress();
-      scheduleFlush();
+  return attempt(1).then(function (res) {
+    updateSync();
+    if (res.code === 'UNAUTHORIZED' && window.liff && CFG.LIFF_ID && liff.isLoggedIn()) {
+      liff.logout(); liff.login({ redirectUri: location.href }); // ID Token หมดอายุ
+      return new Promise(function () {});
     }
-    renderLog();
-  }
+    return res;
+  }, function (err) { updateSync(); throw err; });
+}
+/** แจ้งเมื่อลองครบแล้วยังไม่สำเร็จ — คำสั่งอาจบันทึกไปแล้ว จึงโหลดข้อมูลล่าสุดให้ */
+function netError(e) {
+  toast((e && e.message || 'เชื่อมต่อไม่สำเร็จ') + ' — กำลังโหลดข้อมูลล่าสุด', 'warn', 4000);
+  refresh().catch(function () {});
+}
 
-  function renderLog() {
-    show('logCard', STATE.log.length > 0);
-    $('logCount').textContent = 'บันทึก ' + STATE.sessionOk + ' เล่ม';
-    var icon = { ok: '✅', dup: '⚠️', err: '❌', undone: '↩️' };
-    $('logList').innerHTML = STATE.log.slice(0, 150).map(function (e) {
-      return '<div class="row-item' + (e.state === 'undone' ? ' undone' : '') + '"><div class="ic">' + icon[e.state] + '</div>' +
-        '<div class="main"><div class="n">' + esc(e.name || e.code) + '</div><div class="small text-muted">' + esc(e.time) +
-        (e.sid ? ' · ' + esc(e.sid) + ' · ' + esc(e.cls) : '') + (e.late ? ' · ส่งช้า' : '') + (e.msg ? ' · ' + esc(e.msg) : '') +
-        (e.state === 'ok' ? (e.pending ? ' · <span class="text-warning">⏳ รอบันทึก</span>' : ' · <span class="text-success">☁️ บันทึกแล้ว</span>') : '') +
-        '</div></div>' +
-        (e.state === 'ok' ? '<button class="btn btn-sm btn-outline-danger" data-undo="' + e.id + '">ยกเลิก</button>' : '') + '</div>';
-    }).join('');
-  }
+/* ---------------- ข้อมูล ---------------- */
+function setData(d) {
+  var subs = {};
+  Object.keys(d.subs || {}).forEach(function (aid) {
+    var m = subs[norm(aid)] = {};
+    Object.keys(d.subs[aid]).forEach(function (sid) { m[norm(sid)] = d.subs[aid][sid]; });
+  });
+  DATA = {
+    students: d.students || [], assignments: d.assignments || [], subs: subs,
+    school: d.school || '', adminName: d.adminName || '', user: d.user || {}, studentPrefix: d.studentPrefix || 'STU-'
+  };
+  QUEUE.forEach(function (q) { // รายการที่ยังไม่ขึ้น server ต้องยังแสดงว่าส่งแล้ว
+    var m = subsOf(q.assignmentId);
+    if (!m[norm(q.studentId)]) m[norm(q.studentId)] = [q.ts, null, false];
+  });
+  BY_ID = {};
+  DATA.students.forEach(function (s) {
+    var room = s[3] == null ? '' : String(s[3]);
+    BY_ID[norm(s[0])] = { id: String(s[0]), name: s[1], cls: String(s[2] || ''), room: room, className: room !== '' ? s[2] + '/' + room : String(s[2] || '') };
+  });
+  lsSet(LS_DATA, DATA);
+  if (STATE.task) STATE.task = findTask(STATE.task.assignment_id) || STATE.task;
+  renderHeader();
+  renderCurrent();
+}
+function saveLocal() { lsSet(LS_DATA, DATA); }
+function refresh() {
+  return api('bootstrap').then(function (r) {
+    if (!r.ok) { toast(r.message, 'err'); return r; }
+    if (r.user && r.user.isTeacher) setData(r);
+    return r;
+  });
+}
+function findTask(id) { return DATA.assignments.filter(function (a) { return norm(a.assignment_id) === norm(id); })[0] || null; }
+function openTasks() { return DATA.assignments.filter(function (a) { return a.status === 'OPEN'; }); }
+function students() { return Object.keys(BY_ID).map(function (k) { return BY_ID[k]; }); }
+function classNames() {
+  var set = {};
+  students().forEach(function (s) { if (s.className) set[s.className] = true; });
+  return Object.keys(set).sort(natCmp);
+}
+function levels() {
+  var set = {};
+  students().forEach(function (s) { if (s.cls) set[s.cls] = true; });
+  return Object.keys(set).sort(natCmp);
+}
+function isTarget(a, s) {
+  var t = String(a.class_target || 'ALL').trim();
+  if (!t || norm(t) === 'ALL' || t === 'ทั้งหมด') return true;
+  return t.split(/[,;]/).some(function (x) { x = norm(x); return x && (x === norm(s.cls) || x === norm(s.className)); });
+}
+function targetsOf(a) { return students().filter(function (s) { return isTarget(a, s); }); }
+function subsOf(aid) { return DATA.subs[norm(aid)] = DATA.subs[norm(aid)] || {}; }
+function progressOf(a) {
+  var m = subsOf(a.assignment_id), t = targetsOf(a);
+  return { target: t.length, done: t.filter(function (s) { return m[norm(s.id)]; }).length };
+}
+function targetLabel(a) { var t = a.class_target || 'ALL'; return t === 'ALL' ? 'ทุกห้อง' : t; }
+function parseStudent(raw) {
+  var s = String(raw || '').trim();
+  if (/^https?:\/\//i.test(s)) { var m = s.match(/[?&](student|stu)=([^&#]+)/); return m ? decodeURIComponent(m[2]) : ''; }
+  var p = String(DATA.studentPrefix || 'STU-').toUpperCase();
+  if (p && s.toUpperCase().indexOf(p) === 0) return s.substring(p.length).trim();
+  var m2 = s.match(/^STU-?(.+)$/i);
+  return m2 ? m2[1].trim() : s;
+}
 
-  $('logList').addEventListener('click', function (ev) {
-    var b = ev.target.closest('[data-undo]');
-    if (!b) return;
-    var e = STATE.log.filter(function (x) { return x.id === b.dataset.undo; })[0];
-    if (!e || !confirm('ยกเลิกการบันทึกของ ' + e.name + ' ?')) return;
-    var inQueue = QUEUE.some(function (q) { return q.cid === e.id; });
+/* ---------------- header / sync ---------------- */
+function renderHeader() {
+  $('schoolName').textContent = DATA.school || 'เช็คการส่งงาน';
+  var who = (DATA.user && DATA.user.teacherName) || DATA.adminName || (DATA.user && DATA.user.displayName) || '';
+  $('byLine').textContent = who ? 'โดย ' + who : '';
+  show('settingsBtn', !!(DATA.user && DATA.user.isAdmin));
+}
+function setSync(kind, text) {
+  show('syncPill');
+  $('syncPill').className = 'pill ' + (kind === 'ok' ? 'ok' : 'wait');
+  $('syncText').textContent = text;
+}
+function updateSync() {
+  if (!DATA) return;
+  if (QUEUE.length) setSync('wait', 'รอบันทึก ' + QUEUE.length);
+  else setSync('ok', 'บันทึกครบแล้ว');
+}
+
+/* ---------------- เสียง / สั่น ---------------- */
+var audioCtx = null;
+function unlockAudio() {
+  try { audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)(); if (audioCtx.state === 'suspended') audioCtx.resume(); } catch (e) {}
+}
+document.addEventListener('pointerdown', unlockAudio, { passive: true });
+function feedback(kind) {
+  try { if (navigator.vibrate) navigator.vibrate(kind === 'ok' ? 60 : [70, 50, 70]); } catch (e) {}
+  if (!audioCtx) return;
+  var tones = kind === 'ok' ? [[1400, 0, .09]] : kind === 'dup' ? [[700, 0, .09], [700, .14, .09]] : [[200, 0, .3]];
+  tones.forEach(function (t) {
+    var o = audioCtx.createOscillator(), g = audioCtx.createGain();
+    o.frequency.value = t[0];
+    g.gain.setValueAtTime(.3, audioCtx.currentTime + t[1]);
+    g.gain.exponentialRampToValueAtTime(.001, audioCtx.currentTime + t[1] + t[2]);
+    o.connect(g); g.connect(audioCtx.destination);
+    o.start(audioCtx.currentTime + t[1]); o.stop(audioCtx.currentTime + t[1] + t[2] + .02);
+  });
+}
+
+/* =====================================================
+   สแกน
+   ===================================================== */
+function renderTaskCards() {
+  var list = openTasks();
+  $('taskCards').innerHTML = list.length ? list.map(function (a) {
+    var p = progressOf(a), pct = p.target ? Math.round(p.done / p.target * 100) : 0;
+    return '<div class="card tap" data-pick="' + esc(a.assignment_id) + '" style="padding:14px 16px">' +
+      '<div class="row between"><div class="grow"><div style="font-weight:600" class="ellipsis">' + esc(a.assignment_name) + '</div>' +
+      '<div class="small muted ellipsis">' + esc(a.subject) + ' · ' + esc(targetLabel(a)) + (a.due_date ? ' · ส่ง ' + esc(thDate(a.due_date)) : '') + '</div></div>' +
+      '<div style="text-align:right"><b>' + p.done + '</b><span class="muted">/' + p.target + '</span>' + (a.is_overdue ? '<div><span class="badge warn">เลยกำหนด</span></div>' : '') + '</div></div>' +
+      '<div class="bar" style="margin-top:10px"><i style="width:' + pct + '%"></i></div></div>';
+  }).join('') : '<div class="card empty">ยังไม่มีงานที่เปิดรับ<br><button class="btn primary" style="margin-top:12px" data-new-task>' + icon('plus') + 'สร้างงานแรก</button></div>';
+}
+$('taskCards').addEventListener('click', function (e) {
+  var c = e.target.closest('[data-pick]');
+  if (c) selectTask(c.dataset.pick, true);
+});
+
+function selectTask(aid, userGesture) {
+  var a = findTask(aid);
+  if (!a) { toast('ไม่พบงานนี้', 'err'); return; }
+  if (a.status !== 'OPEN') { toast('งานนี้ปิดรับแล้ว', 'warn'); return; }
+  STATE.task = a;
+  STATE.log = STATE.log.filter(function (e) { return norm(e.aid) === norm(a.assignment_id); });
+  hide('pickTask'); show('scanner');
+  $('tSub').textContent = a.subject + ' · ' + targetLabel(a) + (a.due_date ? ' · กำหนดส่ง ' + thDate(a.due_date) : '');
+  $('tName').textContent = a.assignment_name;
+  hideResult();
+  if (userGesture) STATE.camWanted = true;
+  go('scan'); // เปิดกล้องอัตโนมัติถ้าครูเคยเปิดไว้ / เพิ่งแตะเลือกงาน
+}
+$('changeTask').onclick = function () {
+  stopCam(true); STATE.task = null;
+  show('pickTask'); hide('scanner'); renderTaskCards();
+};
+function renderProgress() {
+  var p = progressOf(STATE.task);
+  $('tCount').innerHTML = p.done + '<small> / ' + p.target + '</small>';
+  $('tLeft').textContent = p.target - p.done > 0 ? 'เหลือ ' + (p.target - p.done) + ' คน' : (p.target ? 'ครบทุกคนแล้ว 🎉' : '');
+  $('tBar').style.width = (p.target ? Math.round(p.done / p.target * 100) : 0) + '%';
+}
+
+/* ---- กล้อง: เปิดค้างไว้ สแกนต่อเนื่อง ---- */
+var cam = null, camOn = false, camBusy = false, lastText = '', lastAt = 0, holdUntil = 0, torchOn = false;
+
+function stageState(kind, text) {
+  // kind: idle | starting | live | error
+  show('stageMsg', kind !== 'live');
+  show('frame', kind === 'live'); show('chip', kind === 'live');
+  show('startCamBtn', kind === 'idle');
+  show('camFallback', kind === 'error');
+  $('stageText').textContent = text || '';
+  $('camToggle').innerHTML = kind === 'live' ? icon('pause') + '<span>หยุดกล้อง</span>' : icon('play') + '<span>เปิดกล้อง</span>';
+}
+stageState('idle', 'แตะเพื่อเปิดกล้อง');
+
+function startCam() {
+  if (camOn || camBusy) return;
+  camBusy = true;
+  STATE.camWanted = true;
+  stageState('starting', 'กำลังเปิดกล้อง…');
+  try {
+    cam = cam || new Html5Qrcode('reader', {
+      verbose: false,
+      formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
+      experimentalFeatures: { useBarCodeDetectorIfSupported: true }
+    });
+  } catch (e) { camBusy = false; camFailed(e); return; }
+  cam.start({ facingMode: 'environment' }, {
+    fps: 20, aspectRatio: 1, disableFlip: true,
+    qrbox: function (w, h) { var m = Math.floor(Math.min(w, h) * 0.7); return { width: m, height: m }; }
+  }, onDecoded, function () {}).then(function () {
+    camOn = true; camBusy = false;
+    // ถ้าผู้ใช้เปลี่ยนหน้าไประหว่างเปิดกล้อง ให้ปิดทันที
+    if (STATE.view !== 'scan' || !STATE.task || document.hidden) { stopCam(true); return; }
+    stageState('live');
+    setupTorch();
+  }).catch(function (err) { camBusy = false; camFailed(err); });
+}
+function stopCam(keepWanted) {
+  if (!keepWanted) STATE.camWanted = false;
+  $('torchBtn').disabled = true; $('torchBtn').classList.remove('on');
+  if (!cam || !camOn) { if (!camBusy) stageState('idle', 'แตะเพื่อเปิดกล้อง'); return; }
+  camOn = false; torchOn = false;
+  cam.stop().catch(function () {}).then(function () { stageState('idle', 'แตะเพื่อเปิดกล้อง'); });
+}
+function camFailed(err) {
+  STATE.camWanted = false;
+  var inLine = !!(window.liff && CFG.LIFF_ID && liff.isInClient());
+  stageState(inLine ? 'error' : 'idle', inLine ? 'แอป LINE ไม่อนุญาตให้เปิดกล้องในหน้านี้' : 'เปิดกล้องไม่ได้ — อนุญาตการใช้กล้องแล้วลองใหม่');
+  show('lineScanBtn', hasLineScanner());
+  if (!inLine) toast(String(err && err.message || err).slice(0, 120), 'err', 4000);
+}
+function setupTorch() {
+  var b = $('torchBtn');
+  b.disabled = true;
+  try {
+    var t = cam.getRunningTrackCameraCapabilities().torchFeature();
+    if (t.isSupported()) {
+      b.disabled = false;
+      b.onclick = function () {
+        torchOn = !torchOn;
+        t.apply(torchOn).catch(function () {});
+        b.classList.toggle('on', torchOn);
+      };
+    }
+  } catch (e) {}
+}
+$('startCamBtn').onclick = function () { startCam(); };
+$('camToggle').onclick = function () { camOn ? stopCam() : startCam(); };
+$('openExternal').onclick = function () {
+  var url = 'https://liff.line.me/' + CFG.LIFF_ID + (STATE.task ? '?task=' + encodeURIComponent(STATE.task.assignment_id) : '');
+  liff.openWindow({ url: url, external: true });
+};
+function hasLineScanner() {
+  return !!(window.liff && CFG.LIFF_ID && liff.isInClient() && liff.isApiAvailable && liff.isApiAvailable('scanCodeV2'));
+}
+function lineLoop() {
+  liff.scanCodeV2().then(function (r) {
+    if (!r || !r.value) return;
+    handleCode(r.value);
+    setTimeout(lineLoop, 250);
+  }).catch(function () {});
+}
+$('lineScanBtn').onclick = lineLoop;
+// ปิดกล้องเมื่อออกจากแอป เปิดใหม่เมื่อกลับมา
+document.addEventListener('visibilitychange', function () {
+  if (document.hidden) { if (camOn) stopCam(true); }
+  else if (STATE.camWanted && STATE.view === 'scan' && STATE.task) startCam();
+});
+
+function onDecoded(text) {
+  var now = Date.now();
+  if (now < holdUntil) return;                          // พักสั้น ๆ หลังแสดงผล
+  if (text === lastText && now - lastAt < 2500) return; // เล่มเดิมยังอยู่หน้ากล้อง
+  lastText = text; lastAt = now;
+  holdUntil = now + 700;
+  handleCode(text);
+}
+
+function handleCode(text) {
+  var task = String(text).match(/[?&]task=([^&#]+)/);
+  if (task) { selectTask(decodeURIComponent(task[1])); return; }
+  record(text);
+}
+
+/** ตรวจผลบนมือถือทันที แล้วเข้าคิวบันทึก */
+function record(raw) {
+  var a = STATE.task;
+  if (!a || !DATA) return;
+  var sid = parseStudent(raw), s = BY_ID[norm(sid)];
+  var e = { id: uid(), aid: a.assignment_id, time: hhmmss(new Date()), code: sid || String(raw).slice(0, 30) };
+  if (!s) {
+    e.state = 'err'; e.msg = 'ไม่พบรหัสนี้ในรายชื่อ';
+    showResult('err', 'ไม่พบรหัส ' + e.code, 'เพิ่มนักเรียนได้ที่เมนู "นักเรียน"');
+  } else if (!isTarget(a, s)) {
+    Object.assign(e, { state: 'err', name: s.name, sid: s.id, cls: s.className, msg: 'ไม่ใช่ห้องที่สั่งงานนี้' });
+    showResult('err', s.name, 'ห้อง ' + s.className + ' ไม่ได้รับงานนี้');
+  } else if (subsOf(a.assignment_id)[norm(s.id)]) {
+    var prev = subsOf(a.assignment_id)[norm(s.id)];
+    Object.assign(e, { state: 'dup', name: s.name, sid: s.id, cls: s.className, msg: 'ส่งแล้ว ' + thDate(prev[0]) });
+    showResult('dup', s.name + ' · ส่งแล้ว', 'บันทึกไว้เมื่อ ' + thDate(prev[0]));
+  } else {
+    var ts = new Date().toISOString();
+    var late = !!(a.due_date && Date.now() > new Date(a.due_date).getTime());
+    subsOf(a.assignment_id)[norm(s.id)] = [ts, null, late];
+    Object.assign(e, { state: 'ok', name: s.name, sid: s.id, cls: s.className, late: late, pending: true });
+    QUEUE.push({ cid: e.id, studentId: s.id, assignmentId: a.assignment_id, ts: ts });
+    lsSet(LS_QUEUE, QUEUE); saveLocal();
+    showResult('ok', s.name, s.id + ' · ' + s.className + (late ? ' · ส่งช้า' : ''));
+    renderProgress();
+    scheduleFlush();
+  }
+  feedback(e.state);
+  STATE.log.unshift(e);
+  if (STATE.log.length > 300) STATE.log.length = 300;
+  renderLog();
+}
+
+var resultTimer;
+function showResult(kind, title, sub) {
+  var r = $('result');
+  r.className = 'result ' + kind;
+  $('rIc').innerHTML = icon(kind === 'ok' ? 'check' : kind === 'dup' ? 'alert' : 'x');
+  $('rT').textContent = title; $('rS').textContent = sub || '';
+  var st = $('stage');
+  st.classList.remove('flash-ok', 'flash-dup', 'flash-err');
+  st.classList.add('flash-' + kind);
+  clearTimeout(resultTimer);
+  resultTimer = setTimeout(function () { st.classList.remove('flash-' + kind); }, 900);
+}
+function hideResult() { $('result').className = 'result gone'; }
+
+function renderLog() {
+  var list = STATE.log;
+  show('logCard', list.length > 0);
+  var okN = list.filter(function (e) { return e.state === 'ok'; }).length;
+  $('logCount').textContent = 'บันทึกรอบนี้ ' + okN + ' เล่ม';
+  var ic = { ok: 'check', dup: 'alert', err: 'x', undone: 'undo' };
+  $('logList').innerHTML = list.slice(0, 60).map(function (e) {
+    return '<div class="list-item ' + (e.state === 'undone' ? 'undone' : '') + '"><div class="st ' + e.state + '">' + icon(ic[e.state]) + '</div>' +
+      '<div class="grow"><div class="ellipsis" style="font-weight:600">' + esc(e.name || e.code) + '</div>' +
+      '<div class="xs muted ellipsis">' + esc(e.time) + (e.sid ? ' · ' + esc(e.sid) + ' · ' + esc(e.cls) : '') + (e.late ? ' · ส่งช้า' : '') +
+      (e.msg ? ' · ' + esc(e.msg) : '') + (e.state === 'ok' && e.pending ? ' · <span style="color:var(--warn)">รอบันทึก</span>' : '') + '</div></div>' +
+      (e.state === 'ok' ? '<button class="btn sm ghost" data-undo="' + e.id + '" aria-label="ยกเลิก">' + icon('undo') + '</button>' : '') + '</div>';
+  }).join('');
+}
+
+$('logList').addEventListener('click', function (ev) {
+  var b = ev.target.closest('[data-undo]');
+  if (!b) return;
+  var e = STATE.log.filter(function (x) { return x.id === b.dataset.undo; })[0];
+  if (!e) return;
+  confirmSheet('ยกเลิกการบันทึก?', e.name + ' (' + e.sid + ') จะกลับเป็น "ยังไม่ส่ง"', 'ยกเลิกการบันทึก', true).then(function (yes) {
+    if (!yes) return;
     var done = function () {
-      delete subsOf(e.aid)[e.sid];
-      e.state = 'undone'; e.msg = 'ยกเลิกแล้ว'; STATE.sessionOk--;
-      if (STATE.assignment) setProgress();
-      renderLog();
+      delete subsOf(e.aid)[norm(e.sid)];
+      e.state = 'undone'; e.msg = 'ยกเลิกแล้ว';
+      saveLocal(); renderLog(); if (STATE.task) renderProgress();
+      toast('ยกเลิกแล้ว');
     };
-    if (inQueue) {
+    if (QUEUE.some(function (q) { return q.cid === e.id; })) {
       QUEUE = QUEUE.filter(function (q) { return q.cid !== e.id; });
       lsSet(LS_QUEUE, QUEUE); updateSync(); done();
       return;
     }
-    b.disabled = true;
-    api('undo', { submissionId: e.subId }).then(function (r) {
-      if (!r.ok) { alertMsg(r.message); b.disabled = false; return; }
+    var subId = e.subId || (subsOf(e.aid)[norm(e.sid)] || [])[1];
+    if (!subId) { toast('กำลังบันทึกรายการนี้ ลองอีกครั้งในไม่กี่วินาที', 'warn'); return; }
+    api('undo', { submissionId: subId }).then(function (r) {
+      if (!r.ok && r.code !== 'NOT_FOUND') { toast(r.message, 'err'); return; }
       done();
-    }).catch(function (e) { b.disabled = false; netError(e); });
+    }).catch(netError);
   });
+});
 
-  /* ---- คิวบันทึก: ส่งขึ้น server เป็นชุด ---- */
-  var flushing = false, flushTimer = null;
-  function scheduleFlush(delay) {
-    updateSync();
-    clearTimeout(flushTimer);
-    flushTimer = setTimeout(flush, delay === undefined ? 600 : delay);
-  }
-  function flush() {
-    if (flushing || !QUEUE.length) { updateSync(); return; }
-    flushing = true;
-    var batch = QUEUE.slice(0, 60);
-    updateSync();
-    api('submitBatch', { items: batch }).then(function (r) {
-      if (!r.ok) throw new Error(r.message || 'บันทึกไม่สำเร็จ');
-      var byCid = {};
-      r.results.forEach(function (x) { byCid[x.cid] = x; });
-      QUEUE = QUEUE.filter(function (q) { return !byCid[q.cid]; });
-      lsSet(LS_QUEUE, QUEUE);
-      r.results.forEach(function (x) {
-        var e = STATE.log.filter(function (l) { return l.id === x.cid; })[0];
-        var q = batch.filter(function (b) { return b.cid === x.cid; })[0];
-        var m = subsOf(q.assignmentId);
-        if (x.ok || x.code === 'DUPLICATE') {
-          if (m[q.studentId]) { m[q.studentId][1] = x.submission_id; if (x.ok) m[q.studentId][2] = !!x.isLate; }
-          if (e) { e.pending = false; e.subId = x.submission_id; if (!x.ok) { e.state = 'dup'; e.msg = 'มีคนบันทึกไว้แล้ว ' + x.submittedText; STATE.sessionOk--; } }
-        } else {
-          delete m[q.studentId];
-          if (e) { e.state = 'err'; e.pending = false; e.msg = x.message; STATE.sessionOk--; }
-          alertMsg('บันทึกไม่สำเร็จ: ' + (e ? e.name + ' — ' : '') + x.message);
-          beep('err');
-        }
-      });
-      lsSet(LS_DATA, DATA);
-      renderLog();
-      if (STATE.assignment) setProgress();
-    }).catch(function () {
-      scheduleFlush(4000); // ออฟไลน์/ผิดพลาด → ลองใหม่
-    }).then(function () {
-      flushing = false;
-      if (QUEUE.length) scheduleFlush(200);
-      updateSync();
+/* พิมพ์รหัสแทนการสแกน */
+$('typeBtn').onclick = function () {
+  var on = $('typeCard').classList.contains('hidden');
+  show('typeCard', on); $('typeBtn').classList.toggle('on', on);
+  if (on) setTimeout(function () { $('typeInput').focus(); }, 50);
+};
+$('typeGo').onclick = function () {
+  var v = $('typeInput').value.trim();
+  if (!v) return;
+  $('typeInput').value = '';
+  record(v);
+  $('typeInput').focus();
+};
+$('typeInput').addEventListener('keydown', function (e) { if (e.key === 'Enter') $('typeGo').click(); });
+
+/* ---- คิวบันทึก: ส่งเป็นชุด ---- */
+var flushing = false, flushTimer = null;
+function scheduleFlush(delay) {
+  updateSync();
+  clearTimeout(flushTimer);
+  flushTimer = setTimeout(flush, delay == null ? 500 : delay);
+}
+function flush() {
+  if (flushing || !QUEUE.length || !DATA) { updateSync(); return; }
+  if (CFG.LIFF_ID && !STATE.idToken) { scheduleFlush(1500); return; } // ยังไม่ได้ล็อกอิน LINE
+  flushing = true;
+  var batch = QUEUE.slice(0, 80);
+  api('submitBatch', { items: batch }).then(function (r) {
+    if (!r.ok) throw new Error(r.message || 'บันทึกไม่สำเร็จ');
+    var byCid = {};
+    r.results.forEach(function (x) { byCid[x.cid] = x; });
+    QUEUE = QUEUE.filter(function (q) { return !byCid[q.cid]; });
+    lsSet(LS_QUEUE, QUEUE);
+    batch.forEach(function (q) {
+      var x = byCid[q.cid];
+      if (!x) return;
+      var e = STATE.log.filter(function (l) { return l.id === q.cid; })[0];
+      var m = subsOf(q.assignmentId), k = norm(q.studentId);
+      if (x.ok || x.code === 'DUPLICATE') {
+        if (m[k]) { m[k][1] = x.submission_id; if (x.ok) m[k][2] = !!x.isLate; }
+        if (e) { e.pending = false; e.subId = x.submission_id; if (!x.ok) { e.state = 'dup'; e.msg = 'มีคนบันทึกไว้แล้ว'; } }
+      } else {
+        delete m[k];
+        if (e) { e.state = 'err'; e.pending = false; e.msg = x.message; }
+        toast('บันทึกไม่สำเร็จ: ' + (e ? e.name + ' — ' : '') + x.message, 'err', 4500);
+        feedback('err');
+      }
     });
-  }
-  function updateSync() {
-    $('syncBadge').textContent = QUEUE.length ? '⏳ รอบันทึก ' + QUEUE.length : (DATA ? '☁️ บันทึกครบแล้ว' : '');
-  }
-  window.addEventListener('online', function () { scheduleFlush(0); });
-  window.addEventListener('beforeunload', function (e) { if (QUEUE.length) { e.preventDefault(); e.returnValue = ''; } });
+    saveLocal(); renderLog();
+    if (STATE.task) renderProgress();
+  }).catch(function () {
+    flushing = false;
+    scheduleFlush(5000); // ออฟไลน์ / Google ขัดข้อง → ลองใหม่
+    return 'retry';
+  }).then(function (x) {
+    if (x === 'retry') return;
+    flushing = false;
+    if (QUEUE.length) scheduleFlush(300); else updateSync();
+  });
+}
+window.addEventListener('online', function () { scheduleFlush(0); });
 
-  /* ================= สรุป ================= */
-  function renderSummary() {
-    var list = DATA.assignments;
-    if (!list.length) { $('sumSel').innerHTML = ''; $('sumBox').innerHTML = '<div class="text-muted">ยังไม่มีงาน</div>'; return; }
-    var cur = $('sumSel').value || (STATE.assignment && STATE.assignment.assignment_id) || list[0].assignment_id;
-    $('sumSel').innerHTML = list.map(function (a) {
-      var p = progressOf(a);
-      return '<option value="' + esc(a.assignment_id) + '">' + esc(a.assignment_name + ' · ' + a.subject + ' (' + p.submitted + '/' + p.target + ')' + (a.status !== 'OPEN' ? ' [ปิด]' : '')) + '</option>';
+/* =====================================================
+   สรุป
+   ===================================================== */
+function renderSummary() {
+  var list = DATA.assignments;
+  if (!list.length) { $('sumSel').innerHTML = ''; $('sumBox').innerHTML = '<div class="empty">ยังไม่มีงาน</div>'; return; }
+  var cur = $('sumSel').value || (STATE.task && STATE.task.assignment_id) || (openTasks()[0] || list[0]).assignment_id;
+  $('sumSel').innerHTML = list.map(function (a) {
+    var p = progressOf(a);
+    return '<option value="' + esc(a.assignment_id) + '">' + esc(a.assignment_name + ' · ' + a.subject + ' (' + p.done + '/' + p.target + ')' + (a.status !== 'OPEN' ? ' · ปิดรับ' : '')) + '</option>';
+  }).join('');
+  var a = findTask(cur) || list[0];
+  $('sumSel').value = a.assignment_id;
+  var m = subsOf(a.assignment_id);
+  var rooms = {};
+  targetsOf(a).sort(function (x, y) { return natCmp(x.className, y.className) || natCmp(x.id, y.id); }).forEach(function (s) {
+    var r = rooms[s.className] = rooms[s.className] || { miss: [], done: [] };
+    (m[norm(s.id)] ? r.done : r.miss).push(s);
+  });
+  var keys = Object.keys(rooms).sort(natCmp);
+  var total = 0, done = 0;
+  keys.forEach(function (k) { total += rooms[k].miss.length + rooms[k].done.length; done += rooms[k].done.length; });
+  var miss = total - done;
+
+  var html = '<div class="stats"><div class="stat"><b>' + total + '</b><span>ทั้งหมด</span></div><div class="stat ok"><b>' + done + '</b><span>ส่งแล้ว</span></div><div class="stat bad"><b>' + miss + '</b><span>ยังไม่ส่ง</span></div></div>';
+  if (keys.length > 1) {
+    html += keys.map(function (k) {
+      var r = rooms[k], t = r.miss.length + r.done.length, pct = t ? Math.round(r.done.length / t * 100) : 0;
+      return '<div style="margin-bottom:8px"><div class="row between small"><span>' + esc(k) + '</span><span class="muted">' + r.done.length + '/' + t + '</span></div><div class="bar"><i style="width:' + pct + '%"></i></div></div>';
     }).join('');
-    $('sumSel').value = cur;
-    var a = findAssignment($('sumSel').value) || list[0];
-    var m = subsOf(a.assignment_id);
-    var target = targetStudents(a).sort(function (x, y) { return natCmp(x.className, y.className) || natCmp(x.id, y.id); });
-    var rooms = {};
-    target.forEach(function (s) {
-      var r = rooms[s.className] = rooms[s.className] || { t: 0, d: 0, miss: [], done: [] };
-      r.t++;
-      if (m[s.id]) { r.d++; r.done.push(s); } else r.miss.push(s);
-    });
-    var sub = target.filter(function (s) { return m[s.id]; }).length;
-    var roomKeys = Object.keys(rooms).sort(natCmp);
-    var html = '<div class="small text-muted mb-2">' + esc(a.class_target === 'ALL' ? 'ทุกห้อง' : a.class_target) + ' · กำหนดส่ง ' + esc(a.due_text) + '</div>' +
-      '<div class="row g-2 mb-3">' +
-      '<div class="col-4 stat"><div class="v">' + target.length + '</div><div class="l">ทั้งหมด</div></div>' +
-      '<div class="col-4 stat"><div class="v text-success">' + sub + '</div><div class="l">ส่งแล้ว</div></div>' +
-      '<div class="col-4 stat"><div class="v text-danger">' + (target.length - sub) + '</div><div class="l">ยังไม่ส่ง</div></div></div>' +
-      roomKeys.map(function (k) {
-        var r = rooms[k], rate = r.t ? Math.round(r.d / r.t * 100) : 0;
-        return '<div class="mb-2"><div class="d-flex justify-content-between small"><span>ห้อง ' + esc(k) + '</span><span>' + r.d + '/' + r.t + ' (' + rate + '%)</span></div>' +
-          '<div class="progress" style="height:10px"><div class="progress-bar" style="width:' + rate + '%"></div></div></div>';
-      }).join('') +
-      '<hr><h6 class="text-danger mb-1">❌ ยังไม่ส่ง ' + (target.length - sub) + ' คน</h6>' +
-      (roomKeys.filter(function (k) { return rooms[k].miss.length; }).map(function (k) {
-        return '<div class="fw-bold mt-2">ห้อง ' + esc(k) + ' (' + rooms[k].miss.length + ')</div>' +
-          rooms[k].miss.map(function (s) { return '<div class="small">' + esc(s.id) + ' ' + esc(s.name) + '</div>'; }).join('');
-      }).join('') || '<div class="text-success">🎉 ส่งครบทุกคนแล้ว</div>') +
-      '<details class="mt-3"><summary class="fw-semibold">✅ ส่งแล้ว ' + sub + ' คน</summary>' +
-      roomKeys.map(function (k) {
-        return rooms[k].done.map(function (s) {
-          var x = m[s.id];
-          return '<div class="small py-1 border-bottom">' + esc(s.id) + ' ' + esc(s.name) + ' <span class="text-muted">· ' + esc(s.className) + ' · ' + esc(fmtDT(x[0])) + '</span>' + (x[2] ? ' <span class="badge text-bg-warning">ช้า</span>' : '') + '</div>';
-        }).join('');
-      }).join('') + '</details>' +
-      (a.status === 'OPEN' ? '<button class="btn btn-brand w-100 mt-3" data-scan="' + esc(a.assignment_id) + '">📷 สแกนงานนี้</button>' : '');
-    $('sumBox').innerHTML = html;
   }
-  $('sumSel').onchange = renderSummary;
-  $('sumBox').addEventListener('click', function (e) { var b = e.target.closest('[data-scan]'); if (b) selectAssignment(b.dataset.scan); });
-  $('sumRefresh').onclick = function () {
-    $('sumRefresh').disabled = true;
-    refresh().then(function () { $('sumRefresh').disabled = false; }, function (e) { $('sumRefresh').disabled = false; netError(e, true); });
-  };
+  html += '<div class="row between" style="margin-top:16px"><h3 style="margin:0;color:var(--bad)">ยังไม่ส่ง ' + miss + ' คน</h3>' +
+    (miss ? '<button class="btn sm" id="copyMissing">' + icon('copy') + 'คัดลอกรายชื่อ</button>' : '') + '</div>';
+  html += miss ? keys.filter(function (k) { return rooms[k].miss.length; }).map(function (k) {
+    return '<div class="room-title"><span>' + esc(k) + '</span><span class="muted small">' + rooms[k].miss.length + ' คน</span></div>' +
+      rooms[k].miss.map(function (s) { return '<div class="name-line"><span class="muted" style="min-width:52px">' + esc(s.id) + '</span><span>' + esc(s.name) + '</span></div>'; }).join('');
+  }).join('') : (total ? '<div class="empty" style="color:var(--accent)">ส่งครบทุกคนแล้ว 🎉</div>' : '<div class="empty">ยังไม่มีนักเรียนในห้องที่สั่งงานนี้</div>');
+  html += '<details style="margin-top:12px"><summary>ส่งแล้ว ' + done + ' คน</summary>' + keys.map(function (k) {
+    return rooms[k].done.map(function (s) {
+      var x = m[norm(s.id)];
+      return '<div class="name-line"><span class="muted" style="min-width:52px">' + esc(s.id) + '</span><span class="grow">' + esc(s.name) + '</span><span class="xs muted">' + esc(thDate(x[0])) + (x[2] ? ' · ช้า' : '') + '</span></div>';
+    }).join('');
+  }).join('') + '</details>';
+  if (a.status === 'OPEN') html += '<button class="btn primary block lg" style="margin-top:14px" data-scan-task="' + esc(a.assignment_id) + '">' + icon('scan') + 'สแกนงานนี้</button>';
+  $('sumBox').innerHTML = html;
 
-  /* ================= งาน ================= */
-  function renderTasks() {
-    var list = DATA.assignments.slice().sort(function (x, y) { return (x.status === 'OPEN' ? 0 : 1) - (y.status === 'OPEN' ? 0 : 1); });
-    $('taskList').innerHTML = list.length ? list.map(function (a) {
-      var p = progressOf(a), open = a.status === 'OPEN';
-      return '<div class="row-item"><div class="main"><div class="n">' + esc(a.assignment_name) + ' <span class="text-muted fw-normal">· ' + esc(a.subject) + '</span>' +
-        (open ? '' : ' <span class="badge text-bg-secondary">ปิดรับ</span>') + '</div>' +
-        '<div class="small text-muted">' + esc(a.assignment_id) + ' · ' + esc(a.class_target === 'ALL' ? 'ทุกห้อง' : a.class_target) + ' · ส่ง ' + p.submitted + '/' + p.target + ' · กำหนด ' + esc(a.due_text) + '</div></div>' +
-        '<div class="dropdown"><button class="btn btn-sm btn-light" data-menu="' + esc(a.assignment_id) + '">⋯</button></div></div>' +
-        '<div class="d-flex gap-2 pb-2 hidden" id="menu-' + esc(a.assignment_id) + '">' +
-        (open ? '<button class="btn btn-sm btn-brand" data-act="scan" data-id="' + esc(a.assignment_id) + '">📷 สแกน</button>' : '') +
-        '<button class="btn btn-sm btn-outline-primary" data-act="edit" data-id="' + esc(a.assignment_id) + '">แก้ไข</button>' +
-        '<button class="btn btn-sm btn-outline-secondary" data-act="' + (open ? 'close' : 'open') + '" data-id="' + esc(a.assignment_id) + '">' + (open ? 'ปิดรับ' : 'เปิดรับอีกครั้ง') + '</button>' +
-        (p.submitted ? '' : '<button class="btn btn-sm btn-outline-danger" data-act="del" data-id="' + esc(a.assignment_id) + '">ลบ</button>') +
-        '</div>';
-    }).join('') : '<div class="text-muted small">ยังไม่มีงาน</div>';
+  var cp = $('copyMissing');
+  if (cp) cp.onclick = function () {
+    var text = 'ยังไม่ส่ง: ' + a.assignment_name + ' (' + a.subject + ')\n' + keys.filter(function (k) { return rooms[k].miss.length; }).map(function (k) {
+      return '\n' + k + '\n' + rooms[k].miss.map(function (s, i) { return (i + 1) + '. ' + s.id + ' ' + s.name; }).join('\n');
+    }).join('\n');
+    copyText(text).then(function () { toast('คัดลอกแล้ว — วางในกลุ่ม LINE ได้เลย'); });
+  };
+}
+$('sumSel').onchange = renderSummary;
+$('sumBox').addEventListener('click', function (e) { var b = e.target.closest('[data-scan-task]'); if (b) selectTask(b.dataset.scanTask, true); });
+$('sumRefresh').onclick = function () {
+  var b = this; b.disabled = true;
+  refresh().then(function () { b.disabled = false; toast('อัปเดตแล้ว'); }, function (e) { b.disabled = false; toast(e.message, 'err'); });
+};
+function copyText(t) {
+  function fallback() {
+    var ta = document.createElement('textarea'); ta.value = t; document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); } catch (e) {}
+    ta.remove(); return Promise.resolve();
   }
-  $('taskList').addEventListener('click', function (e) {
-    var m = e.target.closest('[data-menu]');
-    if (m) { $('menu-' + m.dataset.menu).classList.toggle('hidden'); return; }
-    var b = e.target.closest('[data-act]');
-    if (!b) return;
-    var a = findAssignment(b.dataset.id), act = b.dataset.act;
-    if (act === 'scan') selectAssignment(a.assignment_id);
-    else if (act === 'edit') openTaskForm(a);
-    else if (act === 'close' || act === 'open') {
-      b.disabled = true;
-      saveAssignment({ assignment_id: a.assignment_id, subject: a.subject, assignment_name: a.assignment_name, class_target: a.class_target, due_date: a.due_date ? toLocalInput(a.due_date) : '', status: act === 'close' ? 'CLOSED' : 'OPEN' });
-    } else if (act === 'del' && confirm('ลบงาน "' + a.assignment_name + '" ?')) {
-      b.disabled = true;
-      api('deleteAssignment', { assignmentId: a.assignment_id }).then(function (r) {
-        if (!r.ok) { alertMsg(r.message); b.disabled = false; return; }
-        DATA.assignments = DATA.assignments.filter(function (x) { return x.assignment_id !== a.assignment_id; });
-        lsSet(LS_DATA, DATA); renderAll();
+  if (navigator.clipboard && navigator.clipboard.writeText) return navigator.clipboard.writeText(t).catch(fallback);
+  return fallback();
+}
+
+/* =====================================================
+   งาน
+   ===================================================== */
+function renderTasks() {
+  var list = DATA.assignments.slice().sort(function (x, y) { return (x.status === 'OPEN' ? 0 : 1) - (y.status === 'OPEN' ? 0 : 1); });
+  $('taskList').innerHTML = list.length ? list.map(function (a) {
+    var p = progressOf(a);
+    return '<div class="list-item tap" data-task-menu="' + esc(a.assignment_id) + '"><div class="grow"><div class="row" style="gap:6px"><b class="ellipsis">' + esc(a.assignment_name) + '</b>' +
+      (a.status === 'OPEN' ? '' : '<span class="badge off">ปิดรับ</span>') + '</div>' +
+      '<div class="small muted ellipsis">' + esc(a.subject) + ' · ' + esc(targetLabel(a)) + ' · ส่ง ' + p.done + '/' + p.target + (a.due_date ? ' · ' + esc(thDate(a.due_date)) : '') + '</div></div>' +
+      '<span class="faint"><svg style="width:20px;height:20px"><use href="#i-more"/></svg></span></div>';
+  }).join('') : '<div class="empty">ยังไม่มีงาน</div>';
+}
+$('taskList').addEventListener('click', function (e) {
+  var b = e.target.closest('[data-task-menu]');
+  if (!b) return;
+  var a = findTask(b.dataset.taskMenu);
+  if (!a) return;
+  var p = progressOf(a), open = a.status === 'OPEN';
+  openSheet('<h2>' + esc(a.assignment_name) + '</h2><p class="muted small" style="margin-top:-6px">' + esc(a.subject) + ' · ' + esc(targetLabel(a)) + ' · ส่ง ' + p.done + '/' + p.target + '</p>' +
+    '<div style="display:grid;gap:8px">' +
+    (open ? '<button class="btn primary lg" data-a="scan">' + icon('scan') + 'สแกนงานนี้</button>' : '') +
+    '<button class="btn lg" data-a="summary">' + icon('chart') + 'ดูสรุป / คนที่ยังไม่ส่ง</button>' +
+    '<button class="btn lg" data-a="edit">แก้ไข</button>' +
+    '<button class="btn lg" data-a="toggle">' + (open ? 'ปิดรับงาน' : 'เปิดรับอีกครั้ง') + '</button>' +
+    (p.done ? '' : '<button class="btn lg danger" data-a="del">ลบงาน</button>') + '</div>', function (sh) {
+      sh.addEventListener('click', function (ev) {
+        var x = ev.target.closest('[data-a]');
+        if (!x) return;
+        var act = x.dataset.a;
+        closeSheet();
+        if (act === 'scan') selectTask(a.assignment_id, true);
+        else if (act === 'summary') { $('sumSel').innerHTML = '<option value="' + esc(a.assignment_id) + '"></option>'; $('sumSel').value = a.assignment_id; go('summary'); }
+        else if (act === 'edit') taskForm(a);
+        else if (act === 'toggle') saveTask({ assignment_id: a.assignment_id, subject: a.subject, assignment_name: a.assignment_name, class_target: a.class_target, due_date: localInput(a.due_date), status: open ? 'CLOSED' : 'OPEN' });
+        else if (act === 'del') confirmSheet('ลบงานนี้?', a.assignment_name, 'ลบ', true).then(function (y) {
+          if (!y) return;
+          api('deleteAssignment', { assignmentId: a.assignment_id }).then(function (r) {
+            if (!r.ok) { toast(r.message, 'err'); return; }
+            DATA.assignments = DATA.assignments.filter(function (t) { return t.assignment_id !== a.assignment_id; });
+            if (STATE.task && norm(STATE.task.assignment_id) === norm(a.assignment_id)) STATE.task = null;
+            saveLocal(); renderCurrent(); toast('ลบแล้ว');
+          }).catch(netError);
+        });
       });
-    }
-  });
-  function openTaskForm(a) {
-    var f = $('taskForm');
-    f.reset();
-    $('taskFormTitle').textContent = a ? '✏️ แก้ไขงาน ' + a.assignment_id : '➕ เพิ่มงานใหม่';
-    f.assignment_id.value = a ? a.assignment_id : '';
-    if (a) {
-      f.subject.value = a.subject; f.assignment_name.value = a.assignment_name;
-      f.class_target.value = a.class_target || 'ALL';
-      if (f.class_target.value !== (a.class_target || 'ALL')) {
-        f.class_target.insertAdjacentHTML('beforeend', '<option>' + esc(a.class_target) + '</option>'); f.class_target.value = a.class_target;
-      }
-      f.due_date.value = toLocalInput(a.due_date);
-    }
-    show('taskFormCard');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-    setTimeout(function () { f.subject.focus(); }, 300);
-  }
-  $('taskAdd').onclick = function () { openTaskForm(null); };
-  $('taskCancel').onclick = function () { hide('taskFormCard'); };
-  $('taskForm').onsubmit = function (e) {
-    e.preventDefault();
-    var data = {};
-    new FormData(e.target).forEach(function (v, k) { data[k] = v; });
-    var btn = e.target.querySelector('[type=submit]');
-    btn.disabled = true; btn.textContent = 'กำลังบันทึก…';
-    saveAssignment(data, !data.assignment_id).then(function (ok) { btn.disabled = false; btn.textContent = 'บันทึก'; if (ok) hide('taskFormCard'); });
-  };
-  function saveAssignment(a, startScan) {
-    return api('saveAssignment', { assignment: a }).then(function (r) {
-      if (!r.ok) { alertMsg(r.message); return false; }
-      var i = DATA.assignments.findIndex(function (x) { return x.assignment_id === r.assignment.assignment_id; });
-      if (i >= 0) DATA.assignments[i] = r.assignment; else DATA.assignments.push(r.assignment);
-      lsSet(LS_DATA, DATA);
-      renderAll();
-      if (startScan) { alertMsg('เพิ่มงาน "' + r.assignment.assignment_name + '" แล้ว', 'success'); selectAssignment(r.assignment.assignment_id); }
-      return true;
-    }).catch(function (e) { netError(e); return false; });
-  }
-
-  /* ================= นักเรียน ================= */
-  function renderStudents() {
-    var cls = $('stuClass').value, q = $('stuSearch').value.trim().toLowerCase();
-    var list = studentList().filter(function (s) {
-      return (!cls || s.className === cls) && (!q || (s.id + ' ' + s.name).toLowerCase().indexOf(q) >= 0);
-    }).sort(function (x, y) { return natCmp(x.className, y.className) || natCmp(x.id, y.id); });
-    $('stuCount').textContent = 'ทั้งหมด ' + list.length + ' คน';
-    $('stuList').innerHTML = list.slice(0, 500).map(function (s) {
-      return '<div class="row-item"><div class="main"><div class="n">' + esc(s.name) + '</div><div class="small text-muted">' + esc(s.id) + ' · ' + esc(s.className) + '</div></div>' +
-        '<button class="btn btn-sm btn-outline-primary" data-sedit="' + esc(s.id) + '">แก้ไข</button>' +
-        '<button class="btn btn-sm btn-outline-danger" data-sdel="' + esc(s.id) + '">ลบ</button></div>';
-    }).join('') || '<div class="text-muted small py-2">ยังไม่มีนักเรียน — กด "เพิ่มนักเรียน" หรือ "วางจาก Excel"</div>';
-  }
-  $('stuClass').onchange = renderStudents;
-  $('stuSearch').oninput = renderStudents;
-  $('stuAdd').onclick = function () { openStuForm(null); };
-  $('stuCancel').onclick = function () { hide('stuFormCard'); };
-  $('stuImport').onclick = function () { hide('stuFormCard'); show('importCard'); $('importText').focus(); };
-  $('importCancel').onclick = function () { hide('importCard'); };
-
-  function openStuForm(s) {
-    hide('importCard');
-    var f = $('stuForm');
-    f.reset();
-    $('stuFormTitle').textContent = s ? '✏️ แก้ไขนักเรียน' : '➕ เพิ่มนักเรียน';
-    f.oldId.value = s ? s.id : '';
-    if (s) { f.student_id.value = s.id; f.name.value = s.name; f.class.value = s.cls; f.room.value = s.room; }
-    else if ($('stuClass').value) { var p = $('stuClass').value.split('/'); f.class.value = p[0]; f.room.value = p[1] || ''; }
-    show('stuFormCard');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-    setTimeout(function () { (s ? f.name : f.student_id).focus(); }, 300);
-  }
-  $('stuList').addEventListener('click', function (e) {
-    var ed = e.target.closest('[data-sedit]'), dl = e.target.closest('[data-sdel]');
-    if (ed) openStuForm(BY_ID[norm(ed.dataset.sedit)]);
-    if (dl) {
-      var s = BY_ID[norm(dl.dataset.sdel)];
-      if (!confirm('ลบ ' + s.id + ' ' + s.name + ' ?\n(ประวัติการส่งงานเดิมยังอยู่)')) return;
-      dl.disabled = true;
-      api('deleteStudent', { studentId: s.id }).then(function (r) {
-        if (!r.ok) { alertMsg(r.message); dl.disabled = false; return; }
-        DATA.students = DATA.students.filter(function (x) { return norm(x[0]) !== norm(s.id); });
-        setData(DATA);
-      }).catch(function (e) { dl.disabled = false; netError(e); });
-    }
-  });
-  $('stuForm').onsubmit = function (e) {
-    e.preventDefault();
-    var f = e.target;
-    var stu = { student_id: f.student_id.value.trim(), name: f.name.value.trim(), class: f.class.value.trim(), room: f.room.value.trim() };
-    var btn = f.querySelector('[type=submit]');
-    btn.disabled = true;
-    api('saveStudent', { student: stu, oldId: f.oldId.value }).then(function (r) {
-      btn.disabled = false;
-      if (!r.ok) { alertMsg(r.message); return; }
-      var old = f.oldId.value;
-      DATA.students = DATA.students.filter(function (x) { return norm(x[0]) !== norm(old || r.student[0]); });
-      DATA.students.push(r.student);
-      setData(DATA);
-      if (old) { hide('stuFormCard'); alertMsg('บันทึกแล้ว', 'success'); }
-      else { f.student_id.value = ''; f.name.value = ''; f.student_id.focus(); alertMsg('เพิ่ม ' + r.student[1] + ' แล้ว — กรอกคนถัดไปได้เลย', 'success'); }
-    }).catch(function (e) { btn.disabled = false; netError(e); });
-  };
-  $('importBtn').onclick = function () {
-    var text = $('importText').value.trim();
-    if (!text) return;
-    var btn = $('importBtn');
-    btn.disabled = true; btn.textContent = 'กำลังนำเข้า…';
-    api('importStudents', { text: text }).then(function (r) {
-      btn.disabled = false; btn.textContent = 'นำเข้า';
-      if (!r.ok) { alertMsg(r.message); return; }
-      DATA.students = r.students;
-      setData(DATA);
-      $('importText').value = '';
-      hide('importCard');
-      alertMsg('เพิ่มใหม่ ' + r.added + ' คน · แก้ไข ' + r.updated + ' คน' + (r.skipped ? ' · ข้าม ' + r.skipped + ' บรรทัด' : ''), 'success');
-    }).catch(function (e) { btn.disabled = false; btn.textContent = 'นำเข้า'; netError(e); });
-  };
-
-  /* ================= พิมพ์ QR ================= */
-  function renderQr() {
-    var cls = $('qrClass').value;
-    var size = Number($('qrSize').value);
-    var list = studentList().filter(function (s) { return !cls || s.className === cls; })
-      .sort(function (x, y) { return natCmp(x.id, y.id); });
-    var sheet = $('qrSheet');
-    sheet.style.gridTemplateColumns = 'repeat(auto-fill, ' + size + 'mm)';
-    var fs = size <= 30 ? 7 : size <= 38 ? 8.5 : 10;
-    sheet.innerHTML = list.map(function (s, i) {
-      return '<div class="sticker" style="width:' + size + 'mm;font-size:' + fs + 'pt"><div class="q" id="qr' + i + '"></div>' +
-        '<div class="sid">' + esc(s.id) + '</div><div class="nm">' + esc(s.name) + '</div><div class="cl">' + esc(s.className) + '</div></div>';
-    }).join('') || '<div class="text-muted">ไม่มีนักเรียนในห้องนี้</div>';
-    list.forEach(function (s, i) {
-      new QRCode($('qr' + i), { text: (DATA.studentPrefix || 'STU-') + s.id, width: 256, height: 256, correctLevel: QRCode.CorrectLevel.M });
     });
-    var inLine = window.liff && CFG.LIFF_ID && liff.isInClient();
-    $('qrHint').innerHTML = inLine
-      ? '💡 แอป LINE สั่งพิมพ์ไม่ได้ — กด "พิมพ์" เพื่อเปิดในเบราว์เซอร์ หรือเปิดลิงก์นี้บนคอมพิวเตอร์: <b>liff.line.me/' + esc(CFG.LIFF_ID) + '?mode=qr</b>'
-      : '💡 พิมพ์บนกระดาษสติกเกอร์ A4 หรือกระดาษธรรมดาแล้วตัดติดด้วยเทปใส · ตั้งค่าพิมพ์ Scale 100%';
-  }
-  $('qrClass').onchange = renderQr;
-  $('qrSize').onchange = renderQr;
-  $('qrPrint').onclick = function () {
-    if (window.liff && CFG.LIFF_ID && liff.isInClient()) {
-      liff.openWindow({ url: 'https://liff.line.me/' + CFG.LIFF_ID + '?mode=qr', external: true });
-      return;
-    }
-    window.print();
-  };
+});
 
-  /* ================= Tabs ================= */
-  function switchView(v) {
-    if (v !== 'scan') stopCam();
-    STATE.view = v;
-    ['scan', 'summary', 'tasks', 'students', 'qr'].forEach(function (x) { show('view-' + x, x === v); });
-    document.querySelectorAll('.tabs a').forEach(function (a) { a.classList.toggle('active', a.dataset.view === v); });
-    if (!DATA) return;
-    if (v === 'summary') renderSummary();
-    if (v === 'tasks') renderTasks();
-    if (v === 'students') renderStudents();
-    if (v === 'qr') renderQr();
-  }
-  $('tabs').addEventListener('click', function (e) {
-    var a = e.target.closest('a[data-view]');
-    if (!a) return;
-    e.preventDefault();
-    alertMsg('');
-    switchView(a.dataset.view);
-  });
-  document.addEventListener('click', function (e) {
-    var g = e.target.closest('[data-go="tasks-new"]');
-    if (g) { switchView('tasks'); openTaskForm(null); }
-  });
-  $('copyId').onclick = function () {
-    $('myUserId').select();
-    (navigator.clipboard ? navigator.clipboard.writeText($('myUserId').value) : Promise.reject()).catch(function () { document.execCommand('copy'); });
-    $('copyId').textContent = 'คัดลอกแล้ว';
-  };
+document.addEventListener('click', function (e) { if (e.target.closest('[data-new-task]')) taskForm(null); });
 
-  /* ================= Boot ================= */
-  /** อ่านพารามิเตอร์จาก URL ทั้งแบบปกติ และแบบที่ LINE ห่อไว้ใน liff.state */
-  function urlParam(name) {
-    var v = new URLSearchParams(location.search).get(name) || params.get(name);
-    if (v) return v;
-    var st = new URLSearchParams(location.search).get('liff.state') || params.get('liff.state') || '';
-    var m = st.match(new RegExp('[?&]' + name + '=([^&#]+)'));
-    return m ? decodeURIComponent(m[1]) : '';
-  }
-
-  function startApp() {
-    show('tabs');
-    show('lineScanBtn', hasLineScanner());
-    var mode = urlParam('mode'), task = urlParam('task');
-    var view = { summary: 'summary', new: 'tasks', tasks: 'tasks', students: 'students', manage: 'students', qr: 'qr' }[mode] || 'scan';
-    switchView(view);
-    if (mode === 'new') openTaskForm(null);
-    if (task) selectAssignment(task);
-  }
-
-  function boot() {
-    if (!CFG.API_URL) { $('school').textContent = 'ยังไม่ได้ตั้งค่า API_URL ใน config.js'; return; }
-    QUEUE = lsGet(LS_QUEUE) || [];
-    var cached = lsGet(LS_DATA);
-    var started = false;
-
-    var start = CFG.LIFF_ID ? liff.init({ liffId: CFG.LIFF_ID }).then(function () {
-      if (!liff.isLoggedIn()) { liff.login({ redirectUri: location.href }); return new Promise(function () {}); }
-      STATE.idToken = liff.getIDToken();
-      params = new URLSearchParams(location.search);
-    }) : Promise.resolve();
-
-    start.then(function () {
-      // แสดงข้อมูลที่เคยโหลดไว้ทันที แล้วค่อยอัปเดตจาก server
-      if (cached && cached.user && cached.user.isTeacher) {
-        setData(cached); startApp(); started = true;
-        $('syncBadge').textContent = '🔄 กำลังอัปเดต…';
-      }
-      return refresh();
-    }).then(function (r) {
-      if (!r || !r.ok) return;
-      if (!r.user.isTeacher) {
-        localStorage.removeItem(LS_DATA);
-        hide('tabs'); ['scan', 'summary', 'tasks', 'students', 'qr'].forEach(function (x) { hide('view-' + x); });
-        $('school').textContent = r.school;
-        $('myUserId').value = r.userId || '';
-        show('view-denied');
-        return;
-      }
-      if (!started) startApp();
-      scheduleFlush(0);
-    }).catch(function (e) {
-      if (started) { $('syncBadge').textContent = '⚠️ ออฟไลน์'; return; }
-      $('school').textContent = 'เชื่อมต่อไม่สำเร็จ';
-      alertMsg('เชื่อมต่อไม่สำเร็จ: ' + e.message);
+function taskForm(a) {
+  var cls = classNames(), lv = levels();
+  var opts = '<option value="ALL">ทุกห้อง</option>' + lv.map(function (l) { return '<option value="' + esc(l) + '">' + esc(l) + ' (ทุกห้อง)</option>'; }).join('') +
+    cls.filter(function (c) { return lv.indexOf(c) < 0; }).map(function (c) { return '<option>' + esc(c) + '</option>'; }).join('');
+  var subjects = {};
+  DATA.assignments.forEach(function (x) { if (x.subject) subjects[x.subject] = true; });
+  var lastSubject = DATA.assignments.length ? DATA.assignments[DATA.assignments.length - 1].subject : '';
+  openSheet('<h2>' + (a ? 'แก้ไขงาน' : 'งานใหม่') + '</h2><form id="tf">' +
+    '<label class="field"><span>ชื่องาน *</span><input class="input" name="assignment_name" required placeholder="เช่น ใบงานที่ 3" value="' + esc(a ? a.assignment_name : '') + '"></label>' +
+    '<label class="field"><span>วิชา *</span><input class="input" name="subject" required list="subjList" placeholder="เช่น ภาษาไทย" value="' + esc(a ? a.subject : lastSubject) + '">' +
+    '<datalist id="subjList">' + Object.keys(subjects).map(function (s) { return '<option value="' + esc(s) + '">'; }).join('') + '</datalist></label>' +
+    '<div class="grid2"><label class="field"><span>ห้อง</span><select class="input" name="class_target">' + opts + '</select></label>' +
+    '<label class="field"><span>กำหนดส่ง (ถ้ามี)</span><input class="input" type="datetime-local" name="due_date" value="' + esc(a ? localInput(a.due_date) : '') + '"></label></div>' +
+    '<button class="btn primary block lg" type="submit">' + (a ? 'บันทึก' : 'สร้างงานและเริ่มสแกน') + '</button></form>', function () {
+      var f = $('tf');
+      if (a) {
+        if (![].some.call(f.class_target.options, function (o) { return o.value === a.class_target; })) f.class_target.insertAdjacentHTML('beforeend', '<option>' + esc(a.class_target) + '</option>');
+        f.class_target.value = a.class_target || 'ALL';
+      } else if (cls.length === 1) f.class_target.value = cls[0];
+      if (!a) setTimeout(function () { f.assignment_name.focus(); }, 250);
+      f.onsubmit = function (ev) {
+        ev.preventDefault();
+        var btn = f.querySelector('[type=submit]'), label = btn.textContent;
+        btn.disabled = true; btn.textContent = 'กำลังบันทึก…';
+        saveTask({ assignment_id: a ? a.assignment_id : '', assignment_name: f.assignment_name.value, subject: f.subject.value, class_target: f.class_target.value, due_date: f.due_date.value, status: a ? a.status : 'OPEN' }, !a)
+          .then(function (ok) { if (ok) closeSheet(); else { btn.disabled = false; btn.textContent = label; } });
+      };
     });
+}
+function saveTask(t, startScan) {
+  return api('saveAssignment', { assignment: t }).then(function (r) {
+    if (!r.ok) { toast(r.message, 'err'); return false; }
+    var i = DATA.assignments.findIndex(function (x) { return norm(x.assignment_id) === norm(r.assignment.assignment_id); });
+    if (i >= 0) DATA.assignments[i] = r.assignment; else DATA.assignments.push(r.assignment);
+    if (STATE.task && norm(STATE.task.assignment_id) === norm(r.assignment.assignment_id)) STATE.task = r.assignment;
+    saveLocal();
+    if (startScan) { toast('สร้างงานแล้ว'); selectTask(r.assignment.assignment_id, true); }
+    else { toast('บันทึกแล้ว'); renderCurrent(); }
+    return true;
+  }).catch(function (e) { netError(e); return false; });
+}
+
+/* =====================================================
+   นักเรียน
+   ===================================================== */
+function renderStudents() {
+  var cls = classNames();
+  var cur = $('stuClass').value;
+  $('stuClass').innerHTML = '<option value="">ทุกห้อง</option>' + cls.map(function (c) { return '<option>' + esc(c) + '</option>'; }).join('');
+  $('stuClass').value = cls.indexOf(cur) >= 0 ? cur : '';
+  var c = $('stuClass').value, q = $('stuSearch').value.trim().toLowerCase();
+  var list = students().filter(function (s) { return (!c || s.className === c) && (!q || (s.id + ' ' + s.name).toLowerCase().indexOf(q) >= 0); })
+    .sort(function (x, y) { return natCmp(x.className, y.className) || natCmp(x.id, y.id); });
+  $('stuCount').textContent = list.length + ' คน';
+  $('stuList').innerHTML = list.length ? list.slice(0, 600).map(function (s) {
+    return '<div class="list-item tap" data-stu="' + esc(s.id) + '"><div class="grow"><div class="ellipsis" style="font-weight:600">' + esc(s.name) + '</div>' +
+      '<div class="small muted">' + esc(s.id) + ' · ' + esc(s.className) + '</div></div><span class="faint"><svg style="width:20px;height:20px"><use href="#i-more"/></svg></span></div>';
+  }).join('') : '<div class="empty">' + (students().length ? 'ไม่พบนักเรียนที่ค้นหา' : 'ยังไม่มีนักเรียน<br>กด "เพิ่ม" หรือ "วางจาก Excel"') + '</div>';
+}
+$('stuClass').onchange = renderStudents;
+$('stuSearch').oninput = renderStudents;
+$('stuAdd').onclick = function () { studentForm(null); };
+$('stuList').addEventListener('click', function (e) {
+  var r = e.target.closest('[data-stu]');
+  if (r) studentForm(BY_ID[norm(r.dataset.stu)]);
+});
+
+function studentForm(s) {
+  var lv = levels();
+  var preset = !s && $('stuClass').value ? $('stuClass').value.split('/') : null;
+  openSheet('<h2>' + (s ? 'แก้ไขนักเรียน' : 'เพิ่มนักเรียน') + '</h2><form id="sf">' +
+    '<div class="grid2"><label class="field"><span>รหัสนักเรียน *</span><input class="input" name="sid" required autocomplete="off" value="' + esc(s ? s.id : '') + '"></label>' +
+    '<label class="field"><span>ชั้น / ห้อง *</span><div class="row" style="gap:6px"><input class="input" name="cls" required list="lvList" placeholder="ป.4" value="' + esc(s ? s.cls : (preset ? preset[0] : (lv[0] || ''))) + '">' +
+    '<input class="input" name="room" placeholder="ห้อง" inputmode="numeric" style="max-width:70px" value="' + esc(s ? s.room : (preset ? preset[1] || '' : '')) + '"></div></label></div>' +
+    '<datalist id="lvList">' + lv.map(function (l) { return '<option value="' + esc(l) + '">'; }).join('') + '</datalist>' +
+    '<label class="field"><span>ชื่อ-สกุล *</span><input class="input" name="name" required autocomplete="off" value="' + esc(s ? s.name : '') + '"></label>' +
+    '<button class="btn primary block lg" type="submit">' + (s ? 'บันทึก' : 'บันทึกและเพิ่มคนถัดไป') + '</button>' +
+    (s ? '<button class="btn danger block" type="button" id="sDel" style="margin-top:8px">ลบนักเรียนคนนี้</button>' : '') + '</form>', function () {
+      var f = $('sf');
+      setTimeout(function () { (s ? f.name : f.sid).focus(); }, 250);
+      f.onsubmit = function (ev) {
+        ev.preventDefault();
+        var btn = f.querySelector('[type=submit]'), label = btn.textContent;
+        var stu = { student_id: f.sid.value.trim(), name: f.name.value.trim(), class: f.cls.value.trim(), room: f.room.value.trim() };
+        var clash = BY_ID[norm(stu.student_id)];
+        if (clash && (!s || norm(s.id) !== norm(stu.student_id))) { toast('รหัส ' + stu.student_id + ' เป็นของ ' + clash.name + ' แล้ว', 'err', 3500); return; }
+        btn.disabled = true; btn.textContent = 'กำลังบันทึก…';
+        api('saveStudent', { student: stu, oldId: s ? s.id : '' }).then(function (r) {
+          btn.disabled = false; btn.textContent = label;
+          if (!r.ok) { toast(r.message, 'err', 3500); return; }
+          DATA.students = DATA.students.filter(function (x) { return norm(x[0]) !== norm(r.student[0]) && (!s || norm(x[0]) !== norm(s.id)); });
+          DATA.students.push(r.student);
+          setData(DATA);
+          if (s) { closeSheet(); toast('บันทึกแล้ว'); }
+          else { toast('เพิ่ม ' + r.student[1] + ' แล้ว'); f.sid.value = nextId(r.student[0]); f.name.value = ''; f.name.focus(); }
+        }).catch(function (e) { btn.disabled = false; btn.textContent = label; netError(e); });
+      };
+      if ($('sDel')) $('sDel').onclick = function () {
+        confirmSheet('ลบนักเรียน?', s.id + ' ' + s.name + ' (ประวัติการส่งงานเดิมยังอยู่)', 'ลบ', true).then(function (y) {
+          if (!y) return;
+          api('deleteStudent', { studentId: s.id }).then(function (r) {
+            if (!r.ok) { toast(r.message, 'err'); return; }
+            DATA.students = DATA.students.filter(function (x) { return norm(x[0]) !== norm(s.id); });
+            setData(DATA);
+            toast('ลบแล้ว');
+          }).catch(netError);
+        });
+      };
+    });
+}
+/** เดารหัสคนถัดไป (0001 → 0002) เพื่อกรอกเร็วขึ้น */
+function nextId(id) {
+  var m = String(id).match(/^(.*?)(\d+)$/);
+  if (!m) return '';
+  var n = String(Number(m[2]) + 1);
+  while (n.length < m[2].length) n = '0' + n;
+  return BY_ID[norm(m[1] + n)] ? '' : m[1] + n;
+}
+
+$('stuImport').onclick = function () {
+  openSheet('<h2>วางรายชื่อจาก Excel</h2><p class="small muted" style="margin-top:-4px">คัดลอกคอลัมน์ <b>รหัส · ชื่อ-สกุล · ชั้น · ห้อง</b> (หรือ รหัส · ชื่อ · ป.4/5) แล้ววาง — รหัสที่มีอยู่แล้วจะถูกแก้ให้ตรง</p>' +
+    '<textarea class="input" id="impText" placeholder="0001&#9;ด.ช.ใจดี มีโชค&#9;ป.4&#9;5"></textarea>' +
+    '<div class="small muted" id="impPrev" style="margin:6px 0 10px"></div>' +
+    '<button class="btn primary block lg" id="impGo" disabled>นำเข้า</button>', function () {
+      var ta = $('impText');
+      setTimeout(function () { ta.focus(); }, 250);
+      ta.oninput = function () {
+        var n = ta.value.split(/\r?\n/).filter(function (l) { var c = l.split(/\t|,/); return c[0] && c[0].trim() && c[1] && c[1].trim() && !/รหัส|student/i.test(c[0]); }).length;
+        $('impPrev').textContent = n ? 'พบ ' + n + ' คน' : '';
+        $('impGo').disabled = !n;
+      };
+      $('impGo').onclick = function () {
+        var b = this; b.disabled = true; b.textContent = 'กำลังนำเข้า…';
+        api('importStudents', { text: ta.value }).then(function (r) {
+          if (!r.ok) { toast(r.message, 'err'); b.disabled = false; b.textContent = 'นำเข้า'; return; }
+          DATA.students = r.students;
+          setData(DATA);
+          closeSheet();
+          toast('เพิ่มใหม่ ' + r.added + ' คน · แก้ไข ' + r.updated + ' คน', '', 3500);
+        }).catch(function (e) { b.disabled = false; b.textContent = 'นำเข้า'; netError(e); });
+      };
+    });
+};
+
+/* =====================================================
+   พิมพ์ QR
+   ===================================================== */
+function renderQr() {
+  var cls = classNames();
+  var cur = $('qrClass').value;
+  $('qrClass').innerHTML = '<option value="">ทุกห้อง</option>' + cls.map(function (c) { return '<option>' + esc(c) + '</option>'; }).join('');
+  $('qrClass').value = cls.indexOf(cur) >= 0 ? cur : (cur === '' && $('qrClass').dataset.touched ? '' : (cls[0] || ''));
+  var c = $('qrClass').value, size = Number($('qrSize').value);
+  var list = students().filter(function (s) { return !c || s.className === c; }).sort(function (x, y) { return natCmp(x.className, y.className) || natCmp(x.id, y.id); });
+  var sheet = $('qrSheet');
+  sheet.style.gridTemplateColumns = 'repeat(auto-fill, ' + size + 'mm)';
+  var fs = size <= 30 ? 7 : size <= 38 ? 8.5 : 10;
+  sheet.innerHTML = list.length ? list.map(function (s, i) {
+    return '<div class="sticker" style="width:' + size + 'mm;font-size:' + fs + 'pt"><div class="q" id="qr' + i + '"></div>' +
+      '<div class="sid">' + esc(s.id) + '</div><div class="nm">' + esc(s.name) + '</div><div class="cl">' + esc(s.className) + '</div></div>';
+  }).join('') : '<div class="empty">ยังไม่มีนักเรียน</div>';
+  list.forEach(function (s, i) {
+    new QRCode($('qr' + i), { text: (DATA.studentPrefix || 'STU-') + s.id, width: 256, height: 256, correctLevel: QRCode.CorrectLevel.M });
+  });
+  var inLine = !!(window.liff && CFG.LIFF_ID && liff.isInClient());
+  $('qrHint').innerHTML = inLine
+    ? 'แอป LINE สั่งพิมพ์ไม่ได้ — ปุ่มด้านบนจะเปิดหน้านี้ใน Chrome/Safari หรือเปิดบนคอมพิวเตอร์ที่ <b>liff.line.me/' + esc(CFG.LIFF_ID) + '?mode=qr</b>'
+    : 'ตั้งค่าพิมพ์: กระดาษ A4 · Scale 100% · พิมพ์บนกระดาษสติกเกอร์ หรือกระดาษธรรมดาแล้วติดเทปใส';
+}
+$('qrClass').onchange = function () { this.dataset.touched = '1'; renderQr(); };
+$('qrSize').onchange = renderQr;
+$('qrPrint').onclick = function () {
+  if (window.liff && CFG.LIFF_ID && liff.isInClient()) { liff.openWindow({ url: 'https://liff.line.me/' + CFG.LIFF_ID + '?mode=qr', external: true }); return; }
+  window.print();
+};
+
+/* =====================================================
+   ตั้งค่า (ผู้ดูแล)
+   ===================================================== */
+$('settingsBtn').onclick = function () {
+  openSheet('<h2>ตั้งค่า</h2><form id="stf">' +
+    '<label class="field"><span>ชื่อโรงเรียน</span><input class="input" name="school" value="' + esc(DATA.school) + '"></label>' +
+    '<label class="field"><span>ชื่อครู (แสดงบนหัวหน้าจอ)</span><input class="input" name="admin" value="' + esc(DATA.adminName) + '"></label>' +
+    '<button class="btn primary block lg" type="submit">บันทึก</button></form>', function () {
+      $('stf').onsubmit = function (ev) {
+        ev.preventDefault();
+        var f = ev.target, b = f.querySelector('[type=submit]');
+        b.disabled = true; b.textContent = 'กำลังบันทึก…';
+        api('saveSettings', { settings: { SCHOOL_NAME: f.school.value, ADMIN_NAME: f.admin.value } }).then(function (r) {
+          if (!r.ok) { toast(r.message, 'err'); b.disabled = false; b.textContent = 'บันทึก'; return; }
+          DATA.school = r.school; DATA.adminName = r.adminName;
+          if (DATA.user) DATA.user.teacherName = r.adminName || DATA.user.teacherName;
+          saveLocal(); renderHeader(); closeSheet(); toast('บันทึกแล้ว');
+        }).catch(function (e) { b.disabled = false; b.textContent = 'บันทึก'; netError(e); });
+      };
+    });
+};
+
+/* =====================================================
+   นำทาง
+   ===================================================== */
+var VIEWS = ['scan', 'summary', 'tasks', 'students', 'qr'];
+function go(v) {
+  if (v !== 'scan' && (camOn || camBusy)) stopCam(true);
+  STATE.view = v;
+  VIEWS.forEach(function (x) { show('view-' + x, x === v); });
+  document.querySelectorAll('.tabbar a').forEach(function (a) { a.classList.toggle('active', a.dataset.view === v); });
+  renderCurrent();
+  if (v === 'scan' && STATE.task && STATE.camWanted && !camOn) startCam();
+  window.scrollTo(0, 0);
+}
+function renderCurrent() {
+  if (!DATA) return;
+  if (STATE.view === 'scan') {
+    show('pickTask', !STATE.task); show('scanner', !!STATE.task);
+    if (STATE.task) { renderProgress(); renderLog(); } else renderTaskCards();
   }
-  boot();
-  </script>
+  if (STATE.view === 'summary') renderSummary();
+  if (STATE.view === 'tasks') renderTasks();
+  if (STATE.view === 'students') renderStudents();
+  if (STATE.view === 'qr') renderQr();
+}
+$('tabbar').addEventListener('click', function (e) {
+  var a = e.target.closest('a[data-view]');
+  if (!a) return;
+  e.preventDefault();
+  go(a.dataset.view);
+});
+$('copyId').onclick = function () { copyText($('myUserId').value).then(function () { toast('คัดลอกแล้ว'); }); };
+
+/** อ่านพารามิเตอร์จาก URL (รวมแบบที่ LINE ห่อไว้ใน liff.state) */
+function urlParam(name) {
+  var q = new URLSearchParams(location.search);
+  var v = q.get(name);
+  if (v) return v;
+  var m = (q.get('liff.state') || '').match(new RegExp('[?&]' + name + '=([^&#]+)'));
+  return m ? decodeURIComponent(m[1]) : '';
+}
+
+/* =====================================================
+   เริ่มทำงาน
+   ===================================================== */
+var started = false;
+function startApp() {
+  if (started) return;
+  started = true;
+  show('tabbar');
+  var mode = urlParam('mode'), task = urlParam('task');
+  var view = { summary: 'summary', new: 'tasks', tasks: 'tasks', students: 'students', manage: 'students', qr: 'qr' }[mode] || 'scan';
+  go(view);
+  if (mode === 'new') taskForm(null);
+  if (task && findTask(task)) selectTask(task, false);
+}
+function denied(r) {
+  try { localStorage.removeItem(LS_DATA); } catch (e) {}
+  DATA = null;
+  hide('tabbar'); VIEWS.forEach(function (x) { hide('view-' + x); });
+  $('schoolName').textContent = r.school || 'เช็คการส่งงาน';
+  $('byLine').textContent = '';
+  hide('syncPill'); hide('settingsBtn');
+  $('myUserId').value = r.userId || '';
+  show('view-denied');
+}
+
+(function boot() {
+  if (!CFG.API_URL) { $('byLine').textContent = 'ยังไม่ได้ตั้งค่า API_URL ใน config.js'; return; }
+  QUEUE = lsGet(LS_QUEUE) || [];
+  var cached = lsGet(LS_DATA);
+  // 1) แสดงข้อมูลที่เคยโหลดไว้ทันที (ไม่ต้องรอ LINE / Google)
+  if (cached && cached.user && cached.user.isTeacher) {
+    setData(cached);
+    startApp();
+    setSync('wait', 'กำลังอัปเดต');
+  }
+  // 2) เข้าสู่ระบบ LINE แล้วโหลดข้อมูลล่าสุด
+  var login = CFG.LIFF_ID ? liff.init({ liffId: CFG.LIFF_ID }).then(function () {
+    if (!liff.isLoggedIn()) { liff.login({ redirectUri: location.href }); return new Promise(function () {}); }
+    STATE.idToken = liff.getIDToken();
+  }) : Promise.resolve();
+  login.then(function () { return api('bootstrap'); }).then(function (r) {
+    if (!r.ok) { toast(r.message, 'err', 5000); return; }
+    if (!r.user.isTeacher) { denied(r); return; }
+    setData(r);
+    startApp();
+    scheduleFlush(0);
+  }).catch(function (e) {
+    if (started) { setSync('wait', 'ออฟไลน์'); scheduleFlush(8000); return; }
+    $('byLine').textContent = 'เชื่อมต่อไม่สำเร็จ — ปิดแล้วเปิดใหม่อีกครั้ง';
+    toast(e.message, 'err', 5000);
+  });
+})();
+</script>
 </body>
 </html>

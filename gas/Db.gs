@@ -63,8 +63,12 @@ function appendRow_(name, obj) {
   var sh = sheet_(name);
   var hs = headers_(name);
   var row = hs.map(function (h) { return obj[h] !== undefined ? obj[h] : ''; });
-  sh.appendRow(row);
-  return sh.getLastRow();
+  if (name === 'Logs') { sh.appendRow(row); return sh.getLastRow(); } // Logs เขียนได้พร้อมกันหลายคน
+  // ตารางหลัก: เขียนหลังตั้งรูปแบบข้อความ (ผู้เรียกถือ LockService อยู่แล้ว)
+  var r = sh.getLastRow() + 1;
+  setTextFormat_(sh, hs, r, 1);
+  sh.getRange(r, 1, 1, hs.length).setValues([row]);
+  return r;
 }
 
 /** แก้ไขเฉพาะคอลัมน์ที่ส่งมาใน obj */
@@ -73,6 +77,7 @@ function updateRow_(name, rowNum, obj) {
   var hs = headers_(name);
   var range = sh.getRange(rowNum, 1, 1, hs.length);
   var row = range.getValues()[0];
+  setTextFormat_(sh, hs, rowNum, 1);
   hs.forEach(function (h, i) {
     if (Object.prototype.hasOwnProperty.call(obj, h)) row[i] = obj[h];
   });
@@ -92,8 +97,19 @@ function findOne_(name, key, value) {
   return null;
 }
 
+/** รหัสสำหรับเปรียบเทียบ: ไม่สนตัวพิมพ์ และตัวเลขล้วนไม่สนเลข 0 นำหน้า (0001 = 1) */
 function normId_(v) {
-  return String(v === null || v === undefined ? '' : v).trim().toUpperCase();
+  var s = String(v === null || v === undefined ? '' : v).trim().toUpperCase();
+  return /^\d+$/.test(s) ? s.replace(/^0+(?=\d)/, '') : s;
+}
+
+/** คอลัมน์ที่ต้องเก็บเป็นข้อความ (กัน Google Sheets แปลง 0001 เป็น 1) */
+var TEXT_COLUMNS = { student_id: true, assignment_id: true, room: true, submission_id: true, key: true, line_user_id: true };
+
+function setTextFormat_(sh, hs, startRow, numRows) {
+  hs.forEach(function (h, i) {
+    if (TEXT_COLUMNS[h]) sh.getRange(startRow, i + 1, numRows, 1).setNumberFormat('@');
+  });
 }
 
 /** แปลง Date → ISO string และตัด _row ออก เพื่อส่งให้ client ได้ */

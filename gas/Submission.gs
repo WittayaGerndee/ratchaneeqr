@@ -271,7 +271,9 @@ function submitBatch_(items, actor) {
 
     if (newRows.length) {
       var sh = sheet_('Submissions');
-      sh.getRange(sh.getLastRow() + 1, 1, newRows.length, hs.length).setValues(newRows);
+      var start = sh.getLastRow() + 1;
+      setTextFormat_(sh, hs, start, newRows.length);
+      sh.getRange(start, 1, newRows.length, hs.length).setValues(newRows);
     }
     return results;
   } finally {

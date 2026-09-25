@@ -48,7 +48,8 @@ function resolveActor_(body) {
   var teacher = findTeacherByLineId_(user.userId);
   var isAdminLine = !!user.userId && user.userId === getSetting_('ADMIN_LINE_ID');
   user.isTeacher = !!teacher || isAdminLine;
-  user.teacherName = teacher ? teacher.name : (isAdminLine ? 'ผู้ดูแลระบบ' : '');
+  user.isAdmin = isAdminLine || !!(teacher && String(teacher.role || '').toLowerCase() === 'admin');
+  user.teacherName = teacher ? teacher.name : (isAdminLine ? getSetting_('ADMIN_NAME', 'ผู้ดูแลระบบ') : '');
   return user;
 }
 
@@ -62,7 +63,7 @@ function findTeacherByLineId_(userId) {
 /** คำสั่งที่เปลี่ยนข้อมูล (ต้องกันการทำซ้ำเมื่อหน้า LIFF ส่งซ้ำ) */
 var WRITE_ACTIONS = {
   submitBatch: true, undo: true, saveStudent: true, deleteStudent: true,
-  importStudents: true, saveAssignment: true, deleteAssignment: true
+  importStudents: true, saveAssignment: true, deleteAssignment: true, saveSettings: true
 };
 
 var API_ACTIONS = {
@@ -71,7 +72,8 @@ var API_ACTIONS = {
     var out = {
       ok: true,
       school: getSetting_('SCHOOL_NAME', ''),
-      user: { displayName: actor.displayName, isTeacher: actor.isTeacher, teacherName: actor.teacherName },
+      user: { displayName: actor.displayName, isTeacher: actor.isTeacher, isAdmin: !!actor.isAdmin, teacherName: actor.teacherName },
+      adminName: getSetting_('ADMIN_NAME', ''),
       studentPrefix: getSetting_('QR_STUDENT_PREFIX', 'STU-'),
       taskPrefix: getSetting_('QR_TASK_PREFIX', 'TASK-'),
       liffId: getSetting_('LIFF_ID', '')
@@ -94,8 +96,12 @@ var API_ACTIONS = {
   // ---------- นักเรียน ----------
   saveStudent: function (b, actor) {
     var s = b.student || {};
+    var id = String(s.student_id || '').trim(), name = String(s.name || '').trim();
+    if (!id || !name) return { ok: false, message: 'กรุณากรอกรหัสและชื่อนักเรียน' };
+    var cr = splitClassRoom_(s.class, s.room);
+    if (!cr.cls) return { ok: false, message: 'กรุณากรอกชั้น' };
     var row = saveRecord_('Students', {
-      student_id: s.student_id, name: s.name, class: s.class, room: s.room, status: s.status || 'active'
+      student_id: id, name: name, class: cr.cls, room: cr.room, status: 'active'
     }, !b.oldId, b.oldId);
     log_('SAVE_STUDENT', { student_id: s.student_id, line_user_id: actor.userId, result: b.oldId ? 'edit' : 'new' });
     return { ok: true, student: studentRow_(row) };
@@ -130,6 +136,15 @@ var API_ACTIONS = {
     var row = saveRecord_('Assignments', rec, isNew);
     log_('SAVE_ASSIGNMENT', { line_user_id: actor.userId, result: rec.assignment_id });
     return { ok: true, assignment: publicAssignment_(row) };
+  },
+
+  saveSettings: function (b, actor) {
+    if (!actor.isAdmin) return { ok: false, message: 'เฉพาะผู้ดูแลระบบ' };
+    var allowed = { SCHOOL_NAME: true, ADMIN_NAME: true };
+    Object.keys(b.settings || {}).forEach(function (k) {
+      if (allowed[k]) saveRecord_('Settings', { key: k, value: String(b.settings[k] || '').trim() }, !findOne_('Settings', 'key', k));
+    });
+    return { ok: true, school: getSetting_('SCHOOL_NAME', ''), adminName: getSetting_('ADMIN_NAME', '') };
   },
 
   deleteAssignment: function (b, actor) {

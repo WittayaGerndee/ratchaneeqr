@@ -17,7 +17,8 @@ var PRESET_SETTINGS = {
   GOOGLE_DRIVE_FOLDER_ID: PRESET_DRIVE_FOLDER_ID,
   LIFF_ID: '2011746825-S9XJTTnb',
   LINE_LOGIN_CHANNEL_ID: '2011746825',
-  ADMIN_LINE_ID: 'Uc675b478d6bb8e03c3e21d11f8da50b8'
+  ADMIN_LINE_ID: 'Uc675b478d6bb8e03c3e21d11f8da50b8',
+  ADMIN_NAME: 'ครูรัชนี'
 };
 
 /** โครงสร้างคอลัมน์ของทุก Sheet (ลำดับคอลัมน์ = ลำดับใน array) */
@@ -79,6 +80,7 @@ var DEFAULT_SETTINGS = [
   ['GOOGLE_DRIVE_FOLDER_ID', '', 'โฟลเดอร์หลักใน Drive (setup() สร้างให้อัตโนมัติ)'],
   ['LIFF_ID', '', 'LIFF ID เช่น 2001234567-AbCdEfGh'],
   ['LINE_LOGIN_CHANNEL_ID', '', 'Channel ID ของ LINE Login channel ที่สร้าง LIFF (ใช้ตรวจ ID Token)'],
+  ['ADMIN_NAME', 'ครูรัชนี', 'ชื่อครูผู้ดูแล (แสดงบนหัวหน้าจอ)'],
   ['ADMIN_LINE_ID', '', 'LINE userId ของผู้ดูแล (รับสรุปรายวัน) — พิมพ์ "myid" ใน LINE OA เพื่อดู'],
   ['REQUIRE_ID_TOKEN', 'TRUE', 'ตรวจ LINE ID Token ทุกคำขอจาก LIFF (ควรเป็น TRUE เสมอบน production)'],
   ['ALLOW_LATE_SUBMISSION', 'TRUE', 'อนุญาตส่งหลังกำหนด (จะถูกทำเครื่องหมายว่าส่งช้า)'],
