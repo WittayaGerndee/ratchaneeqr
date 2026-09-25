@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>ส่งงานนักเรียน</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root { --brand: #06c755; --brand-dark: #05a847; }
+    body { font-family: 'Sarabun', sans-serif; background: #f2f4f6; padding-bottom: 80px; }
+    .topbar { background: var(--brand); color: #fff; padding: 14px 16px 44px; }
+    .topbar h1 { font-size: 1.25rem; margin: 0; font-weight: 700; }
+    .wrap { max-width: 520px; margin: -32px auto 0; padding: 0 12px; }
+    .card { border: 0; border-radius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,.06); margin-bottom: 12px; }
+    .step { display: flex; align-items: center; gap: 10px; }
+    .step .n { width: 28px; height: 28px; border-radius: 50%; background: #e9ecef; color: #555; display: flex; align-items: center; justify-content: center; font-weight: 700; flex: none; }
+    .step.done .n { background: var(--brand); color: #fff; }
+    .btn-brand { background: var(--brand); border-color: var(--brand); color: #fff; }
+    .btn-brand:hover, .btn-brand:focus { background: var(--brand-dark); color: #fff; }
+    .btn-lg { border-radius: 12px; }
+    .info-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px dashed #eee; }
+    .info-row:last-child { border-bottom: 0; }
+    .info-row .l { color: #888; }
+    .info-row .v { font-weight: 600; text-align: right; }
+    .clock { font-size: 2rem; font-weight: 700; letter-spacing: 1px; color: #1f2d3d; }
+    .tabs { position: fixed; bottom: 0; left: 0; right: 0; background: #fff; border-top: 1px solid #e5e7eb; display: flex; padding-bottom: env(safe-area-inset-bottom); z-index: 10; }
+    .tabs a { flex: 1; text-align: center; padding: 8px 0 10px; color: #777; text-decoration: none; font-size: .8rem; }
+    .tabs a .i { display: block; font-size: 1.3rem; }
+    .tabs a.active { color: var(--brand-dark); font-weight: 600; }
+    .result-icon { font-size: 64px; line-height: 1; }
+    .hidden { display: none !important; }
+    #reader { width: 100%; border-radius: 12px; overflow: hidden; }
+    .assign-item { cursor: pointer; }
+    .assign-item.active { border-color: var(--brand) !important; background: #eefbf3; }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <h1>📚 ส่งงานนักเรียน</h1>
+    <div class="small opacity-75" id="school">กำลังเชื่อมต่อ…</div>
+  </div>
+
+  <div class="wrap">
+    <div id="alertBox"></div>
+
+    <!-- ================= ส่งงาน ================= -->
+    <section id="view-send">
+      <!-- Step 1: งาน -->
+      <div class="card"><div class="card-body">
+        <div class="step mb-2" id="st1"><div class="n">1</div><div class="fw-semibold">เลือกงาน</div></div>
+        <div id="assignSelected" class="hidden"></div>
+        <div id="assignPicker">
+          <button class="btn btn-outline-success w-100 mb-2" id="scanTaskBtn">📷 สแกน QR งาน</button>
+          <div class="text-center small text-muted mb-2">หรือเลือกจากรายการ</div>
+          <div id="assignList" class="d-grid gap-2"></div>
+        </div>
+      </div></div>
+
+      <!-- Step 2: นักเรียน -->
+      <div class="card" id="card2"><div class="card-body">
+        <div class="step mb-2" id="st2"><div class="n">2</div><div class="fw-semibold">สแกน QR นักเรียน</div></div>
+        <div id="studentPicker">
+          <button class="btn btn-brand btn-lg w-100" id="scanStuBtn" disabled>📷 สแกน QR นักเรียน</button>
+          <button class="btn btn-link w-100 btn-sm hidden" id="useMeBtn"></button>
+          <div class="input-group mt-2 hidden" id="manualBox">
+            <input class="form-control" id="manualId" placeholder="พิมพ์รหัสนักเรียน" inputmode="numeric">
+            <button class="btn btn-outline-secondary" id="manualBtn">ค้นหา</button>
+          </div>
+        </div>
+      </div></div>
+
+      <!-- Step 3: ยืนยัน -->
+      <div class="card hidden" id="card3"><div class="card-body">
+        <div class="step mb-3" id="st3"><div class="n">3</div><div class="fw-semibold">ตรวจสอบและยืนยัน</div></div>
+        <div id="confirmInfo"></div>
+        <div class="text-center my-3"><div class="small text-muted">เวลา</div><div class="clock" id="clock">--:--:--</div><div class="small text-muted" id="today"></div></div>
+        <div id="existingBox"></div>
+        <div class="mb-3 hidden" id="fileBox">
+          <label class="form-label small mb-1" id="fileLabel">แนบไฟล์งาน</label>
+          <input type="file" class="form-control" id="fileInput" accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip">
+        </div>
+        <button class="btn btn-brand btn-lg w-100" id="confirmBtn">✅ ยืนยันส่งงาน</button>
+        <button class="btn btn-light w-100 mt-2" id="cancelBtn">ยกเลิก / สแกนใหม่</button>
+      </div></div>
+
+      <!-- ผลลัพธ์ -->
+      <div class="card hidden" id="card4"><div class="card-body text-center" id="resultBox"></div></div>
+    </section>
+
+    <!-- ================= งานของฉัน ================= -->
+    <section id="view-mine" class="hidden">
+      <div class="card"><div class="card-body" id="mineBox"><div class="text-muted">กำลังโหลด…</div></div></div>
+    </section>
+
+    <!-- ================= ผูกบัญชี ================= -->
+    <section id="view-link" class="hidden">
+      <div class="card"><div class="card-body" id="linkBox"></div></div>
+    </section>
+
+    <!-- สแกนด้วยกล้อง (สำรอง เมื่อเปิดนอกแอป LINE) -->
+    <div class="card hidden" id="readerCard"><div class="card-body">
+      <div class="d-flex justify-content-between mb-2"><b>📷 สแกน QR</b><button class="btn-close" id="readerClose"></button></div>
+      <div id="reader"></div>
+    </div></div>
+  </div>
+
+  <nav class="tabs">
+    <a href="#" data-view="send" class="active"><span class="i">📚</span>ส่งงาน</a>
+    <a href="#" data-view="mine"><span class="i">📋</span>งานของฉัน</a>
+    <a href="#" data-view="link"><span class="i">🔗</span>ผูกบัญชี</a>
+  </nav>
+
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <script src="config.js"></script>
+  <script>
+  /* =================================================================
+     CONFIG มาจาก config.js : { LIFF_ID, API_URL }
+     ถ้า LIFF_ID ว่าง = โหมดทดสอบ (ต้องตั้ง REQUIRE_ID_TOKEN = FALSE ใน Settings)
+     ================================================================= */
+  var CFG = window.APP_CONFIG || {};
+  var STATE = { init: null, assignment: null, student: null, existing: null, idToken: '', profile: {} };
+  var params = new URLSearchParams(location.search);
+  var clockTimer = null;
+
+  function $(id) { return document.getElementById(id); }
+  function show(el, on) { (typeof el === 'string' ? $(el) : el).classList.toggle('hidden', on === false); }
+  function hide(el) { show(el, false); }
+  function esc(s) {
+    return String(s === null || s === undefined ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  function alertMsg(msg, type) {
+    $('alertBox').innerHTML = msg ? '<div class="alert alert-' + (type || 'danger') + ' alert-dismissible">' + esc(msg) +
+      '<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>' : '';
+    if (msg) window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+  function row(l, v) { return '<div class="info-row"><span class="l">' + esc(l) + '</span><span class="v">' + esc(v) + '</span></div>'; }
+  function thaiDate(d) {
+    var p = function (n) { return ('0' + n).slice(-2); };
+    return p(d.getDate()) + '/' + p(d.getMonth() + 1) + '/' + (d.getFullYear() + 543);
+  }
+
+  function api(action, data) {
+    var body = Object.assign({ action: action, idToken: STATE.idToken }, data || {});
+    if (!CFG.LIFF_ID) { body.userId = 'DEV_USER'; body.displayName = 'ทดสอบ'; }
+    return fetch(CFG.API_URL, { method: 'POST', body: JSON.stringify(body) })
+      .then(function (r) { return r.json(); })
+      .then(function (res) {
+        if (res.code === 'UNAUTHORIZED' && window.liff && liff.isLoggedIn()) {
+          // ID Token หมดอายุ → login ใหม่
+          liff.logout(); liff.login({ redirectUri: location.href });
+        }
+        return res;
+      });
+  }
+
+  /* ---------------- สแกน QR ---------------- */
+  function scan() {
+    if (window.liff && CFG.LIFF_ID && liff.isInClient() && liff.isApiAvailable && liff.isApiAvailable('scanCodeV2')) {
+      return liff.scanCodeV2().then(function (r) { return r && r.value; });
+    }
+    return cameraScan();
+  }
+
+  function cameraScan() {
+    return new Promise(function (resolve, reject) {
+      show('readerCard');
+      $('readerCard').scrollIntoView({ behavior: 'smooth' });
+      var qr = new Html5Qrcode('reader');
+      var done = function (val, err) {
+        qr.stop().catch(function () {}).finally(function () { hide('readerCard'); qr.clear(); });
+        err ? reject(err) : resolve(val);
+      };
+      $('readerClose').onclick = function () { done(null); };
+      qr.start({ facingMode: 'environment' }, { fps: 10, qrbox: 240 }, function (text) { done(text); }, function () {})
+        .catch(function (e) { hide('readerCard'); reject(new Error('เปิดกล้องไม่ได้: ' + e)); });
+    });
+  }
+
+  /* ---------------- Step 1: งาน ---------------- */
+  function renderAssignList() {
+    var list = STATE.init.assignments;
+    $('assignList').innerHTML = list.length ? list.map(function (a) {
+      return '<div class="border rounded-3 p-2 assign-item" data-id="' + esc(a.assignment_id) + '">' +
+        '<div class="fw-semibold">' + esc(a.subject) + ' — ' + esc(a.assignment_name) + '</div>' +
+        '<div class="small text-muted">' + esc(a.class_target) + ' · กำหนดส่ง ' + esc(a.due_text) +
+        (a.is_overdue ? ' <span class="badge text-bg-warning">เลยกำหนด</span>' : '') +
+        (a.require_file ? ' <span class="badge text-bg-info">ต้องแนบไฟล์</span>' : '') + '</div></div>';
+    }).join('') : '<div class="text-muted small text-center">ไม่มีงานที่เปิดรับ</div>';
+  }
+
+  $('assignList').addEventListener('click', function (e) {
+    var el = e.target.closest('.assign-item');
+    if (!el) return;
+    var a = STATE.init.assignments.filter(function (x) { return x.assignment_id === el.dataset.id; })[0];
+    setAssignment(a);
+  });
+
+  $('scanTaskBtn').onclick = function () {
+    scan().then(function (v) { if (v) loadAssignment(v); }).catch(function (e) { alertMsg(e.message); });
+  };
+
+  function loadAssignment(code) {
+    alertMsg('');
+    return api('assignment', { code: code }).then(function (r) {
+      if (!r.ok) return alertMsg(r.message);
+      setAssignment(r.assignment);
+    }).catch(function (e) { alertMsg('เชื่อมต่อไม่สำเร็จ: ' + e.message); });
+  }
+
+  function setAssignment(a) {
+    STATE.assignment = a;
+    $('st1').classList.add('done');
+    hide('assignPicker'); show('assignSelected');
+    $('assignSelected').innerHTML = row('วิชา', a.subject) + row('งาน', a.assignment_name) + row('กำหนดส่ง', a.due_text) +
+      (a.description ? '<div class="small text-muted mt-1">' + esc(a.description) + '</div>' : '') +
+      '<button class="btn btn-sm btn-link px-0" id="changeAssign">เปลี่ยนงาน</button>';
+    $('changeAssign').onclick = resetAll;
+    $('scanStuBtn').disabled = false;
+    if (STATE.init.linkedStudent) {
+      $('useMeBtn').textContent = 'ส่งในชื่อของฉัน (' + STATE.init.linkedStudent.student_id + ' ' + STATE.init.linkedStudent.name + ')';
+      show('useMeBtn');
+    }
+    if (params.get('student')) { var s = params.get('student'); params.delete('student'); loadStudent(s); }
+  }
+
+  /* ---------------- Step 2: นักเรียน ---------------- */
+  $('scanStuBtn').onclick = function () {
+    scan().then(function (v) { if (v) loadStudent(v); }).catch(function (e) { alertMsg(e.message); });
+  };
+  $('useMeBtn').onclick = function () { loadStudent(STATE.init.linkedStudent.student_id); };
+  $('manualBtn').onclick = function () { var v = $('manualId').value.trim(); if (v) loadStudent(v); };
+
+  function loadStudent(code) {
+    alertMsg('');
+    $('scanStuBtn').disabled = true;
+    return api('student', { code: code, assignmentId: STATE.assignment.assignment_id }).then(function (r) {
+      $('scanStuBtn').disabled = false;
+      if (!r.ok) return alertMsg(r.message);
+      if (r.isTarget === false) return alertMsg('งานนี้ไม่ได้มอบหมายให้ห้อง ' + r.student.class_name, 'warning');
+      STATE.student = r.student;
+      STATE.existing = r.existing || null;
+      showConfirm();
+    }).catch(function (e) { $('scanStuBtn').disabled = false; alertMsg('เชื่อมต่อไม่สำเร็จ: ' + e.message); });
+  }
+
+  /* ---------------- Step 3: ยืนยัน ---------------- */
+  function showConfirm() {
+    var s = STATE.student, a = STATE.assignment;
+    $('st2').classList.add('done');
+    hide('card2'); hide('card4'); show('card3');
+    $('confirmInfo').innerHTML = row('รหัสนักเรียน', s.student_id) + row('ชื่อ', s.name) + row('ห้อง', s.class_name) +
+      row('วิชา', a.subject) + row('งาน', a.assignment_name);
+    $('existingBox').innerHTML = STATE.existing ? '<div class="alert alert-warning small">⚠️ นักเรียนคนนี้ส่งงานนี้แล้ว<br>ส่งเมื่อ ' +
+      esc(STATE.existing.submittedText) + ' (สถานะ: ' + esc(STATE.existing.status) + ')</div>' : '';
+    show('fileBox');
+    $('fileLabel').textContent = a.require_file ? 'แนบไฟล์งาน (จำเป็น) — ไม่เกิน ' + STATE.init.maxFileMb + ' MB' : 'แนบไฟล์งาน (ถ้ามี) — ไม่เกิน ' + STATE.init.maxFileMb + ' MB';
+    $('fileInput').value = '';
+    $('confirmBtn').disabled = false;
+    $('confirmBtn').textContent = '✅ ยืนยันส่งงาน';
+    tick(); clearInterval(clockTimer); clockTimer = setInterval(tick, 1000);
+    $('card3').scrollIntoView({ behavior: 'smooth' });
+  }
+
+  function tick() {
+    var d = new Date();
+    $('clock').textContent = d.toLocaleTimeString('th-TH', { hour12: false });
+    $('today').textContent = thaiDate(d);
+  }
+
+  function readFile() {
+    var f = $('fileInput').files[0];
+    if (!f) return Promise.resolve(null);
+    if (f.size > STATE.init.maxFileMb * 1024 * 1024) return Promise.reject(new Error('ไฟล์ใหญ่เกิน ' + STATE.init.maxFileMb + ' MB'));
+    return new Promise(function (resolve, reject) {
+      var fr = new FileReader();
+      fr.onload = function () { resolve({ name: f.name, mimeType: f.type, data: String(fr.result).split(',')[1] }); };
+      fr.onerror = function () { reject(new Error('อ่านไฟล์ไม่สำเร็จ')); };
+      fr.readAsDataURL(f);
+    });
+  }
+
+  $('confirmBtn').onclick = function () { doSubmit(!!STATE.existing); };
+  $('cancelBtn').onclick = nextStudent;
+
+  function doSubmit(resubmit) {
+    if (STATE.assignment.require_file && !$('fileInput').files[0] && !STATE.init.user.isTeacher) {
+      return alertMsg('งานนี้ต้องแนบไฟล์', 'warning');
+    }
+    var btn = $('confirmBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> กำลังบันทึก…';
+    readFile().then(function (file) {
+      return api('submit', {
+        studentId: STATE.student.student_id, assignmentId: STATE.assignment.assignment_id,
+        resubmit: resubmit, file: file
+      });
+    }).then(showResult).catch(function (e) {
+      alertMsg(e.message);
+      btn.disabled = false; btn.textContent = '✅ ยืนยันส่งงาน';
+    });
+  }
+
+  function showResult(r) {
+    clearInterval(clockTimer);
+    hide('card3'); show('card4');
+    var html;
+    if (r.ok) {
+      $('st3').classList.add('done');
+      html = '<div class="result-icon">' + (r.isLate ? '⏰' : '✅') + '</div>' +
+        '<h5 class="mt-2 mb-3">' + (r.code === 'RESUBMITTED' ? 'บันทึกการส่งซ้ำสำเร็จ' : 'บันทึกการส่งงานสำเร็จ') + '</h5><div class="text-start">' +
+        row('รหัสนักเรียน', r.student.student_id) + row('ชื่อ', r.student.name) + row('งาน', r.assignment.assignment_name) +
+        row('วันที่', r.dateText) + row('เวลา', r.timeText + ' น.') +
+        row('สถานะ', 'ส่งแล้ว' + (r.isLate ? ' (ส่งช้า)' : '')) + (r.attempt > 1 ? row('ครั้งที่', r.attempt) : '') + '</div>';
+    } else if (r.code === 'DUPLICATE') {
+      html = '<div class="result-icon">⚠️</div><h5 class="mt-2">นักเรียนคนนี้ส่งงานนี้แล้ว</h5>' +
+        '<p class="text-muted mb-1">ส่งเมื่อ</p><p class="fw-semibold">' + esc(r.submittedText) + '</p>' +
+        (r.canResubmit ? '<button class="btn btn-warning w-100 mb-2" id="resubmitBtn">🔄 ส่งอีกครั้ง</button>' : '<p class="small text-muted">หากต้องการส่งใหม่ กรุณาติดต่อครู</p>');
+    } else {
+      html = '<div class="result-icon">❌</div><h5 class="mt-2">ส่งงานไม่สำเร็จ</h5><p class="text-muted">' + esc(r.message) + '</p>';
+    }
+    html += '<button class="btn btn-brand w-100 mt-3" id="nextBtn">📷 สแกนนักเรียนคนถัดไป</button>' +
+      '<button class="btn btn-light w-100 mt-2" id="newBtn">เลือกงานใหม่</button>' +
+      (window.liff && CFG.LIFF_ID && liff.isInClient() ? '<button class="btn btn-link w-100 mt-1" id="closeBtn">ปิดหน้าต่าง</button>' : '');
+    $('resultBox').innerHTML = html;
+    if ($('resubmitBtn')) $('resubmitBtn').onclick = function () { STATE.existing = { submittedText: r.submittedText, status: r.status }; showConfirm(); };
+    $('nextBtn').onclick = function () { nextStudent(); $('scanStuBtn').click(); };
+    $('newBtn').onclick = resetAll;
+    if ($('closeBtn')) $('closeBtn').onclick = function () { liff.closeWindow(); };
+    $('card4').scrollIntoView({ behavior: 'smooth' });
+  }
+
+  function nextStudent() {
+    clearInterval(clockTimer);
+    STATE.student = null; STATE.existing = null;
+    $('st2').classList.remove('done'); $('st3').classList.remove('done');
+    hide('card3'); hide('card4'); show('card2');
+    alertMsg('');
+  }
+
+  function resetAll() {
+    nextStudent();
+    STATE.assignment = null;
+    $('st1').classList.remove('done');
+    show('assignPicker'); hide('assignSelected'); hide('useMeBtn');
+    $('scanStuBtn').disabled = true;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  /* ---------------- งานของฉัน ---------------- */
+  function loadMine() {
+    $('mineBox').innerHTML = '<div class="text-muted">กำลังโหลด…</div>';
+    api('myStatus').then(function (r) {
+      if (!r.ok) {
+        $('mineBox').innerHTML = '<div class="text-center py-3"><div class="result-icon">🔗</div><p class="mt-2">' + esc(r.message) +
+          '</p><button class="btn btn-brand" onclick="switchView(\'link\')">ผูกบัญชี</button></div>';
+        return;
+      }
+      var pending = r.items.filter(function (x) { return x.submission_status === 'ยังไม่ส่ง'; }).length;
+      var badge = function (st) {
+        var c = { 'ยังไม่ส่ง': 'danger', 'ส่งแล้ว': 'primary', 'ครูตรวจแล้ว': 'info', 'ผ่าน': 'success', 'แก้ไข': 'warning' }[st] || 'secondary';
+        return '<span class="badge text-bg-' + c + '">' + esc(st) + '</span>';
+      };
+      $('mineBox').innerHTML = '<h6 class="mb-1">' + esc(r.student.name) + '</h6><div class="small text-muted mb-3">' + esc(r.student.student_id) + ' · ' + esc(r.student.class_name) +
+        ' · ค้างส่ง <b class="text-danger">' + pending + '</b> งาน</div>' +
+        (r.items.map(function (a) {
+          return '<div class="border rounded-3 p-2 mb-2"><div class="d-flex justify-content-between"><b>' + esc(a.assignment_name) + '</b>' + badge(a.submission_status) + '</div>' +
+            '<div class="small text-muted">' + esc(a.subject) + ' · ' + (a.submitted_text ? 'ส่งเมื่อ ' + esc(a.submitted_text) + (a.is_late ? ' (ช้า)' : '') : 'กำหนดส่ง ' + esc(a.due_text)) + '</div>' +
+            (a.score !== '' && a.score !== undefined ? '<div class="small">คะแนน: <b>' + esc(a.score) + '</b></div>' : '') +
+            (a.note ? '<div class="small text-warning-emphasis">📝 ' + esc(a.note) + '</div>' : '') + '</div>';
+        }).join('') || '<div class="text-muted">ยังไม่มีงาน</div>');
+    });
+  }
+
+  /* ---------------- ผูกบัญชี ---------------- */
+  function renderLink() {
+    var ls = STATE.init.linkedStudent;
+    if (ls) {
+      $('linkBox').innerHTML = '<div class="text-center"><div class="result-icon">✅</div><h6 class="mt-2">ผูกบัญชีแล้ว</h6></div>' +
+        row('รหัส', ls.student_id) + row('ชื่อ', ls.name) + row('ห้อง', ls.class_name) +
+        '<p class="small text-muted mt-3 mb-0">คุณจะได้รับการแจ้งเตือนเมื่อส่งงานสำเร็จ งานใกล้ครบกำหนด และผลการตรวจงาน · หากผูกผิด กรุณาติดต่อครู</p>';
+      return;
+    }
+    $('linkBox').innerHTML = '<h6>🔗 ผูกบัญชี LINE กับรหัสนักเรียน</h6><p class="small text-muted">สแกน QR ประจำตัว<b>ของตัวเอง</b> เพื่อรับการแจ้งเตือนการส่งงานทาง LINE (ทำครั้งเดียว)</p>' +
+      '<button class="btn btn-brand btn-lg w-100" id="linkScan">📷 สแกน QR ของฉัน</button>' +
+      (STATE.init.allowManual ? '<div class="input-group mt-2"><input class="form-control" id="linkId" placeholder="หรือพิมพ์รหัสนักเรียน"><button class="btn btn-outline-secondary" id="linkManual">ตกลง</button></div>' : '');
+    $('linkScan').onclick = function () { scan().then(function (v) { if (v) doLink(v); }).catch(function (e) { alertMsg(e.message); }); };
+    if ($('linkManual')) $('linkManual').onclick = function () { var v = $('linkId').value.trim(); if (v) doLink(v); };
+  }
+
+  function doLink(code) {
+    alertMsg('');
+    api('link', { code: code }).then(function (r) {
+      if (!r.ok) return alertMsg(r.message);
+      STATE.init.linkedStudent = r.student;
+      alertMsg('ผูกบัญชีสำเร็จ', 'success');
+      renderLink();
+    });
+  }
+
+  /* ---------------- Tabs ---------------- */
+  function switchView(v) {
+    ['send', 'mine', 'link'].forEach(function (x) { show('view-' + x, x === v); });
+    document.querySelectorAll('.tabs a').forEach(function (a) { a.classList.toggle('active', a.dataset.view === v); });
+    alertMsg('');
+    if (v === 'mine') loadMine();
+    if (v === 'link') renderLink();
+  }
+  window.switchView = switchView;
+  document.querySelector('.tabs').addEventListener('click', function (e) {
+    var a = e.target.closest('a[data-view]');
+    if (!a) return;
+    e.preventDefault();
+    switchView(a.dataset.view);
+  });
+
+  /* ---------------- Boot ---------------- */
+  function boot() {
+    if (!CFG.API_URL) { $('school').textContent = 'ยังไม่ได้ตั้งค่า API_URL ใน config.js'; return Promise.resolve(); }
+    var start = CFG.LIFF_ID ? liff.init({ liffId: CFG.LIFF_ID }).then(function () {
+      if (!liff.isLoggedIn()) { liff.login({ redirectUri: location.href }); return new Promise(function () {}); }
+      STATE.idToken = liff.getIDToken();
+      params = new URLSearchParams(location.search);
+    }) : Promise.resolve();
+
+    return start.then(function () { return api('init'); }).then(function (r) {
+      if (!r.ok) { $('school').textContent = r.message; alertMsg(r.message); return; }
+      STATE.init = r;
+      $('school').textContent = r.school + ' · ' + (r.user.isTeacher ? '🧑‍🏫 ' + (r.user.teacherName || r.user.displayName) : r.user.displayName);
+      show('manualBox', !!r.allowManual);
+      renderAssignList();
+
+      var task = params.get('task'), mode = params.get('mode');
+      if (mode === 'link') switchView('link');
+      else if (mode === 'mine') switchView('mine');
+      if (task) loadAssignment(task);
+    }).catch(function (e) {
+      $('school').textContent = 'เชื่อมต่อไม่สำเร็จ';
+      alertMsg('เชื่อมต่อไม่สำเร็จ: ' + e.message);
+    });
+  }
+  boot();
+  </script>
+</body>
+</html>

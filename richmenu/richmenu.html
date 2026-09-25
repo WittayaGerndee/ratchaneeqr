@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;600;700&display=block" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 2500px; height: 1686px; overflow: hidden; font-family: 'Kanit', 'Sarabun', sans-serif; background: #ffffff; }
+  .top {
+    position: absolute; left: 0; top: 0; width: 2500px; height: 843px;
+    background: linear-gradient(135deg, #06c755 0%, #00a94f 55%, #008c45 100%);
+    color: #fff; display: flex; align-items: center; padding: 0 150px; gap: 110px; overflow: hidden;
+  }
+  .top::before, .top::after { content: ''; position: absolute; border-radius: 50%; background: rgba(255,255,255,.07); }
+  .top::before { width: 900px; height: 900px; right: -220px; top: -330px; }
+  .top::after { width: 520px; height: 520px; right: 420px; bottom: -330px; }
+  .scan { position: relative; width: 520px; height: 520px; flex: none; background: #fff; border-radius: 64px;
+    display: flex; align-items: center; justify-content: center; box-shadow: 0 30px 60px rgba(0,0,0,.18); }
+  .scan svg { width: 380px; height: 380px; }
+  .t-text { position: relative; }
+  .t-text .kicker { font-size: 64px; font-weight: 500; opacity: .9; letter-spacing: 2px; }
+  .t-text h1 { font-size: 250px; font-weight: 700; line-height: 1.05; margin: 6px 0 18px; }
+  .t-text .sub { font-size: 70px; font-weight: 400; opacity: .95; }
+  .pill { display: inline-flex; align-items: center; gap: 22px; margin-top: 40px; background: #fff; color: #00913f;
+    font-size: 64px; font-weight: 600; padding: 22px 60px; border-radius: 100px; }
+
+  .bottom { position: absolute; left: 0; top: 843px; width: 2500px; height: 843px; display: flex; background: #f3f6f4; }
+  .tile { position: relative; height: 843px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 44px; }
+  .tile + .tile::before { content: ''; position: absolute; left: 0; top: 120px; bottom: 120px; width: 4px; background: #dde5e0; border-radius: 2px; }
+  .ic { width: 300px; height: 300px; border-radius: 80px; display: flex; align-items: center; justify-content: center; }
+  .ic svg { width: 170px; height: 170px; }
+  .tile .label { font-size: 104px; font-weight: 600; color: #1f2d3d; line-height: 1; }
+  .tile .hint { font-size: 56px; color: #6b7a72; line-height: 1; }
+</style>
+</head>
+<body>
+  <!-- A: 0,0 2500x843 -->
+  <div class="top">
+    <div class="scan">
+      <svg viewBox="0 0 100 100" fill="none" stroke="#06c755" stroke-width="7" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M8 28V16a8 8 0 0 1 8-8h12M72 8h12a8 8 0 0 1 8 8v12M92 72v12a8 8 0 0 1-8 8H72M28 92H16a8 8 0 0 1-8-8V72"/>
+        <g fill="#1f2d3d" stroke="none">
+          <rect x="24" y="24" width="20" height="20" rx="3"/><rect x="56" y="24" width="20" height="20" rx="3"/>
+          <rect x="24" y="56" width="20" height="20" rx="3"/><rect x="56" y="56" width="8" height="8" rx="1.5"/>
+          <rect x="68" y="68" width="8" height="8" rx="1.5"/><rect x="56" y="68" width="8" height="8" rx="1.5" opacity=".0"/>
+          <rect x="68" y="56" width="8" height="8" rx="1.5" opacity=".0"/>
+        </g>
+        <g fill="#fff" stroke="none">
+          <rect x="30" y="30" width="8" height="8" rx="1"/><rect x="62" y="30" width="8" height="8" rx="1"/><rect x="30" y="62" width="8" height="8" rx="1"/>
+        </g>
+        <path d="M14 50h72" stroke="#06c755" stroke-width="4" opacity=".85"/>
+      </svg>
+    </div>
+    <div class="t-text">
+      <div class="kicker">ระบบส่งงานนักเรียน</div>
+      <h1>ส่งงาน</h1>
+      <div class="sub">สแกน QR งาน + QR นักเรียน แล้วกดยืนยัน</div>
+      <div class="pill">แตะเพื่อเริ่มส่งงาน
+        <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#00913f" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </div>
+    </div>
+  </div>
+
+  <div class="bottom">
+    <!-- B: 0,843 833x843 -->
+    <div class="tile" style="width:833px">
+      <div class="ic" style="background:#e3f1ff">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#2f7de1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1"/><path d="M8.5 10l1.5 1.5 3-3M8.5 16l1.5 1.5 3-3"/><path d="M15 10.5h1M15 16.5h1"/>
+        </svg>
+      </div>
+      <div class="label">งานของฉัน</div>
+      <div class="hint">ดูงานค้าง / สถานะ</div>
+    </div>
+    <!-- C: 833,843 834x843 -->
+    <div class="tile" style="width:834px">
+      <div class="ic" style="background:#fff1dc">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#e8890c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/>
+        </svg>
+      </div>
+      <div class="label">ผูกบัญชี</div>
+      <div class="hint">รับแจ้งเตือนทาง LINE</div>
+    </div>
+    <!-- D: 1667,843 833x843 -->
+    <div class="tile" style="width:833px">
+      <div class="ic" style="background:#efe7ff">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#7a4fd6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="9.5"/><path d="M9.2 9.2a2.9 2.9 0 0 1 5.6 1c0 1.9-2.8 2.6-2.8 4"/><circle cx="12" cy="17.6" r=".6" fill="#7a4fd6"/>
+        </svg>
+      </div>
+      <div class="label">ช่วยเหลือ</div>
+      <div class="hint">วิธีใช้งาน / คำสั่ง</div>
+    </div>
+  </div>
+</body>
+</html>

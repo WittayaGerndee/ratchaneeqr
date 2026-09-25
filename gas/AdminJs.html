@@ -1,0 +1,536 @@
+<script>
+/* =========================== Helpers =========================== */
+var META = null;
+var CACHE = {};
+var STATUS_LIST = ['ส่งแล้ว', 'ครูตรวจแล้ว', 'ผ่าน', 'แก้ไข'];
+
+function run(fn) {
+  var args = Array.prototype.slice.call(arguments, 1);
+  return new Promise(function (resolve, reject) {
+    var r = google.script.run.withSuccessHandler(resolve).withFailureHandler(function (e) {
+      toast(e && e.message || String(e), 'danger'); reject(e);
+    });
+    r[fn].apply(r, args);
+  });
+}
+
+function esc(s) {
+  return String(s === null || s === undefined ? '' : s).replace(/[&<>"']/g, function (c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+  });
+}
+
+function toast(msg, type) {
+  var el = document.getElementById('toast');
+  el.className = 'toast align-items-center border-0 text-bg-' + (type || 'success');
+  document.getElementById('toastBody').textContent = msg;
+  bootstrap.Toast.getOrCreateInstance(el, { delay: 3500 }).show();
+}
+
+function fmtDT(iso) {
+  if (!iso) return '-';
+  var d = new Date(iso);
+  if (isNaN(d)) return esc(iso);
+  var p = function (n) { return ('0' + n).slice(-2); };
+  return p(d.getDate()) + '/' + p(d.getMonth() + 1) + '/' + (d.getFullYear() + 543) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+}
+
+function toLocalInput(iso) {
+  if (!iso) return '';
+  var d = new Date(iso);
+  if (isNaN(d)) return '';
+  var p = function (n) { return ('0' + n).slice(-2); };
+  return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + 'T' + p(d.getHours()) + ':' + p(d.getMinutes());
+}
+
+function isTrue(v) { return v === true || String(v).toUpperCase() === 'TRUE'; }
+function className(s) { return s.room !== '' && s.room !== undefined && s.room !== null ? s.class + '/' + s.room : String(s.class || ''); }
+
+function statusBadge(st) {
+  var c = { 'ยังไม่ส่ง': 'secondary', 'ส่งแล้ว': 'primary', 'ครูตรวจแล้ว': 'info', 'ผ่าน': 'success', 'แก้ไข': 'warning' }[st] || 'light';
+  return '<span class="badge badge-status text-bg-' + c + '">' + esc(st || '-') + '</span>';
+}
+
+function rateBar(rate) {
+  var cls = rate >= 85 ? '' : rate >= 60 ? 'warn' : 'bad';
+  return '<div class="d-flex align-items-center gap-2"><div class="bar flex-grow-1 ' + cls + '"><div style="width:' + Math.min(100, rate) + '%"></div></div><span class="small fw-semibold" style="width:52px">' + rate + '%</span></div>';
+}
+
+function downloadCsv(filename, rows) {
+  var csv = rows.map(function (r) {
+    return r.map(function (v) { v = String(v === null || v === undefined ? '' : v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; }).join(',');
+  }).join('\r\n');
+  var blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+}
+
+function main(html) { document.getElementById('main').innerHTML = html; }
+function loading() { main('<div class="text-center text-muted py-5"><div class="spinner-border text-success"></div><div class="mt-2">กำลังโหลด…</div></div>'); }
+
+function assignmentOptions(list, selected, withAll) {
+  return (withAll ? '<option value="">— ทุกงาน —</option>' : '') + list.map(function (a) {
+    return '<option value="' + esc(a.assignment_id) + '"' + (a.assignment_id === selected ? ' selected' : '') + '>' +
+      esc(a.assignment_id + ' · ' + a.subject + ' · ' + a.assignment_name) + (a.status === 'CLOSED' ? ' (ปิด)' : '') + '</option>';
+  }).join('');
+}
+
+function classOptions(list, selected) {
+  return '<option value="">— ทุกห้อง —</option>' + list.map(function (c) {
+    return '<option' + (c === selected ? ' selected' : '') + '>' + esc(c) + '</option>';
+  }).join('');
+}
+
+function getAssignments() {
+  return run('adminList', 'Assignments').then(function (rows) { CACHE.assignments = rows; return rows; });
+}
+function getClasses() {
+  if (CACHE.classes) return Promise.resolve(CACHE.classes);
+  return run('adminClassNames').then(function (c) { CACHE.classes = c; return c; });
+}
+
+/* =========================== Router =========================== */
+var PAGES = {};
+var CURRENT = 'dashboard';
+
+function go(page) {
+  CURRENT = page;
+  document.querySelectorAll('#menu a').forEach(function (a) { a.classList.toggle('active', a.dataset.page === page); });
+  var oc = bootstrap.Offcanvas.getInstance(document.getElementById('sidebar'));
+  if (oc) oc.hide();
+  loading();
+  (PAGES[page] || function () { renderTable(page); })();
+}
+
+document.getElementById('menu').addEventListener('click', function (e) {
+  var a = e.target.closest('a[data-page]');
+  if (!a) return;
+  e.preventDefault();
+  go(a.dataset.page);
+});
+
+/* =========================== Dashboard =========================== */
+PAGES.dashboard = function (aid) {
+  run('adminDashboard', aid || '').then(function (d) {
+    var s = d.selected;
+    var html = '<div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">' +
+      '<h4 class="mb-0">📊 Dashboard การส่งงาน</h4>' +
+      '<select class="form-select w-auto" id="dashSel">' + assignmentOptions(d.assignments, s && s.assignment.assignment_id) + '</select></div>';
+
+    if (!s) {
+      main(html + '<div class="alert alert-info">ยังไม่มีงาน — เพิ่มงานที่เมนู "งาน / รายวิชา"</div>');
+      return;
+    }
+    html += '<div class="card mb-3"><div class="card-body py-2 small text-muted">' +
+      '<b class="text-dark">' + esc(s.assignment.subject + ' — ' + s.assignment.assignment_name) + '</b> · กลุ่มเป้าหมาย: ' + esc(s.assignment.class_target) +
+      ' · กำหนดส่ง: ' + esc(s.assignment.due_text) + (s.assignment.is_overdue ? ' <span class="badge text-bg-danger">เลยกำหนด</span>' : '') + '</div></div>';
+
+    html += '<div class="row g-3 mb-3">' +
+      kpi('นักเรียนทั้งหมด', s.target, 'คน', '#1f2d3d') +
+      kpi('ส่งแล้ว', s.submitted, 'คน', '#06c755') +
+      kpi('ยังไม่ส่ง', s.missingCount, 'คน', '#e74c3c') +
+      kpi('อัตราการส่ง', s.rate, '%', '#3478f6') + '</div>';
+
+    html += '<div class="row g-3">';
+    html += '<div class="col-lg-6"><div class="card h-100"><div class="card-body"><h6 class="mb-3">อัตราการส่งรายห้อง</h6>' +
+      (s.rooms.map(function (r) {
+        return '<div class="mb-2"><div class="d-flex justify-content-between small"><span>ห้อง ' + esc(r.class_name) + '</span><span class="text-muted">' + r.submitted + '/' + r.target + '</span></div>' + rateBar(r.rate) + '</div>';
+      }).join('') || '<div class="text-muted small">-</div>') +
+      '<hr><div class="small text-muted">ส่งช้า ' + s.late + ' คน · ' + Object.keys(s.byStatus).map(function (k) { return esc(k) + ' ' + s.byStatus[k]; }).join(' · ') + '</div>' +
+      '</div></div></div>';
+
+    html += '<div class="col-lg-6"><div class="card h-100"><div class="card-body"><div class="d-flex justify-content-between align-items-center mb-2"><h6 class="mb-0">ยังไม่ส่ง (' + s.missingCount + ')</h6>' +
+      (s.missingCount ? '<button class="btn btn-sm btn-outline-warning" id="remindBtn">🔔 แจ้งเตือนทาง LINE</button>' : '') + '</div>' +
+      '<div class="table-wrap" style="max-height:320px"><table class="table table-sm mb-0"><tbody>' +
+      (s.missing.map(function (m) {
+        return '<tr><td>' + esc(m.student_id) + '</td><td>' + esc(m.name) + '</td><td>' + esc(m.class_name) + '</td><td>' + (m.linked ? '<span title="ผูก LINE แล้ว">💬</span>' : '') + '</td></tr>';
+      }).join('') || '<tr><td class="text-success">🎉 ส่งครบทุกคนแล้ว</td></tr>') +
+      '</tbody></table></div></div></div></div>';
+    html += '</div>';
+
+    html += '<div class="card mt-3"><div class="card-body"><h6 class="mb-3">ภาพรวมงานที่เปิดอยู่ (เรียงจากส่งน้อยสุด) · ส่งวันนี้ ' + d.todayCount + ' รายการ</h6>' +
+      '<div class="table-responsive"><table class="table table-sm"><thead><tr><th>งาน</th><th>วิชา</th><th>ห้อง</th><th>กำหนดส่ง</th><th>ส่ง</th><th style="min-width:180px">อัตรา</th></tr></thead><tbody>' +
+      d.assignments.map(function (a) {
+        return '<tr><td><a href="#" data-aid="' + esc(a.assignment_id) + '">' + esc(a.assignment_name) + '</a></td><td>' + esc(a.subject) + '</td><td>' + esc(a.class_target) + '</td><td class="small">' + esc(a.due_text) + '</td><td>' + a.submitted + '/' + a.target + '</td><td>' + rateBar(a.rate) + '</td></tr>';
+      }).join('') + '</tbody></table></div></div></div>';
+
+    main(html);
+    document.getElementById('dashSel').onchange = function () { loading(); PAGES.dashboard(this.value); };
+    document.querySelectorAll('[data-aid]').forEach(function (a) { a.onclick = function (e) { e.preventDefault(); loading(); PAGES.dashboard(a.dataset.aid); }; });
+    var rb = document.getElementById('remindBtn');
+    if (rb) rb.onclick = function () { remind(s.assignment.assignment_id, rb); };
+  });
+};
+
+function kpi(label, num, unit, color) {
+  return '<div class="col-6 col-md-3"><div class="card kpi h-100"><div class="card-body"><div class="small text-muted">' + label + '</div><div class="num" style="color:' + color + '">' + num + ' <small class="fs-6 fw-normal text-muted">' + unit + '</small></div></div></div></div>';
+}
+
+function remind(aid, btn) {
+  if (!confirm('ส่งแจ้งเตือนทาง LINE ถึงนักเรียนที่ยังไม่ส่ง (เฉพาะที่ผูกบัญชีแล้ว)?')) return;
+  btn.disabled = true;
+  run('adminRemindMissing', aid).then(function (r) {
+    toast('ส่งแจ้งเตือนแล้ว ' + r.sent + ' คน (ยังไม่ส่ง ' + r.missing + ' คน)');
+  }).finally(function () { btn.disabled = false; });
+}
+
+/* =========================== Generic CRUD =========================== */
+var TABLE_TITLES = { Students: '👨‍🎓 นักเรียน', Classes: '🏫 ห้องเรียน', Assignments: '📝 งาน / รายวิชา', Teachers: '🧑‍🏫 ครู / ผู้ใช้', Settings: '⚙️ ตั้งค่า' };
+var HIDDEN_COLS = { Students: ['citizen_code', 'linked_at', 'note'], Assignments: ['description', 'created_at', 'reminded_at'], Teachers: [], Classes: [], Settings: [] };
+var READONLY_FIELDS = ['created_at', 'reminded_at', 'linked_at'];
+var FIELD_TYPES = {
+  status: function (sheet) { return sheet === 'Assignments' ? ['OPEN', 'CLOSED'] : ['active', 'inactive']; },
+  allow_resubmit: function () { return ['FALSE', 'TRUE']; },
+  require_file: function () { return ['FALSE', 'TRUE']; },
+  role: function () { return ['teacher', 'admin']; }
+};
+var FIELD_LABELS = {
+  student_id: 'รหัสนักเรียน', citizen_code: 'เลขบัตรประชาชน (ไม่จำเป็น)', name: 'ชื่อ-สกุล', class: 'ระดับชั้น (เช่น ม.5)', room: 'ห้อง (เช่น 1)',
+  status: 'สถานะ', line_user_id: 'LINE userId (ลบเพื่อยกเลิกการผูก)', note: 'หมายเหตุ', class_id: 'รหัสห้อง', class_name: 'ชื่อห้อง (เช่น ม.5/1)',
+  level: 'ระดับชั้น', teacher: 'ครู', assignment_id: 'รหัสงาน (เช่น HW001)', subject: 'วิชา', assignment_name: 'ชื่องาน',
+  description: 'รายละเอียด', class_target: 'ห้องเป้าหมาย (ALL / ม.5 / ม.5/1, คั่นด้วย ,)', due_date: 'กำหนดส่ง',
+  allow_resubmit: 'อนุญาตส่งซ้ำ', require_file: 'ต้องแนบไฟล์', teacher_id: 'รหัสครู', email: 'อีเมล Google', role: 'สิทธิ์',
+  key: 'Key', value: 'ค่า', description_s: 'คำอธิบาย'
+};
+
+function renderTable(sheet) {
+  run('adminList', sheet).then(function (rows) {
+    CACHE[sheet] = rows;
+    var key = META.keys[sheet];
+    var cols = META.schema[sheet].filter(function (c) { return (HIDDEN_COLS[sheet] || []).indexOf(c) < 0; });
+    if (sheet === 'Students') cols = cols.map(function (c) { return c === 'line_user_id' ? 'LINE' : c; });
+
+    var tools = '<div class="d-flex flex-wrap gap-2 mb-3">' +
+      '<input class="form-control" style="max-width:260px" placeholder="🔍 ค้นหา" id="q">' +
+      '<button class="btn btn-brand" id="addBtn">+ เพิ่ม</button>' +
+      (sheet === 'Students' ? '<button class="btn btn-outline-secondary" id="importBtn">📋 นำเข้าจาก Excel</button>' : '') +
+      '<button class="btn btn-outline-secondary" id="csvBtn">⬇️ CSV</button></div>';
+
+    var html = '<h4 class="mb-3">' + TABLE_TITLES[sheet] + ' <small class="text-muted fs-6">(' + rows.length + ')</small></h4>' + tools +
+      '<div class="card"><div class="table-wrap"><table class="table table-hover mb-0"><thead><tr>' +
+      cols.map(function (c) { return '<th>' + esc(c) + '</th>'; }).join('') + '<th></th></tr></thead><tbody id="tbody"></tbody></table></div></div>';
+    main(html);
+
+    function draw() {
+      var q = document.getElementById('q').value.trim().toLowerCase();
+      document.getElementById('tbody').innerHTML = rows.filter(function (r) {
+        return !q || JSON.stringify(r).toLowerCase().indexOf(q) >= 0;
+      }).map(function (r) {
+        return '<tr>' + cols.map(function (c) {
+          var v = c === 'LINE' ? (r.line_user_id ? '💬 ผูกแล้ว' : '<span class="text-muted">-</span>') : r[c];
+          if (c === 'due_date') v = fmtDT(r[c]);
+          else if (c === 'status') v = '<span class="badge text-bg-' + (/^(active|open)$/i.test(r[c]) ? 'success' : 'secondary') + '">' + esc(r[c]) + '</span>';
+          else if (c === 'value' && sheet === 'Settings') v = '<span class="text-break">' + esc(String(r[c]).length > 60 ? String(r[c]).slice(0, 60) + '…' : r[c]) + '</span>';
+          else if (c !== 'LINE') v = esc(v);
+          return '<td>' + v + '</td>';
+        }).join('') + '<td class="text-nowrap text-end">' +
+          '<button class="btn btn-sm btn-outline-primary" data-edit="' + esc(r[key]) + '">แก้ไข</button> ' +
+          (META.user.role === 'admin' ? '<button class="btn btn-sm btn-outline-danger" data-del="' + esc(r[key]) + '">ลบ</button>' : '') +
+          '</td></tr>';
+      }).join('') || '<tr><td colspan="99" class="text-center text-muted py-4">ไม่มีข้อมูล</td></tr>';
+    }
+    draw();
+    document.getElementById('q').oninput = draw;
+    document.getElementById('addBtn').onclick = function () { openForm(sheet, null); };
+    document.getElementById('csvBtn').onclick = function () {
+      var all = META.schema[sheet];
+      downloadCsv(sheet + '.csv', [all].concat(rows.map(function (r) { return all.map(function (c) { return r[c]; }); })));
+    };
+    if (sheet === 'Students') document.getElementById('importBtn').onclick = openImport;
+    document.getElementById('tbody').onclick = function (e) {
+      var ed = e.target.closest('[data-edit]'), dl = e.target.closest('[data-del]');
+      if (ed) openForm(sheet, rows.filter(function (r) { return String(r[key]) === ed.dataset.edit; })[0]);
+      if (dl && confirm('ยืนยันการลบ ' + dl.dataset.del + ' ?')) {
+        run('adminDelete', sheet, dl.dataset.del).then(function () { toast('ลบแล้ว'); CACHE.classes = null; renderTable(sheet); });
+      }
+    };
+  });
+}
+
+function openForm(sheet, row) {
+  var key = META.keys[sheet];
+  var isNew = !row;
+  row = row || {};
+  if (isNew && sheet === 'Assignments') { row.status = 'OPEN'; row.class_target = 'ALL'; row.allow_resubmit = 'FALSE'; row.require_file = 'FALSE'; }
+  if (isNew && (sheet === 'Students' || sheet === 'Classes' || sheet === 'Teachers')) row.status = 'active';
+  if (isNew && sheet === 'Teachers') row.role = 'teacher';
+
+  document.getElementById('formTitle').textContent = (isNew ? 'เพิ่ม' : 'แก้ไข') + ' ' + TABLE_TITLES[sheet].replace(/^\S+\s/, '');
+  document.getElementById('formBody').innerHTML = META.schema[sheet].filter(function (c) { return READONLY_FIELDS.indexOf(c) < 0; }).map(function (c) {
+    var label = FIELD_LABELS[sheet === 'Settings' && c === 'description' ? 'description_s' : c] || c;
+    var v = row[c] === undefined || row[c] === null ? '' : row[c];
+    var input;
+    if (FIELD_TYPES[c] && !(sheet === 'Settings')) {
+      var opts = FIELD_TYPES[c](sheet);
+      var cur = String(v).toUpperCase() === 'TRUE' ? 'TRUE' : String(v).toUpperCase() === 'FALSE' ? 'FALSE' : String(v);
+      input = '<select class="form-select" name="' + c + '">' + opts.map(function (o) { return '<option' + (o.toLowerCase() === cur.toLowerCase() ? ' selected' : '') + '>' + o + '</option>'; }).join('') + '</select>';
+    } else if (c === 'due_date') {
+      input = '<input type="datetime-local" class="form-control" name="' + c + '" value="' + esc(toLocalInput(v)) + '">';
+    } else if (c === 'description' || (sheet === 'Settings' && c === 'value') || c === 'note') {
+      input = '<textarea class="form-control" rows="2" name="' + c + '">' + esc(v) + '</textarea>';
+    } else {
+      var ro = (c === key && !isNew) || (sheet === 'Settings' && c === 'description') ? ' readonly' : '';
+      var list = (c === 'class_target' || c === 'class_name') ? ' list="classList"' : '';
+      input = '<input class="form-control" name="' + c + '" value="' + esc(v) + '"' + ro + list + '>';
+    }
+    var wide = c === 'description' || c === 'value' || c === 'class_target' || c === 'line_user_id';
+    return '<div class="' + (wide ? 'col-12' : 'col-md-6') + '"><label class="form-label small text-muted mb-1">' + esc(label) + '</label>' + input + '</div>';
+  }).join('') + '<datalist id="classList"><option>ALL</option>' + (CACHE.classes || []).map(function (c) { return '<option>' + esc(c) + '</option>'; }).join('') + '</datalist>';
+
+  if (sheet === 'Settings' && /TOKEN/i.test(row.key || '')) {
+    document.getElementById('formBody').insertAdjacentHTML('afterbegin', '<div class="col-12"><div class="alert alert-warning small mb-0">⚠️ แนะนำให้เก็บ Token ใน Script Properties แทนการเก็บใน Sheet</div></div>');
+  }
+
+  var modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('formModal'));
+  document.getElementById('formEl').onsubmit = function (e) {
+    e.preventDefault();
+    var obj = {};
+    new FormData(e.target).forEach(function (v, k) { obj[k] = v; });
+    var btn = e.target.querySelector('[type=submit]');
+    btn.disabled = true;
+    run('adminSave', sheet, obj, isNew).then(function () {
+      modal.hide(); toast('บันทึกแล้ว'); CACHE.classes = null;
+      if (sheet === 'Settings') run('adminMeta').then(function (m) { META = m; });
+      renderTable(sheet);
+    }).finally(function () { btn.disabled = false; });
+  };
+  getClasses().catch(function () {});
+  modal.show();
+}
+
+function openImport() {
+  document.getElementById('formTitle').textContent = 'นำเข้านักเรียนจาก Excel / Google Sheets';
+  document.getElementById('formBody').innerHTML =
+    '<div class="col-12"><p class="small text-muted mb-2">คัดลอกคอลัมน์ <b>รหัส | ชื่อ-สกุล | ชั้น | ห้อง</b> จาก Excel แล้ววางด้านล่าง (รหัสที่มีอยู่แล้วจะถูกอัปเดต)</p>' +
+    '<textarea class="form-control font-monospace" rows="12" name="text" placeholder="65001&#9;นายสมชาย ใจดี&#9;ม.5&#9;1"></textarea></div>';
+  var modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('formModal'));
+  document.getElementById('formEl').onsubmit = function (e) {
+    e.preventDefault();
+    var btn = e.target.querySelector('[type=submit]');
+    btn.disabled = true;
+    run('adminImportStudents', e.target.text.value).then(function (r) {
+      modal.hide(); toast('เพิ่ม ' + r.added + ' · อัปเดต ' + r.updated + ' · ข้าม ' + r.skipped); CACHE.classes = null; renderTable('Students');
+    }).finally(function () { btn.disabled = false; });
+  };
+  modal.show();
+}
+
+/* =========================== Submissions =========================== */
+PAGES.submissions = function () {
+  Promise.all([run('adminList', 'Submissions'), getAssignments(), getClasses()]).then(function (res) {
+    var rows = res[0].reverse(), assigns = res[1], classes = res[2];
+    var html = '<h4 class="mb-3">📥 รายการส่งงาน <small class="text-muted fs-6" id="cnt"></small></h4>' +
+      '<div class="d-flex flex-wrap gap-2 mb-3">' +
+      '<select class="form-select w-auto" id="fA">' + assignmentOptions(assigns, '', true) + '</select>' +
+      '<select class="form-select w-auto" id="fC">' + classOptions(classes, '') + '</select>' +
+      '<select class="form-select w-auto" id="fS"><option value="">— ทุกสถานะ —</option>' + STATUS_LIST.map(function (s) { return '<option>' + s + '</option>'; }).join('') + '</select>' +
+      '<input class="form-control" style="max-width:200px" placeholder="🔍 รหัส/ชื่อ" id="fQ">' +
+      '<div class="form-check align-self-center"><input class="form-check-input" type="checkbox" id="fN" checked><label class="form-check-label small" for="fN">แจ้งผลทาง LINE</label></div>' +
+      '<button class="btn btn-outline-secondary ms-auto" id="csv">⬇️ CSV</button></div>' +
+      '<div class="card"><div class="table-wrap"><table class="table table-hover table-sm mb-0"><thead><tr>' +
+      '<th>เวลา</th><th>รหัส</th><th>ชื่อ</th><th>ห้อง</th><th>งาน</th><th>ครั้ง</th><th>ไฟล์</th><th>สถานะ</th><th style="width:80px">คะแนน</th><th>หมายเหตุ</th><th></th>' +
+      '</tr></thead><tbody id="tb"></tbody></table></div></div>';
+    main(html);
+
+    var filtered = [];
+    function draw() {
+      var fa = val('fA'), fc = val('fC'), fs = val('fS'), q = val('fQ').toLowerCase();
+      filtered = rows.filter(function (r) {
+        return (!fa || String(r.assignment_id) === fa) && (!fc || className(r) === fc) && (!fs || r.status === fs) &&
+          (!q || (String(r.student_id) + ' ' + r.name).toLowerCase().indexOf(q) >= 0);
+      });
+      document.getElementById('cnt').textContent = '(' + filtered.length + ')';
+      document.getElementById('tb').innerHTML = filtered.slice(0, 1000).map(function (r) {
+        return '<tr data-id="' + esc(r.submission_id) + '"><td class="small text-nowrap">' + fmtDT(r.timestamp) + (isTrue(r.is_late) ? ' <span class="badge text-bg-warning">ช้า</span>' : '') + '</td>' +
+          '<td>' + esc(r.student_id) + '</td><td>' + esc(r.name) + '</td><td>' + esc(className(r)) + '</td>' +
+          '<td class="small">' + esc(r.subject) + '<br>' + esc(r.assignment) + '</td><td>' + esc(r.attempt) + '</td>' +
+          '<td>' + (r.file_url ? '<a href="' + esc(r.file_url) + '" target="_blank">📎</a>' : '') + '</td>' +
+          '<td><select class="form-select form-select-sm" data-f="status">' + STATUS_LIST.map(function (s) { return '<option' + (s === r.status ? ' selected' : '') + '>' + s + '</option>'; }).join('') + '</select></td>' +
+          '<td><input class="form-control form-control-sm" data-f="score" value="' + esc(r.score) + '"></td>' +
+          '<td><input class="form-control form-control-sm" data-f="note" value="' + esc(r.note) + '"></td>' +
+          '<td class="text-nowrap"><button class="btn btn-sm btn-brand" data-save>บันทึก</button>' +
+          (META.user.role === 'admin' ? ' <button class="btn btn-sm btn-outline-danger" data-del>ลบ</button>' : '') + '</td></tr>';
+      }).join('') || '<tr><td colspan="11" class="text-center text-muted py-4">ไม่มีข้อมูล</td></tr>';
+    }
+    function val(id) { return document.getElementById(id).value; }
+    ['fA', 'fC', 'fS'].forEach(function (id) { document.getElementById(id).onchange = draw; });
+    document.getElementById('fQ').oninput = draw;
+    draw();
+
+    document.getElementById('tb').onclick = function (e) {
+      var tr = e.target.closest('tr[data-id]');
+      if (!tr) return;
+      var id = tr.dataset.id;
+      if (e.target.closest('[data-save]')) {
+        var data = { notify: document.getElementById('fN').checked };
+        tr.querySelectorAll('[data-f]').forEach(function (el) { data[el.dataset.f] = el.value; });
+        var btn = e.target; btn.disabled = true;
+        run('adminUpdateSubmission', id, data).then(function () {
+          var r = rows.filter(function (x) { return x.submission_id === id; })[0];
+          if (r) { r.status = data.status; r.score = data.score; r.note = data.note; }
+          toast('บันทึกผลการตรวจแล้ว');
+        }).finally(function () { btn.disabled = false; });
+      }
+      if (e.target.closest('[data-del]') && confirm('ลบรายการส่งงานนี้? (นักเรียนจะส่งใหม่ได้)')) {
+        run('adminDelete', 'Submissions', id).then(function () {
+          rows = rows.filter(function (x) { return x.submission_id !== id; }); draw(); toast('ลบแล้ว');
+        });
+      }
+    };
+    document.getElementById('csv').onclick = function () {
+      var cols = META.schema.Submissions;
+      downloadCsv('submissions.csv', [cols].concat(filtered.map(function (r) { return cols.map(function (c) { return c === 'timestamp' ? fmtDT(r[c]) : r[c]; }); })));
+    };
+  });
+};
+
+/* =========================== Missing =========================== */
+PAGES.missing = function () {
+  Promise.all([getAssignments(), getClasses()]).then(function (res) {
+    var assigns = res[0].filter(function (a) { return String(a.status).toUpperCase() === 'OPEN'; });
+    if (!assigns.length) assigns = res[0];
+    main('<h4 class="mb-3">⏳ นักเรียนที่ยังไม่ส่ง</h4><div class="d-flex flex-wrap gap-2 mb-3">' +
+      '<select class="form-select w-auto" id="mA">' + assignmentOptions(assigns, assigns[0] && assigns[0].assignment_id) + '</select>' +
+      '<select class="form-select w-auto" id="mC">' + classOptions(res[1], '') + '</select>' +
+      '<button class="btn btn-outline-warning" id="mR">🔔 แจ้งเตือนทาง LINE</button>' +
+      '<button class="btn btn-outline-secondary" id="mCsv">⬇️ CSV</button>' +
+      '<button class="btn btn-outline-secondary" onclick="window.print()">🖨️ พิมพ์</button></div><div id="mOut"></div>');
+    var last = null;
+    function load() {
+      var aid = document.getElementById('mA').value;
+      if (!aid) { document.getElementById('mOut').innerHTML = '<div class="alert alert-info">ยังไม่มีงาน</div>'; return; }
+      document.getElementById('mOut').innerHTML = '<div class="text-muted">กำลังโหลด…</div>';
+      run('adminMissing', aid, document.getElementById('mC').value).then(function (r) {
+        last = r;
+        document.getElementById('mOut').innerHTML = '<div class="card"><div class="card-body">' +
+          '<h6>' + esc(r.assignment.subject + ' — ' + r.assignment.assignment_name) + ' <span class="text-muted small">กำหนดส่ง ' + esc(r.assignment.due_text) + '</span></h6>' +
+          '<p class="text-danger fw-semibold">ยังไม่ส่ง ' + r.students.length + ' คน</p>' +
+          '<table class="table table-sm"><thead><tr><th>#</th><th>รหัส</th><th>ชื่อ-สกุล</th><th>ห้อง</th><th>LINE</th></tr></thead><tbody>' +
+          (r.students.map(function (s, i) { return '<tr><td>' + (i + 1) + '</td><td>' + esc(s.student_id) + '</td><td>' + esc(s.name) + '</td><td>' + esc(s.class_name) + '</td><td>' + (s.linked ? '💬' : '-') + '</td></tr>'; }).join('') ||
+            '<tr><td colspan="5" class="text-success">🎉 ส่งครบแล้ว</td></tr>') + '</tbody></table></div></div>';
+      });
+    }
+    document.getElementById('mA').onchange = load;
+    document.getElementById('mC').onchange = load;
+    document.getElementById('mR').onclick = function () { remind(document.getElementById('mA').value, this); };
+    document.getElementById('mCsv').onclick = function () {
+      if (!last) return;
+      downloadCsv('missing_' + last.assignment.assignment_id + '.csv', [['student_id', 'name', 'class', 'assignment']].concat(
+        last.students.map(function (s) { return [s.student_id, s.name, s.class_name, last.assignment.assignment_name]; })));
+    };
+    load();
+  });
+};
+
+/* =========================== QR Code =========================== */
+PAGES.qr = function () {
+  getClasses().then(function (classes) {
+    main('<h4 class="mb-3 no-print">🔳 QR Code</h4>' +
+      '<ul class="nav nav-pills mb-3 no-print"><li class="nav-item"><a class="nav-link active" href="#" data-t="stu">บัตร QR นักเรียน</a></li>' +
+      '<li class="nav-item"><a class="nav-link" href="#" data-t="task">โปสเตอร์ QR งาน</a></li></ul>' +
+      '<div class="d-flex flex-wrap gap-2 mb-3 no-print"><select class="form-select w-auto" id="qC">' + classOptions(classes, classes[0] || '') + '</select>' +
+      '<button class="btn btn-brand" onclick="window.print()">🖨️ พิมพ์ / บันทึก PDF</button>' +
+      '<button class="btn btn-outline-secondary" id="qDrive">💾 บันทึก PNG ลง Drive</button></div>' +
+      '<div class="alert alert-light small no-print">QR นักเรียนเก็บเฉพาะรหัส (เช่น <code>' + esc(META.studentPrefix) + '65001</code>) ไม่มีข้อมูลส่วนตัว — เปลี่ยนชื่อ/ห้องได้โดยไม่ต้องพิมพ์ใหม่' +
+      (META.liffId ? '' : '<br>⚠️ ยังไม่ได้ตั้ง LIFF_ID — QR งานจะเป็นข้อความ <code>' + esc(META.taskPrefix) + 'HW001</code> (ต้องสแกนในหน้า LIFF)') + '</div>' +
+      '<div id="qOut"></div>');
+    var tab = 'stu';
+    function load() {
+      document.getElementById('qOut').innerHTML = '<div class="text-muted">กำลังสร้าง QR…</div>';
+      document.getElementById('qC').style.display = tab === 'stu' ? '' : 'none';
+      run('adminQrData', document.getElementById('qC').value).then(function (d) {
+        var out = document.getElementById('qOut');
+        if (tab === 'stu') {
+          out.innerHTML = '<div class="qr-grid">' + d.students.map(function (s, i) {
+            return '<div class="qr-card"><div class="small text-muted">' + esc(d.school) + '</div><div class="qr" id="q' + i + '"></div>' +
+              '<div class="sid">' + esc(s.student_id) + '</div><div>' + esc(s.name) + '</div><div class="small text-muted">' + esc(s.class_name) + '</div></div>';
+          }).join('') + '</div>';
+          d.students.forEach(function (s, i) { new QRCode(document.getElementById('q' + i), { text: s.qr, width: 140, height: 140, correctLevel: QRCode.CorrectLevel.M }); });
+        } else {
+          out.innerHTML = '<div class="d-flex flex-wrap gap-3">' + d.tasks.map(function (t, i) {
+            return '<div class="qr-poster"><h3>📚 ' + esc(t.assignment_name) + '</h3><div class="qr d-flex justify-content-center my-3" id="t' + i + '"></div>' +
+              '<div class="fs-5">วิชา' + esc(t.subject) + '</div><div>' + esc(t.class_target) + '</div><div class="small text-muted mt-2">กำหนดส่ง ' + esc(t.due_text) + '</div>' +
+              '<div class="small text-muted">สแกนด้วย LINE หรือกล้องมือถือ</div></div>';
+          }).join('') + (d.tasks.length ? '' : '<div class="text-muted">ไม่มีงานที่เปิดอยู่</div>') + '</div>';
+          d.tasks.forEach(function (t, i) { new QRCode(document.getElementById('t' + i), { text: t.qr, width: 240, height: 240, correctLevel: QRCode.CorrectLevel.M }); });
+        }
+      });
+    }
+    document.querySelectorAll('[data-t]').forEach(function (a) {
+      a.onclick = function (e) {
+        e.preventDefault(); tab = a.dataset.t;
+        document.querySelectorAll('[data-t]').forEach(function (x) { x.classList.toggle('active', x === a); });
+        load();
+      };
+    });
+    document.getElementById('qC').onchange = load;
+    document.getElementById('qDrive').onclick = function () {
+      var btn = this; btn.disabled = true;
+      toast('กำลังสร้างไฟล์ PNG ลง Drive… อาจใช้เวลาหลายนาที', 'info');
+      (tab === 'stu' ? run('adminGenerateStudentQRs', document.getElementById('qC').value) : run('adminGenerateTaskQRs')).then(function (r) {
+        toast('บันทึกแล้ว ' + r.done + '/' + r.total + (r.remaining ? ' (เหลือ ' + r.remaining + ' กดอีกครั้งเพื่อทำต่อ)' : ''));
+        window.open(r.folderUrl, '_blank');
+      }).finally(function () { btn.disabled = false; });
+    };
+    load();
+  });
+};
+
+/* =========================== Report =========================== */
+PAGES.report = function () {
+  getClasses().then(function (classes) {
+    main('<h4 class="mb-3">📈 รายงานรายนักเรียน</h4><div class="d-flex flex-wrap gap-2 mb-3">' +
+      '<select class="form-select w-auto" id="rC">' + classOptions(classes, '') + '</select>' +
+      '<button class="btn btn-outline-secondary" id="rCsv">⬇️ CSV</button><button class="btn btn-outline-secondary" onclick="window.print()">🖨️ พิมพ์</button></div>' +
+      '<div id="rOut"></div>' +
+      '<div class="alert alert-light small mt-3 no-print">💡 ต้องการกราฟเพิ่มเติม: เชื่อม Google Sheet นี้กับ <a href="https://lookerstudio.google.com" target="_blank">Looker Studio</a> (Data source = Sheet "Submissions" และ "Students")' +
+      (META.spreadsheetUrl ? ' · <a href="' + esc(META.spreadsheetUrl) + '" target="_blank">เปิด Google Sheet</a>' : '') + '</div>');
+    var last = [];
+    function load() {
+      document.getElementById('rOut').innerHTML = '<div class="text-muted">กำลังโหลด…</div>';
+      run('adminStudentReport', document.getElementById('rC').value).then(function (rows) {
+        last = rows;
+        document.getElementById('rOut').innerHTML = '<div class="card"><div class="table-wrap"><table class="table table-sm table-hover mb-0"><thead><tr>' +
+          '<th>รหัส</th><th>ชื่อ</th><th>ห้อง</th><th>งานที่ได้รับ</th><th>ส่งแล้ว</th><th>ครั้งที่ส่งรวม</th><th>ส่งช้า</th><th>ผ่าน</th><th>แก้ไข</th><th style="min-width:160px">อัตรา</th><th>LINE</th></tr></thead><tbody>' +
+          rows.map(function (r) {
+            return '<tr><td>' + esc(r.student_id) + '</td><td>' + esc(r.name) + '</td><td>' + esc(r.class_name) + '</td><td>' + r.target + '</td><td>' + r.submitted + '</td><td>' + r.attempts + '</td><td>' + r.late + '</td><td>' + r.passed + '</td><td>' + r.revise + '</td><td>' + rateBar(r.rate) + '</td><td>' + (r.linked ? '💬' : '-') + '</td></tr>';
+          }).join('') + '</tbody></table></div></div>';
+      });
+    }
+    document.getElementById('rC').onchange = load;
+    document.getElementById('rCsv').onclick = function () {
+      var cols = ['student_id', 'name', 'class_name', 'target', 'submitted', 'attempts', 'late', 'passed', 'revise', 'rate'];
+      downloadCsv('student_report.csv', [cols].concat(last.map(function (r) { return cols.map(function (c) { return r[c]; }); })));
+    };
+    load();
+  });
+};
+
+/* =========================== Logs =========================== */
+PAGES.logs = function () {
+  run('adminList', 'Logs').then(function (rows) {
+    main('<div class="d-flex justify-content-between mb-3"><h4 class="mb-0">🧾 Logs <small class="text-muted fs-6">(500 รายการล่าสุด)</small></h4>' +
+      (META.user.role === 'admin' ? '<button class="btn btn-outline-secondary btn-sm" id="testLine">ทดสอบส่ง LINE ถึงผู้ดูแล</button>' : '') + '</div>' +
+      '<div class="card"><div class="table-wrap"><table class="table table-sm mb-0"><thead><tr><th>เวลา</th><th>event</th><th>student_id</th><th>line_user_id</th><th>result</th><th>error</th></tr></thead><tbody>' +
+      rows.map(function (r) {
+        return '<tr class="' + (r.error ? 'table-danger' : '') + '"><td class="small text-nowrap">' + fmtDT(r.timestamp) + '</td><td>' + esc(r.event) + '</td><td>' + esc(r.student_id) + '</td><td class="small">' + esc(String(r.line_user_id).slice(0, 12)) + '</td><td class="small">' + esc(r.result) + '</td><td class="small text-danger">' + esc(String(r.error).slice(0, 160)) + '</td></tr>';
+      }).join('') + '</tbody></table></div></div>');
+    var t = document.getElementById('testLine');
+    if (t) t.onclick = function () { run('adminTestLine').then(function () { toast('ส่งข้อความทดสอบแล้ว'); }); };
+  });
+};
+
+/* =========================== Boot =========================== */
+run('adminMeta').then(function (m) {
+  META = m;
+  if (m.user.role !== 'admin') document.querySelectorAll('.admin-only').forEach(function (el) { el.remove(); });
+  document.getElementById('links').innerHTML =
+    (m.spreadsheetUrl ? '<a href="' + esc(m.spreadsheetUrl) + '" target="_blank">📄 Google Sheet</a><br>' : '') +
+    (m.driveUrl ? '<a href="' + esc(m.driveUrl) + '" target="_blank">📁 Google Drive</a><br>' : '') +
+    (m.liffId ? '<a href="https://liff.line.me/' + esc(m.liffId) + '" target="_blank">📱 หน้า LIFF</a>' : '<span class="text-warning">⚠️ ยังไม่ได้ตั้ง LIFF_ID</span>');
+  getClasses().catch(function () {});
+  go('dashboard');
+});
+</script>

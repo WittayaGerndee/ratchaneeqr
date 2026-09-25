@@ -1,0 +1,36 @@
+<style>
+  :root { --brand: #06c755; --brand-dark: #05a847; }
+  body { font-family: 'Sarabun', sans-serif; background: #f4f6f8; }
+  .bg-brand { background: #1f2d3d; }
+  .btn-brand { background: var(--brand); border-color: var(--brand); color: #fff; }
+  .btn-brand:hover { background: var(--brand-dark); color: #fff; }
+  .sidebar { width: 230px; min-height: calc(100vh - 56px); background: #fff; border-right: 1px solid #e5e7eb; }
+  .sidebar .list-group-item { border: 0; padding: .7rem 1.1rem; }
+  .sidebar .list-group-item.active { background: #e8f8ee; color: #067a36; font-weight: 600; }
+  @media (max-width: 991.98px) { .sidebar { min-height: auto; } }
+  .kpi { border: 0; border-radius: 14px; }
+  .kpi .num { font-size: 2rem; font-weight: 700; line-height: 1.1; }
+  .card { border: 0; border-radius: 14px; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+  .table { font-size: .92rem; }
+  .table td, .table th { vertical-align: middle; }
+  .bar { height: 22px; background: #eef1f4; border-radius: 6px; overflow: hidden; }
+  .bar > div { height: 100%; background: var(--brand); border-radius: 6px; }
+  .bar.warn > div { background: #f0ad4e; } .bar.bad > div { background: #e74c3c; }
+  .badge-status { font-weight: 500; }
+  .qr-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; }
+  .qr-card { background: #fff; border: 1px dashed #bbb; border-radius: 10px; padding: 12px; text-align: center; break-inside: avoid; }
+  .qr-card .qr { display: flex; justify-content: center; margin: 8px 0; }
+  .qr-card .sid { font-weight: 700; font-size: 1.05rem; }
+  .qr-poster { background: #fff; border: 2px solid #222; border-radius: 14px; padding: 24px; text-align: center; break-inside: avoid; max-width: 360px; }
+  .qr-poster h3 { margin: 0 0 8px; }
+  .table-wrap { max-height: 70vh; overflow: auto; }
+  .table-wrap thead th { position: sticky; top: 0; background: #f8f9fa; z-index: 1; }
+  @media print {
+    .no-print, .navbar, .sidebar { display: none !important; }
+    body { background: #fff; }
+    main { padding: 0 !important; }
+    .qr-grid { grid-template-columns: repeat(4, 1fr); gap: 6px; }
+    .qr-card { page-break-inside: avoid; }
+    .qr-poster { page-break-after: always; margin: 0 auto 20px; }
+  }
+</style>
