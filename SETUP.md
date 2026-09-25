@@ -11,7 +11,7 @@ gas/                  ← โค้ด Google Apps Script (Backend + หน้�
   Setup.gs            setup() ติดตั้งครั้งแรก, seedSampleData(), Trigger
   Main.gs             doGet (Admin) / doPost (LINE Webhook + LIFF API)
   Api.gs              API สำหรับ LIFF (ตรวจ LINE ID Token ทุกคำขอ)
-  Submission.gs       ค้นนักเรียน/งาน, บันทึกการส่ง, กันส่งซ้ำ, ผูกบัญชี
+  Submission.gs       ค้นนักเรียน/งาน, บันทึกการส่ง, กันส่งซ้ำ, ยกเลิกการสแกน
   Line.gs             LINE Messaging API, Webhook, Flex Message
   Notify.gs           แจ้งเตือนหลังส่ง / ก่อนครบกำหนด / สรุปรายวัน
   Qr.gs               สร้าง QR PNG ลง Drive
@@ -143,7 +143,7 @@ QR นักเรียนเก็บเฉพาะรหัส (`STU-65001`)
 
 1. ตั้ง `Settings.REQUIRE_ID_TOKEN = FALSE`
 2. `liff/config.js` ปล่อย `LIFF_ID` ว่าง ใส่เฉพาะ `API_URL`
-3. เปิด `liff/index.html` ผ่าน local web server → สแกนด้วยกล้องเว็บ (html5-qrcode) หรือพิมพ์รหัส (ถ้าเปิด `ALLOW_MANUAL_ENTRY`)
+3. เปิด `liff/index.html` ผ่าน local web server → สแกนด้วยกล้องเว็บ (html5-qrcode) หรือพิมพ์รหัส (ตั้ง `ADMIN_LINE_ID` = `DEV_USER` ชั่วคราว)
 
 **อย่าลืมตั้งกลับเป็น TRUE ก่อนใช้งานจริง**
 
