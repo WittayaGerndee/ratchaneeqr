@@ -142,10 +142,10 @@ PAGES.dashboard = function (aid) {
       '</div></div></div>';
 
     html += '<div class="col-lg-6"><div class="card h-100"><div class="card-body"><div class="d-flex justify-content-between align-items-center mb-2"><h6 class="mb-0">ยังไม่ส่ง (' + s.missingCount + ')</h6>' +
-      (s.missingCount ? '<button class="btn btn-sm btn-outline-warning" id="remindBtn">🔔 แจ้งเตือนทาง LINE</button>' : '') + '</div>' +
+      (s.missingCount ? '<button class="btn btn-sm btn-outline-warning" id="remindBtn">📨 ส่งรายชื่อให้ครูทาง LINE</button>' : '') + '</div>' +
       '<div class="table-wrap" style="max-height:320px"><table class="table table-sm mb-0"><tbody>' +
       (s.missing.map(function (m) {
-        return '<tr><td>' + esc(m.student_id) + '</td><td>' + esc(m.name) + '</td><td>' + esc(m.class_name) + '</td><td>' + (m.linked ? '<span title="ผูก LINE แล้ว">💬</span>' : '') + '</td></tr>';
+        return '<tr><td>' + esc(m.student_id) + '</td><td>' + esc(m.name) + '</td><td>' + esc(m.class_name) + '</td></tr>';
       }).join('') || '<tr><td class="text-success">🎉 ส่งครบทุกคนแล้ว</td></tr>') +
       '</tbody></table></div></div></div></div>';
     html += '</div>';
@@ -169,16 +169,16 @@ function kpi(label, num, unit, color) {
 }
 
 function remind(aid, btn) {
-  if (!confirm('ส่งแจ้งเตือนทาง LINE ถึงนักเรียนที่ยังไม่ส่ง (เฉพาะที่ผูกบัญชีแล้ว)?')) return;
+  if (!confirm('ส่งรายชื่อนักเรียนที่ยังไม่ส่ง ให้ครูทุกคนทาง LINE?')) return;
   btn.disabled = true;
   run('adminRemindMissing', aid).then(function (r) {
-    toast('ส่งแจ้งเตือนแล้ว ' + r.sent + ' คน (ยังไม่ส่ง ' + r.missing + ' คน)');
+    toast('ส่งรายชื่อ (' + r.missing + ' คน) ให้ครู ' + r.sent + ' คนแล้ว');
   }).finally(function () { btn.disabled = false; });
 }
 
 /* =========================== Generic CRUD =========================== */
 var TABLE_TITLES = { Students: '👨‍🎓 นักเรียน', Classes: '🏫 ห้องเรียน', Assignments: '📝 งาน / รายวิชา', Teachers: '🧑‍🏫 ครู / ผู้ใช้', Settings: '⚙️ ตั้งค่า' };
-var HIDDEN_COLS = { Students: ['citizen_code', 'linked_at', 'note'], Assignments: ['description', 'created_at', 'reminded_at'], Teachers: [], Classes: [], Settings: [] };
+var HIDDEN_COLS = { Students: ['citizen_code', 'note', 'line_user_id', 'linked_at'], Assignments: ['description', 'created_at', 'reminded_at'], Teachers: [], Classes: [], Settings: [] };
 var READONLY_FIELDS = ['created_at', 'reminded_at', 'linked_at'];
 var FIELD_TYPES = {
   status: function (sheet) { return sheet === 'Assignments' ? ['OPEN', 'CLOSED'] : ['active', 'inactive']; },
@@ -188,7 +188,7 @@ var FIELD_TYPES = {
 };
 var FIELD_LABELS = {
   student_id: 'รหัสนักเรียน', citizen_code: 'เลขบัตรประชาชน (ไม่จำเป็น)', name: 'ชื่อ-สกุล', class: 'ระดับชั้น (เช่น ม.5)', room: 'ห้อง (เช่น 1)',
-  status: 'สถานะ', line_user_id: 'LINE userId (ลบเพื่อยกเลิกการผูก)', note: 'หมายเหตุ', class_id: 'รหัสห้อง', class_name: 'ชื่อห้อง (เช่น ม.5/1)',
+  status: 'สถานะ', line_user_id: 'LINE userId (ให้ครูพิมพ์ myid ใน LINE OA)', note: 'หมายเหตุ', class_id: 'รหัสห้อง', class_name: 'ชื่อห้อง (เช่น ม.5/1)',
   level: 'ระดับชั้น', teacher: 'ครู', assignment_id: 'รหัสงาน (เช่น HW001)', subject: 'วิชา', assignment_name: 'ชื่องาน',
   description: 'รายละเอียด', class_target: 'ห้องเป้าหมาย (ALL / ม.5 / ม.5/1, คั่นด้วย ,)', due_date: 'กำหนดส่ง',
   allow_resubmit: 'อนุญาตส่งซ้ำ', require_file: 'ต้องแนบไฟล์', teacher_id: 'รหัสครู', email: 'อีเมล Google', role: 'สิทธิ์',
@@ -200,7 +200,6 @@ function renderTable(sheet) {
     CACHE[sheet] = rows;
     var key = META.keys[sheet];
     var cols = META.schema[sheet].filter(function (c) { return (HIDDEN_COLS[sheet] || []).indexOf(c) < 0; });
-    if (sheet === 'Students') cols = cols.map(function (c) { return c === 'line_user_id' ? 'LINE' : c; });
 
     var tools = '<div class="d-flex flex-wrap gap-2 mb-3">' +
       '<input class="form-control" style="max-width:260px" placeholder="🔍 ค้นหา" id="q">' +
@@ -219,11 +218,11 @@ function renderTable(sheet) {
         return !q || JSON.stringify(r).toLowerCase().indexOf(q) >= 0;
       }).map(function (r) {
         return '<tr>' + cols.map(function (c) {
-          var v = c === 'LINE' ? (r.line_user_id ? '💬 ผูกแล้ว' : '<span class="text-muted">-</span>') : r[c];
+          var v = r[c];
           if (c === 'due_date') v = fmtDT(r[c]);
           else if (c === 'status') v = '<span class="badge text-bg-' + (/^(active|open)$/i.test(r[c]) ? 'success' : 'secondary') + '">' + esc(r[c]) + '</span>';
           else if (c === 'value' && sheet === 'Settings') v = '<span class="text-break">' + esc(String(r[c]).length > 60 ? String(r[c]).slice(0, 60) + '…' : r[c]) + '</span>';
-          else if (c !== 'LINE') v = esc(v);
+          else v = esc(v);
           return '<td>' + v + '</td>';
         }).join('') + '<td class="text-nowrap text-end">' +
           '<button class="btn btn-sm btn-outline-primary" data-edit="' + esc(r[key]) + '">แก้ไข</button> ' +
@@ -327,7 +326,6 @@ PAGES.submissions = function () {
       '<select class="form-select w-auto" id="fC">' + classOptions(classes, '') + '</select>' +
       '<select class="form-select w-auto" id="fS"><option value="">— ทุกสถานะ —</option>' + STATUS_LIST.map(function (s) { return '<option>' + s + '</option>'; }).join('') + '</select>' +
       '<input class="form-control" style="max-width:200px" placeholder="🔍 รหัส/ชื่อ" id="fQ">' +
-      '<div class="form-check align-self-center"><input class="form-check-input" type="checkbox" id="fN" checked><label class="form-check-label small" for="fN">แจ้งผลทาง LINE</label></div>' +
       '<button class="btn btn-outline-secondary ms-auto" id="csv">⬇️ CSV</button></div>' +
       '<div class="card"><div class="table-wrap"><table class="table table-hover table-sm mb-0"><thead><tr>' +
       '<th>เวลา</th><th>รหัส</th><th>ชื่อ</th><th>ห้อง</th><th>งาน</th><th>ครั้ง</th><th>ไฟล์</th><th>สถานะ</th><th style="width:80px">คะแนน</th><th>หมายเหตุ</th><th></th>' +
@@ -364,7 +362,7 @@ PAGES.submissions = function () {
       if (!tr) return;
       var id = tr.dataset.id;
       if (e.target.closest('[data-save]')) {
-        var data = { notify: document.getElementById('fN').checked };
+        var data = {};
         tr.querySelectorAll('[data-f]').forEach(function (el) { data[el.dataset.f] = el.value; });
         var btn = e.target; btn.disabled = true;
         run('adminUpdateSubmission', id, data).then(function () {
@@ -394,7 +392,7 @@ PAGES.missing = function () {
     main('<h4 class="mb-3">⏳ นักเรียนที่ยังไม่ส่ง</h4><div class="d-flex flex-wrap gap-2 mb-3">' +
       '<select class="form-select w-auto" id="mA">' + assignmentOptions(assigns, assigns[0] && assigns[0].assignment_id) + '</select>' +
       '<select class="form-select w-auto" id="mC">' + classOptions(res[1], '') + '</select>' +
-      '<button class="btn btn-outline-warning" id="mR">🔔 แจ้งเตือนทาง LINE</button>' +
+      '<button class="btn btn-outline-warning" id="mR">📨 ส่งรายชื่อให้ครูทาง LINE</button>' +
       '<button class="btn btn-outline-secondary" id="mCsv">⬇️ CSV</button>' +
       '<button class="btn btn-outline-secondary" onclick="window.print()">🖨️ พิมพ์</button></div><div id="mOut"></div>');
     var last = null;
@@ -407,9 +405,9 @@ PAGES.missing = function () {
         document.getElementById('mOut').innerHTML = '<div class="card"><div class="card-body">' +
           '<h6>' + esc(r.assignment.subject + ' — ' + r.assignment.assignment_name) + ' <span class="text-muted small">กำหนดส่ง ' + esc(r.assignment.due_text) + '</span></h6>' +
           '<p class="text-danger fw-semibold">ยังไม่ส่ง ' + r.students.length + ' คน</p>' +
-          '<table class="table table-sm"><thead><tr><th>#</th><th>รหัส</th><th>ชื่อ-สกุล</th><th>ห้อง</th><th>LINE</th></tr></thead><tbody>' +
-          (r.students.map(function (s, i) { return '<tr><td>' + (i + 1) + '</td><td>' + esc(s.student_id) + '</td><td>' + esc(s.name) + '</td><td>' + esc(s.class_name) + '</td><td>' + (s.linked ? '💬' : '-') + '</td></tr>'; }).join('') ||
-            '<tr><td colspan="5" class="text-success">🎉 ส่งครบแล้ว</td></tr>') + '</tbody></table></div></div>';
+          '<table class="table table-sm"><thead><tr><th>#</th><th>รหัส</th><th>ชื่อ-สกุล</th><th>ห้อง</th></tr></thead><tbody>' +
+          (r.students.map(function (s, i) { return '<tr><td>' + (i + 1) + '</td><td>' + esc(s.student_id) + '</td><td>' + esc(s.name) + '</td><td>' + esc(s.class_name) + '</td></tr>'; }).join('') ||
+            '<tr><td colspan="4" class="text-success">🎉 ส่งครบแล้ว</td></tr>') + '</tbody></table></div></div>';
       });
     }
     document.getElementById('mA').onchange = load;
@@ -428,7 +426,7 @@ PAGES.missing = function () {
 PAGES.qr = function () {
   getClasses().then(function (classes) {
     main('<h4 class="mb-3 no-print">🔳 QR Code</h4>' +
-      '<ul class="nav nav-pills mb-3 no-print"><li class="nav-item"><a class="nav-link active" href="#" data-t="stu">บัตร QR นักเรียน</a></li>' +
+      '<ul class="nav nav-pills mb-3 no-print"><li class="nav-item"><a class="nav-link active" href="#" data-t="stu">สติกเกอร์ QR ติดสมุด</a></li>' +
       '<li class="nav-item"><a class="nav-link" href="#" data-t="task">โปสเตอร์ QR งาน</a></li></ul>' +
       '<div class="d-flex flex-wrap gap-2 mb-3 no-print"><select class="form-select w-auto" id="qC">' + classOptions(classes, classes[0] || '') + '</select>' +
       '<button class="btn btn-brand" onclick="window.print()">🖨️ พิมพ์ / บันทึก PDF</button>' +
@@ -452,7 +450,7 @@ PAGES.qr = function () {
           out.innerHTML = '<div class="d-flex flex-wrap gap-3">' + d.tasks.map(function (t, i) {
             return '<div class="qr-poster"><h3>📚 ' + esc(t.assignment_name) + '</h3><div class="qr d-flex justify-content-center my-3" id="t' + i + '"></div>' +
               '<div class="fs-5">วิชา' + esc(t.subject) + '</div><div>' + esc(t.class_target) + '</div><div class="small text-muted mt-2">กำหนดส่ง ' + esc(t.due_text) + '</div>' +
-              '<div class="small text-muted">สแกนด้วย LINE หรือกล้องมือถือ</div></div>';
+              '<div class="small text-muted">ครูสแกนด้วย LINE เพื่อเลือกงานนี้</div></div>';
           }).join('') + (d.tasks.length ? '' : '<div class="text-muted">ไม่มีงานที่เปิดอยู่</div>') + '</div>';
           d.tasks.forEach(function (t, i) { new QRCode(document.getElementById('t' + i), { text: t.qr, width: 240, height: 240, correctLevel: QRCode.CorrectLevel.M }); });
         }
@@ -493,9 +491,9 @@ PAGES.report = function () {
       run('adminStudentReport', document.getElementById('rC').value).then(function (rows) {
         last = rows;
         document.getElementById('rOut').innerHTML = '<div class="card"><div class="table-wrap"><table class="table table-sm table-hover mb-0"><thead><tr>' +
-          '<th>รหัส</th><th>ชื่อ</th><th>ห้อง</th><th>งานที่ได้รับ</th><th>ส่งแล้ว</th><th>ครั้งที่ส่งรวม</th><th>ส่งช้า</th><th>ผ่าน</th><th>แก้ไข</th><th style="min-width:160px">อัตรา</th><th>LINE</th></tr></thead><tbody>' +
+          '<th>รหัส</th><th>ชื่อ</th><th>ห้อง</th><th>งานที่ได้รับ</th><th>ส่งแล้ว</th><th>ครั้งที่ส่งรวม</th><th>ส่งช้า</th><th>ผ่าน</th><th>แก้ไข</th><th style="min-width:160px">อัตรา</th></tr></thead><tbody>' +
           rows.map(function (r) {
-            return '<tr><td>' + esc(r.student_id) + '</td><td>' + esc(r.name) + '</td><td>' + esc(r.class_name) + '</td><td>' + r.target + '</td><td>' + r.submitted + '</td><td>' + r.attempts + '</td><td>' + r.late + '</td><td>' + r.passed + '</td><td>' + r.revise + '</td><td>' + rateBar(r.rate) + '</td><td>' + (r.linked ? '💬' : '-') + '</td></tr>';
+            return '<tr><td>' + esc(r.student_id) + '</td><td>' + esc(r.name) + '</td><td>' + esc(r.class_name) + '</td><td>' + r.target + '</td><td>' + r.submitted + '</td><td>' + r.attempts + '</td><td>' + r.late + '</td><td>' + r.passed + '</td><td>' + r.revise + '</td><td>' + rateBar(r.rate) + '</td></tr>';
           }).join('') + '</tbody></table></div></div>';
       });
     }

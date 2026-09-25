@@ -1,6 +1,6 @@
 /**
  * ============================================================
- *  RatchaneeQR — ระบบส่งงานนักเรียนด้วย QR Code + LINE OA
+ *  RatchaneeQR — ระบบเช็คการส่งงาน (ครูสแกน QR บนสมุดนักเรียน) + LINE OA
  *  Config.gs : โครงสร้าง Sheet, ค่าคงที่ และการอ่านค่า Settings
  * ============================================================
  */
@@ -23,8 +23,7 @@ var PRESET_SETTINGS = {
 /** โครงสร้างคอลัมน์ของทุก Sheet (ลำดับคอลัมน์ = ลำดับใน array) */
 var SCHEMA = {
   Students: [
-    'student_id', 'citizen_code', 'name', 'class', 'room', 'status',
-    'line_user_id', 'linked_at', 'note'
+    'student_id', 'citizen_code', 'name', 'class', 'room', 'status', 'note'
   ],
   Classes: [
     'class_id', 'class_name', 'level', 'room', 'teacher', 'status'
@@ -82,10 +81,8 @@ var DEFAULT_SETTINGS = [
   ['LINE_LOGIN_CHANNEL_ID', '', 'Channel ID ของ LINE Login channel ที่สร้าง LIFF (ใช้ตรวจ ID Token)'],
   ['ADMIN_LINE_ID', '', 'LINE userId ของผู้ดูแล (รับสรุปรายวัน) — พิมพ์ "myid" ใน LINE OA เพื่อดู'],
   ['REQUIRE_ID_TOKEN', 'TRUE', 'ตรวจ LINE ID Token ทุกคำขอจาก LIFF (ควรเป็น TRUE เสมอบน production)'],
-  ['ALLOW_MANUAL_ENTRY', 'FALSE', 'อนุญาตให้นักเรียนพิมพ์รหัสเองแทนการสแกน (ครูพิมพ์ได้เสมอ)'],
   ['ALLOW_LATE_SUBMISSION', 'TRUE', 'อนุญาตส่งหลังกำหนด (จะถูกทำเครื่องหมายว่าส่งช้า)'],
-  ['NOTIFY_ON_SUBMIT', 'TRUE', 'ส่งข้อความยืนยันกลับทาง LINE หลังส่งงาน'],
-  ['REMINDER_HOURS_BEFORE', '24', 'แจ้งเตือนนักเรียนที่ยังไม่ส่ง ก่อนกำหนดส่งกี่ชั่วโมง'],
+  ['REMINDER_HOURS_BEFORE', '24', 'แจ้งเตือนครู (รายชื่อคนที่ยังไม่ส่ง) ก่อนกำหนดส่งกี่ชั่วโมง (0 = ปิด)'],
   ['MAX_FILE_MB', '10', 'ขนาดไฟล์แนบสูงสุด (MB)'],
   ['QR_STUDENT_PREFIX', 'STU-', 'คำนำหน้า QR นักเรียน'],
   ['QR_TASK_PREFIX', 'TASK-', 'คำนำหน้า QR งาน (ใช้เมื่อยังไม่ได้ตั้ง LIFF_ID)']

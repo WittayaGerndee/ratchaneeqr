@@ -25,15 +25,8 @@ function publicStudent_(s) {
   if (!s) return null;
   return {
     student_id: String(s.student_id), name: s.name, class: s.class, room: s.room,
-    class_name: className_(s), status: s.status, linked: !!s.line_user_id
+    class_name: className_(s), status: s.status
   };
-}
-
-function findStudentByLineId_(lineUserId) {
-  if (!lineUserId) return null;
-  var s = findOne_('Students', 'line_user_id', lineUserId);
-  if (s) s.class_name = className_(s);
-  return s;
 }
 
 // ---------------- Assignment ----------------
@@ -179,9 +172,6 @@ function submitAssignment_(p, actor) {
       student: publicStudent_(student), assignment: publicAssignment_(a)
     };
 
-    if (getBoolSetting_('NOTIFY_ON_SUBMIT', true)) {
-      try { notifySubmission_(result, student, actor); } catch (err) { log_('NOTIFY_ERROR', { error: err }); }
-    }
     return result;
   } finally {
     lock.releaseLock();
@@ -196,48 +186,23 @@ function fail_(code, message, logData) {
   return { ok: false, code: code, message: message };
 }
 
-/** ผูกบัญชี LINE กับนักเรียน (เพื่อรับการแจ้งเตือน) */
-function linkStudent_(studentCode, actor) {
-  var studentId = parseStudentCode_(studentCode);
-  var s = getStudent_(studentId);
-  if (!s) return { ok: false, code: 'STUDENT_NOT_FOUND', message: 'ไม่พบรหัสนักเรียน ' + studentId };
-  if (!isStudentActive_(s)) return { ok: false, code: 'STUDENT_INACTIVE', message: 'สถานะนักเรียนไม่พร้อมใช้งาน' };
-  if (!actor.userId) return { ok: false, code: 'NO_USER', message: 'ไม่พบบัญชี LINE' };
-
+/** ยกเลิกการบันทึก (กรณีครูสแกนผิดคน) — ลบแถวที่เพิ่งบันทึก หรือถอยครั้งที่ส่งซ้ำ */
+function undoSubmission_(submissionId, actor) {
   var lock = LockService.getScriptLock();
   lock.waitLock(20000);
   try {
-    var other = findStudentByLineId_(actor.userId);
-    if (other && normId_(other.student_id) !== normId_(s.student_id)) {
-      return { ok: false, code: 'ALREADY_LINKED_OTHER', message: 'บัญชี LINE นี้ผูกกับรหัส ' + other.student_id + ' อยู่แล้ว กรุณาติดต่อครู' };
+    var row = findOne_('Submissions', 'submission_id', submissionId);
+    if (!row) return { ok: false, code: 'NOT_FOUND', message: 'ไม่พบรายการ (อาจถูกยกเลิกไปแล้ว)' };
+    var attempt = Number(row.attempt) || 1;
+    if (attempt > 1) {
+      updateRow_('Submissions', row._row, { attempt: attempt - 1, updated_at: new Date() });
+    } else {
+      deleteRow_('Submissions', row._row);
     }
-    if (s.line_user_id && s.line_user_id !== actor.userId) {
-      return { ok: false, code: 'STUDENT_LINKED', message: 'รหัสนักเรียนนี้ผูกกับบัญชี LINE อื่นแล้ว กรุณาติดต่อครู' };
-    }
-    if (!s.line_user_id) updateRow_('Students', s._row, { line_user_id: actor.userId, linked_at: new Date() });
-    log_('LINK', { student_id: studentId, line_user_id: actor.userId, result: 'OK' });
-    return { ok: true, message: 'ผูกบัญชีสำเร็จ', student: publicStudent_(s) };
+    log_('UNDO', { student_id: row.student_id, line_user_id: actor.userId, result: submissionId });
+    var a = getAssignment_(row.assignment_id);
+    return { ok: true, message: 'ยกเลิกแล้ว', progress: a ? assignmentProgress_(a) : null };
   } finally {
     lock.releaseLock();
   }
-}
-
-/** รายการงานทั้งหมดของนักเรียน พร้อมสถานะ */
-function studentAssignmentStatus_(student) {
-  var subs = {};
-  readTable_('Submissions').forEach(function (r) {
-    if (normId_(r.student_id) === normId_(student.student_id)) subs[normId_(r.assignment_id)] = r;
-  });
-  return readTable_('Assignments')
-    .filter(function (a) { return isStudentTarget_(a, student) && (isAssignmentOpen_(a) || subs[normId_(a.assignment_id)]); })
-    .map(function (a) {
-      var s = subs[normId_(a.assignment_id)];
-      var pa = publicAssignment_(a);
-      pa.submission_status = s ? s.status : SUBMISSION_STATUS.NOT_SUBMITTED;
-      pa.submitted_text = s ? fmtDateTimeTH_(s.timestamp) : '';
-      pa.is_late = s ? isTrue_(s.is_late) : false;
-      pa.score = s ? s.score : '';
-      pa.note = s ? s.note : '';
-      return pa;
-    });
 }

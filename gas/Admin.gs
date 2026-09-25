@@ -159,18 +159,6 @@ function adminUpdateSubmission(submissionId, data) {
   if (data.note !== undefined) upd.note = data.note;
   updateRow_('Submissions', row._row, upd);
 
-  // แจ้งนักเรียนเมื่อครูตรวจ (ถ้าผูก LINE ไว้)
-  if (data.notify && upd.status && upd.status !== SUBMISSION_STATUS.SUBMITTED) {
-    var s = getStudent_(row.student_id);
-    if (s && s.line_user_id) {
-      try {
-        var icon = upd.status === SUBMISSION_STATUS.PASSED ? '🏆' : upd.status === SUBMISSION_STATUS.REVISE ? '✏️' : '📝';
-        linePush_(s.line_user_id, textMsg_(icon + ' ผลการตรวจงาน\n\nงาน: ' + row.assignment + ' (' + row.subject + ')\nสถานะ: ' +
-          upd.status + (data.score !== undefined && data.score !== '' ? '\nคะแนน: ' + data.score : '') +
-          (data.note ? '\nหมายเหตุ: ' + data.note : '')));
-      } catch (err) { /* logged */ }
-    }
-  }
   return true;
 }
 
@@ -193,18 +181,18 @@ function adminMissing(assignmentId, classFilter) {
   return { assignment: publicAssignment_(a), students: list };
 }
 
-/** แจ้งเตือนนักเรียนที่ยังไม่ส่ง (เฉพาะคนที่ผูก LINE) ทันที */
+/** ส่งรายชื่อคนที่ยังไม่ส่งให้ครูทุกคนทาง LINE */
 function adminRemindMissing(assignmentId) {
   requireAuth_();
-  var a = getAssignment_(assignmentId);
   var res = adminMissing(assignmentId);
-  var ids = res.students.map(function (s) { return getStudent_(s.student_id); })
-    .filter(function (s) { return s && s.line_user_id; }).map(function (s) { return s.line_user_id; });
-  if (ids.length) {
-    lineMulticast_(ids, textMsg_('🔔 แจ้งเตือนการส่งงาน\n\nวิชา: ' + a.subject + '\nงาน: ' + a.assignment_name +
-      '\nกำหนดส่ง: ' + fmtDateTimeTH_(a.due_date) + '\n\nสถานะ: ❌ ยังไม่ส่ง\nกรุณาส่งงานโดยเร็ว'));
-  }
-  log_('ADMIN_REMIND', { result: assignmentId + ' ' + ids.length });
+  var a = res.assignment;
+  var ids = teacherLineIds_();
+  if (!ids.length) throw new Error('ยังไม่มีครูที่ตั้ง line_user_id (หรือ ADMIN_LINE_ID)');
+  var names = res.students.slice(0, 40).map(function (s) { return '• ' + s.student_id + ' ' + s.name + ' (' + s.class_name + ')'; });
+  if (res.students.length > 40) names.push('… และอีก ' + (res.students.length - 40) + ' คน');
+  lineMulticast_(ids, textMsg_('📋 ยังไม่ส่งงาน\n\n' + a.subject + ' — ' + a.assignment_name + '\nกำหนดส่ง: ' + a.due_text +
+    '\n\n❌ ยังไม่ส่ง ' + res.students.length + ' คน\n' + (names.join('\n') || '-')));
+  log_('ADMIN_REMIND', { result: assignmentId + ' ' + res.students.length });
   return { sent: ids.length, missing: res.students.length };
 }
 
@@ -307,8 +295,7 @@ function adminStudentReport(classFilter) {
       late: mine.filter(function (r) { return isTrue_(r.is_late); }).length,
       passed: mine.filter(function (r) { return r.status === SUBMISSION_STATUS.PASSED; }).length,
       revise: mine.filter(function (r) { return r.status === SUBMISSION_STATUS.REVISE; }).length,
-      rate: target ? Math.round(mine.length / target * 1000) / 10 : 0,
-      linked: !!s.line_user_id
+      rate: target ? Math.round(mine.length / target * 1000) / 10 : 0
     };
   });
 }
