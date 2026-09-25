@@ -29,8 +29,9 @@ function resolveActor_(body) {
   var teacher = readTable_('Teachers').filter(function (t) {
     return t.line_user_id && t.line_user_id === user.userId && String(t.status || 'active').toLowerCase() === 'active';
   })[0];
-  user.isTeacher = !!teacher;
-  user.teacherName = teacher ? teacher.name : '';
+  var isAdminLine = !!user.userId && user.userId === getSetting_('ADMIN_LINE_ID');
+  user.isTeacher = !!teacher || isAdminLine;
+  user.teacherName = teacher ? teacher.name : (isAdminLine ? 'ผู้ดูแลระบบ' : '');
   return user;
 }
 
