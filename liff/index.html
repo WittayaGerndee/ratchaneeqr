@@ -900,10 +900,19 @@
   };
 
   /* ================= Boot ================= */
+  /** อ่านพารามิเตอร์จาก URL ทั้งแบบปกติ และแบบที่ LINE ห่อไว้ใน liff.state */
+  function urlParam(name) {
+    var v = new URLSearchParams(location.search).get(name) || params.get(name);
+    if (v) return v;
+    var st = new URLSearchParams(location.search).get('liff.state') || params.get('liff.state') || '';
+    var m = st.match(new RegExp('[?&]' + name + '=([^&#]+)'));
+    return m ? decodeURIComponent(m[1]) : '';
+  }
+
   function startApp() {
     show('tabs');
     show('lineScanBtn', hasLineScanner());
-    var mode = params.get('mode'), task = params.get('task');
+    var mode = urlParam('mode'), task = urlParam('task');
     var view = { summary: 'summary', new: 'tasks', tasks: 'tasks', students: 'students', manage: 'students', qr: 'qr' }[mode] || 'scan';
     switchView(view);
     if (mode === 'new') openTaskForm(null);
