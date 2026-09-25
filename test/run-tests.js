@@ -16,7 +16,7 @@ function makeSheet(name){ const data=[]; return {
   getDataRange(){ return this.getRange(1,1,Math.max(data.length,1),Math.max(this.getLastColumn(),1)); },
   appendRow(row){ data.push(row.slice()); }, deleteRow(n){ data.splice(n-1,1); }, setFrozenRows(){}
 };}
-const sheets={};
+const sheets={}; const cacheStore=new Map();
 const ss={ getId:()=> 'SSID', getUrl:()=>'https://sheet', getSheetByName:n=>sheets[n]||null,
   insertSheet:n=>(sheets[n]=makeSheet(n)), getSheets:()=>Object.values(sheets), deleteSheet(){}};
 const props={}; const pushed=[]; const replies=[];
@@ -26,7 +26,7 @@ const ctx = {
   SpreadsheetApp:{ getActiveSpreadsheet:()=>ss, openById:()=>ss, create:()=>ss, flush(){} },
   PropertiesService:{ getScriptProperties:()=>({ getProperty:k=>props[k]??null, setProperty:(k,v)=>{props[k]=v;} }) },
   LockService:{ getScriptLock:()=>({ tryLock:()=>true, waitLock(){}, releaseLock(){} }) },
-  CacheService:{ getScriptCache:()=>({ get:()=>null, put(){}, remove(){} }) },
+  CacheService:{ getScriptCache:()=>({ get:k=>cacheStore.has(k)?cacheStore.get(k):null, put:(k,v)=>cacheStore.set(k,v), remove:k=>cacheStore.delete(k) }) },
   Session:{ getEffectiveUser:()=>({getEmail:()=>'owner@x.com'}), getActiveUser:()=>({getEmail:()=>ctx.__email}) },
   DriveApp:{ createFolder:()=>({getId:()=>'FOLDER'}), getFolderById:()=>fakeFolder() },
   ScriptApp:{ getProjectTriggers:()=>[], newTrigger:()=>{const t={timeBased:()=>t,everyHours:()=>t,everyDays:()=>t,atHour:()=>t,create:()=>t};return t;}, deleteTrigger(){} },
@@ -102,6 +102,10 @@ assert(R("getStudent_('65001').name")==='นายสมชาย ใจดี�
 // assignments
 r = call('saveAssignment', {assignment:{subject:'ไทย', assignment_name:'เรียงความ', class_target:'ม.5/2', due_date:'2026-10-01T16:00'}});
 assert(r.ok && r.assignment.assignment_id==='HW003' && r.assignment.status==='OPEN', 'create assignment HW003');
+let rr1 = call('saveAssignment', {reqId:'retry-1', assignment:{subject:'ไทย', assignment_name:'ทดสอบส่งซ้ำ'}});
+let rr2 = call('saveAssignment', {reqId:'retry-1', assignment:{subject:'ไทย', assignment_name:'ทดสอบส่งซ้ำ'}});
+assert(rr1.ok && rr2.assignment.assignment_id===rr1.assignment.assignment_id && R("readTable_('Assignments').filter(a=>a.assignment_name==='ทดสอบส่งซ้ำ').length")===1, 'retry with same reqId does not create twice');
+R("deleteRecord_('Assignments','"+rr1.assignment.assignment_id+"')");
 r = call('saveAssignment', {assignment:{assignment_id:'HW003', subject:'ไทย', assignment_name:'เรียงความ', class_target:'ม.5/2', status:'CLOSED'}});
 assert(r.ok && r.assignment.status==='CLOSED', 'close assignment');
 r = call('submitBatch', {items:[{cid:'g', studentId:'65004', assignmentId:'HW003'}]});

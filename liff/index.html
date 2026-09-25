@@ -280,18 +280,53 @@
   }
   function natCmp(a, b) { return String(a).localeCompare(String(b), 'th', { numeric: true }); }
 
+  /**
+   * เรียก API พร้อมลองใหม่อัตโนมัติ
+   * Google Apps Script บางครั้งรันคำสั่งสำเร็จ แต่ส่งผลกลับไม่ถึง (ได้หน้า error / ค้าง)
+   * จึงส่งซ้ำด้วย reqId เดิม — server จำผลครั้งแรกไว้ จึงไม่บันทึกซ้ำ
+   */
+  var MAX_TRIES = 4, TIMEOUT_MS = 20000;
   function api(action, data) {
-    var body = Object.assign({ action: action, idToken: STATE.idToken }, data || {});
+    var body = Object.assign({ action: action, idToken: STATE.idToken, reqId: Date.now().toString(36) + Math.random().toString(36).slice(2, 8) }, data || {});
     if (!CFG.LIFF_ID) { body.userId = 'DEV_USER'; body.displayName = 'ทดสอบ'; }
-    return fetch(CFG.API_URL, { method: 'POST', body: JSON.stringify(body) })
-      .then(function (r) { return r.json(); })
-      .then(function (res) {
-        if (res.code === 'UNAUTHORIZED' && window.liff && CFG.LIFF_ID && liff.isLoggedIn()) {
-          liff.logout(); liff.login({ redirectUri: location.href }); // ID Token หมดอายุ → login ใหม่
-          return new Promise(function () {});
-        }
-        return res;
-      });
+    var payload = JSON.stringify(body);
+
+    function attempt(n) {
+      var ctrl = window.AbortController ? new AbortController() : null;
+      var timer = ctrl ? setTimeout(function () { ctrl.abort(); }, TIMEOUT_MS) : null;
+      return fetch(CFG.API_URL, { method: 'POST', body: payload, signal: ctrl ? ctrl.signal : undefined })
+        .then(function (r) { return r.text(); })
+        .then(function (t) {
+          clearTimeout(timer);
+          try { return JSON.parse(t); } catch (e) { throw new Error('BAD_RESPONSE'); }
+        })
+        .catch(function (err) {
+          clearTimeout(timer);
+          if (n >= MAX_TRIES) throw new Error('เชื่อมต่อ Google ไม่สำเร็จ (ลองแล้ว ' + n + ' ครั้ง)');
+          setBusy('กำลังลองใหม่… (' + (n + 1) + '/' + MAX_TRIES + ')');
+          return new Promise(function (res) { setTimeout(res, 800 * n); }).then(function () { return attempt(n + 1); });
+        });
+    }
+
+    return attempt(1).then(function (res) {
+      setBusy('');
+      if (res.code === 'UNAUTHORIZED' && window.liff && CFG.LIFF_ID && liff.isLoggedIn()) {
+        liff.logout(); liff.login({ redirectUri: location.href }); // ID Token หมดอายุ → login ใหม่
+        return new Promise(function () {});
+      }
+      return res;
+    }, function (err) { setBusy(''); throw err; });
+  }
+
+  /** แจ้งเมื่อลองครบแล้วยังไม่สำเร็จ แล้วโหลดข้อมูลล่าสุด (คำสั่งอาจบันทึกไปแล้ว) */
+  function netError(e, noReload) {
+    alertMsg((e && e.message || 'เชื่อมต่อไม่สำเร็จ') + ' — ระบบกำลังโหลดข้อมูลล่าสุด ถ้ารายการที่ทำขึ้นแล้วแสดงว่าบันทึกสำเร็จ ไม่ต้องทำซ้ำ', 'warning');
+    if (!noReload) refresh().catch(function () {});
+  }
+
+  function setBusy(msg) {
+    if (msg) $('syncBadge').textContent = '🔄 ' + msg;
+    else updateSync();
   }
 
   /* ---------------- ข้อมูล (โหลดครั้งเดียว + cache ในเครื่อง) ---------------- */
@@ -579,7 +614,7 @@
     api('undo', { submissionId: e.subId }).then(function (r) {
       if (!r.ok) { alertMsg(r.message); b.disabled = false; return; }
       done();
-    }).catch(function () { b.disabled = false; alertMsg('เชื่อมต่อไม่สำเร็จ ลองใหม่อีกครั้ง'); });
+    }).catch(function (e) { b.disabled = false; netError(e); });
   });
 
   /* ---- คิวบันทึก: ส่งขึ้น server เป็นชุด ---- */
@@ -681,7 +716,7 @@
   $('sumBox').addEventListener('click', function (e) { var b = e.target.closest('[data-scan]'); if (b) selectAssignment(b.dataset.scan); });
   $('sumRefresh').onclick = function () {
     $('sumRefresh').disabled = true;
-    refresh().then(function () { $('sumRefresh').disabled = false; }, function () { $('sumRefresh').disabled = false; alertMsg('เชื่อมต่อไม่สำเร็จ'); });
+    refresh().then(function () { $('sumRefresh').disabled = false; }, function (e) { $('sumRefresh').disabled = false; netError(e, true); });
   };
 
   /* ================= งาน ================= */
@@ -745,8 +780,8 @@
     var data = {};
     new FormData(e.target).forEach(function (v, k) { data[k] = v; });
     var btn = e.target.querySelector('[type=submit]');
-    btn.disabled = true;
-    saveAssignment(data, !data.assignment_id).then(function (ok) { btn.disabled = false; if (ok) hide('taskFormCard'); });
+    btn.disabled = true; btn.textContent = 'กำลังบันทึก…';
+    saveAssignment(data, !data.assignment_id).then(function (ok) { btn.disabled = false; btn.textContent = 'บันทึก'; if (ok) hide('taskFormCard'); });
   };
   function saveAssignment(a, startScan) {
     return api('saveAssignment', { assignment: a }).then(function (r) {
@@ -757,7 +792,7 @@
       renderAll();
       if (startScan) { alertMsg('เพิ่มงาน "' + r.assignment.assignment_name + '" แล้ว', 'success'); selectAssignment(r.assignment.assignment_id); }
       return true;
-    }).catch(function () { alertMsg('เชื่อมต่อไม่สำเร็จ'); return false; });
+    }).catch(function (e) { netError(e); return false; });
   }
 
   /* ================= นักเรียน ================= */
@@ -803,7 +838,7 @@
         if (!r.ok) { alertMsg(r.message); dl.disabled = false; return; }
         DATA.students = DATA.students.filter(function (x) { return norm(x[0]) !== norm(s.id); });
         setData(DATA);
-      }).catch(function () { dl.disabled = false; alertMsg('เชื่อมต่อไม่สำเร็จ'); });
+      }).catch(function (e) { dl.disabled = false; netError(e); });
     }
   });
   $('stuForm').onsubmit = function (e) {
@@ -821,7 +856,7 @@
       setData(DATA);
       if (old) { hide('stuFormCard'); alertMsg('บันทึกแล้ว', 'success'); }
       else { f.student_id.value = ''; f.name.value = ''; f.student_id.focus(); alertMsg('เพิ่ม ' + r.student[1] + ' แล้ว — กรอกคนถัดไปได้เลย', 'success'); }
-    }).catch(function () { btn.disabled = false; alertMsg('เชื่อมต่อไม่สำเร็จ'); });
+    }).catch(function (e) { btn.disabled = false; netError(e); });
   };
   $('importBtn').onclick = function () {
     var text = $('importText').value.trim();
@@ -836,7 +871,7 @@
       $('importText').value = '';
       hide('importCard');
       alertMsg('เพิ่มใหม่ ' + r.added + ' คน · แก้ไข ' + r.updated + ' คน' + (r.skipped ? ' · ข้าม ' + r.skipped + ' บรรทัด' : ''), 'success');
-    }).catch(function () { btn.disabled = false; btn.textContent = 'นำเข้า'; alertMsg('เชื่อมต่อไม่สำเร็จ'); });
+    }).catch(function (e) { btn.disabled = false; btn.textContent = 'นำเข้า'; netError(e); });
   };
 
   /* ================= พิมพ์ QR ================= */

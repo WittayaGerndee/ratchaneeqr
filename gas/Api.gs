@@ -18,7 +18,18 @@ function handleApi_(body) {
     if (body.action !== 'bootstrap' && !actor.isTeacher) {
       return { ok: false, code: 'NOT_TEACHER', message: 'ระบบนี้สำหรับครูเท่านั้น' };
     }
-    return serialize_(fn(body, actor));
+    // กันทำซ้ำ: Google บางครั้งรันคำสั่งสำเร็จแต่ส่งผลกลับไม่ถึงมือถือ → หน้า LIFF ส่งซ้ำด้วย reqId เดิม
+    var reqKey = body.reqId && WRITE_ACTIONS[body.action] ? 'req_' + actor.userId + '_' + String(body.reqId).substring(0, 60) : '';
+    var cache = CacheService.getScriptCache();
+    if (reqKey) {
+      var hit = cache.get(reqKey);
+      if (hit) return JSON.parse(hit);
+    }
+    var result = serialize_(fn(body, actor));
+    if (reqKey) {
+      try { cache.put(reqKey, JSON.stringify(result), 1800); } catch (e) { /* ผลลัพธ์ใหญ่เกิน cache */ }
+    }
+    return result;
   } catch (err) {
     var msg = String(err && err.message || err);
     if (msg.indexOf('UNAUTHORIZED') !== 0) log_('API_ERROR', { result: body && body.action, error: err && err.stack || msg });
@@ -47,6 +58,12 @@ function findTeacherByLineId_(userId) {
     return t.line_user_id && t.line_user_id === userId && String(t.status || 'active').toLowerCase() === 'active';
   })[0] || null;
 }
+
+/** คำสั่งที่เปลี่ยนข้อมูล (ต้องกันการทำซ้ำเมื่อหน้า LIFF ส่งซ้ำ) */
+var WRITE_ACTIONS = {
+  submitBatch: true, undo: true, saveStudent: true, deleteStudent: true,
+  importStudents: true, saveAssignment: true, deleteAssignment: true
+};
 
 var API_ACTIONS = {
   /** โหลดข้อมูลทั้งหมดที่หน้า LIFF ต้องใช้ในครั้งเดียว */
