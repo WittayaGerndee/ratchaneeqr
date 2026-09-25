@@ -25,7 +25,7 @@ const ctx = {
   console,
   SpreadsheetApp:{ getActiveSpreadsheet:()=>ss, openById:()=>ss, create:()=>ss, flush(){} },
   PropertiesService:{ getScriptProperties:()=>({ getProperty:k=>props[k]??null, setProperty:(k,v)=>{props[k]=v;} }) },
-  LockService:{ getScriptLock:()=>({ tryLock:()=>true, waitLock(){}, releaseLock(){} }) },
+  LockService:{ getScriptLock:()=>({ tryLock:()=>true, waitLock(){}, releaseLock(){} }), getUserLock:()=>({ tryLock:()=>true, waitLock(){}, releaseLock(){} }) },
   CacheService:{ getScriptCache:()=>({ get:k=>cacheStore.has(k)?cacheStore.get(k):null, put:(k,v)=>cacheStore.set(k,v), remove:k=>cacheStore.delete(k) }) },
   Session:{ getEffectiveUser:()=>({getEmail:()=>'owner@x.com'}), getActiveUser:()=>({getEmail:()=>ctx.__email}) },
   DriveApp:{ createFolder:()=>({getId:()=>'FOLDER'}), getFolderById:()=>fakeFolder() },

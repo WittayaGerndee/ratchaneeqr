@@ -20,16 +20,24 @@ function handleApi_(body) {
     }
     // กันทำซ้ำ: Google บางครั้งรันคำสั่งสำเร็จแต่ส่งผลกลับไม่ถึงมือถือ → หน้า LIFF ส่งซ้ำด้วย reqId เดิม
     var reqKey = body.reqId && WRITE_ACTIONS[body.action] ? 'req_' + actor.userId + '_' + String(body.reqId).substring(0, 60) : '';
+    if (!reqKey) return serialize_(fn(body, actor));
+
+    // หน้า LIFF อาจส่งคำขอเดียวกันซ้อนกันหลายชุด (เมื่อ Google ตอบช้า) → ให้ทำงานจริงครั้งเดียว
+    // ใช้ UserLock (แยกจาก ScriptLock ที่ฟังก์ชันด้านในใช้) เพื่อให้ชุดที่มาทีหลังรอแล้วได้ผลเดิม
     var cache = CacheService.getScriptCache();
-    if (reqKey) {
-      var hit = cache.get(reqKey);
+    var hit = cache.get(reqKey);
+    if (hit) return JSON.parse(hit);
+    var guard = LockService.getUserLock();
+    if (!guard.tryLock(28000)) return { ok: false, code: 'BUSY', message: 'ระบบกำลังทำงาน กรุณาลองใหม่' };
+    try {
+      hit = cache.get(reqKey);
       if (hit) return JSON.parse(hit);
-    }
-    var result = serialize_(fn(body, actor));
-    if (reqKey) {
+      var result = serialize_(fn(body, actor));
       try { cache.put(reqKey, JSON.stringify(result), 1800); } catch (e) { /* ผลลัพธ์ใหญ่เกิน cache */ }
+      return result;
+    } finally {
+      guard.releaseLock();
     }
-    return result;
   } catch (err) {
     var msg = String(err && err.message || err);
     if (msg.indexOf('UNAUTHORIZED') !== 0) log_('API_ERROR', { result: body && body.action, error: err && err.stack || msg });

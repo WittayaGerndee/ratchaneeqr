@@ -372,26 +372,44 @@ function confirmSheet(title, text, okLabel, danger) {
   });
 }
 
-/* ---------------- API (ลองใหม่อัตโนมัติ) ---------------- */
-var MAX_TRIES = 4, TIMEOUT_MS = 20000;
+/* ---------------- API (ลองใหม่อัตโนมัติ) ----------------
+   Google Apps Script บางครั้งค้าง 20–30 วินาทีแล้วตอบหน้า error ทั้งที่รันคำสั่งไปแล้ว
+   - ถ้า 3 วินาทียังไม่ตอบ ยิงคำขอเดิม (reqId เดิม) คู่ขนาน (สูงสุด 3 ชุด) ใช้คำตอบแรกที่ได้
+   - server ทำงานจริงครั้งเดียวต่อ reqId (คำขอที่ซ้ำจะได้ผลเดิม) จึงไม่บันทึกซ้ำ */
+var MAX_TRIES = 6, TIMEOUT_MS = 15000, HEDGE_MS = 3000, MAX_PARALLEL = 3;
+var HEDGE = { bootstrap: true, submitBatch: true, undo: true, saveStudent: true, deleteStudent: true, importStudents: true, saveAssignment: true, deleteAssignment: true, saveSettings: true };
+function fetchOnce(payload) {
+  var ctrl = window.AbortController ? new AbortController() : null;
+  var timer = ctrl ? setTimeout(function () { ctrl.abort(); }, TIMEOUT_MS) : null;
+  return fetch(CFG.API_URL, { method: 'POST', body: payload, signal: ctrl ? ctrl.signal : undefined })
+    .then(function (r) { return r.text(); })
+    .then(function (t) { clearTimeout(timer); try { return JSON.parse(t); } catch (e) { throw new Error('BAD_RESPONSE'); } },
+          function (e) { clearTimeout(timer); throw e; });
+}
 function api(action, data) {
   var body = Object.assign({ action: action, idToken: STATE.idToken, reqId: uid() }, data || {});
   if (!CFG.LIFF_ID) { body.userId = 'DEV_USER'; body.displayName = 'ทดสอบ'; }
   var payload = JSON.stringify(body);
-  function attempt(n) {
-    var ctrl = window.AbortController ? new AbortController() : null;
-    var timer = ctrl ? setTimeout(function () { ctrl.abort(); }, TIMEOUT_MS) : null;
-    return fetch(CFG.API_URL, { method: 'POST', body: payload, signal: ctrl ? ctrl.signal : undefined })
-      .then(function (r) { return r.text(); })
-      .then(function (t) { clearTimeout(timer); try { return JSON.parse(t); } catch (e) { throw new Error('BAD_RESPONSE'); } })
-      .catch(function () {
-        clearTimeout(timer);
-        if (n >= MAX_TRIES) throw new Error('เชื่อมต่อ Google ไม่สำเร็จ');
-        setSync('wait', 'กำลังลองใหม่ ' + (n + 1) + '/' + MAX_TRIES);
-        return new Promise(function (res) { setTimeout(res, 700 * n); }).then(function () { return attempt(n + 1); });
+  var p = new Promise(function (resolve, reject) {
+    var launched = 0, failed = 0, done = false, hedgeTimer = null;
+    function launch() {
+      if (done || launched >= MAX_TRIES) return;
+      launched++;
+      if (launched > 1) setSync('wait', 'กำลังเชื่อมต่อ… (' + launched + ')');
+      fetchOnce(payload).then(function (r) {
+        if (done) return;
+        done = true; clearInterval(hedgeTimer); resolve(r);
+      }, function () {
+        if (done) return;
+        failed++;
+        if (launched < MAX_TRIES) setTimeout(launch, HEDGE[action] ? 0 : 600 * failed);
+        else if (failed >= launched) { done = true; clearInterval(hedgeTimer); reject(new Error('เชื่อมต่อ Google ไม่สำเร็จ')); }
       });
-  }
-  return attempt(1).then(function (res) {
+    }
+    launch();
+    if (HEDGE[action]) hedgeTimer = setInterval(function () { if (!done && launched - failed < MAX_PARALLEL) launch(); }, HEDGE_MS);
+  });
+  return p.then(function (res) {
     updateSync();
     if (res.code === 'UNAUTHORIZED' && window.liff && CFG.LIFF_ID && liff.isLoggedIn()) {
       liff.logout(); liff.login({ redirectUri: location.href }); // ID Token หมดอายุ
