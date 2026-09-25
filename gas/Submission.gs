@@ -57,7 +57,7 @@ function publicAssignment_(a) {
   return {
     assignment_id: String(a.assignment_id), subject: a.subject, assignment_name: a.assignment_name,
     description: a.description, class_target: a.class_target || 'ALL', teacher: a.teacher,
-    status: a.status, allow_resubmit: isTrue_(a.allow_resubmit), require_file: isTrue_(a.require_file),
+    status: String(a.status || '').toUpperCase(), allow_resubmit: isTrue_(a.allow_resubmit), require_file: isTrue_(a.require_file),
     due_date: due ? due.toISOString() : '', due_text: due ? fmtDateTimeTH_(due) : 'ไม่กำหนด',
     is_overdue: !!(due && due.getTime() < Date.now())
   };
@@ -202,6 +202,79 @@ function undoSubmission_(submissionId, actor) {
     log_('UNDO', { student_id: row.student_id, line_user_id: actor.userId, result: submissionId });
     var a = getAssignment_(row.assignment_id);
     return { ok: true, message: 'ยกเลิกแล้ว', progress: a ? assignmentProgress_(a) : null };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/**
+ * บันทึกหลายรายการในครั้งเดียว (หน้า LIFF ส่งมาเป็นชุดหลังครูสแกน)
+ * อ่าน Sheet ครั้งเดียว และเขียนแถวใหม่ทั้งหมดด้วย setValues ครั้งเดียว
+ * @param {Array} items [{ cid, studentId, assignmentId, ts }]  ts = เวลาที่สแกนบนมือถือ (ISO)
+ * @return {Array} [{ cid, ok, code, message, submission_id, timestamp, isLate, submittedText }]
+ */
+function submitBatch_(items, actor) {
+  items = (items || []).slice(0, 200);
+  if (!items.length) return [];
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(25000)) throw new Error('ระบบกำลังทำงาน กรุณาลองใหม่อีกครั้ง');
+  try {
+    var students = {};
+    readTable_('Students').forEach(function (s) { students[normId_(s.student_id)] = s; });
+    var assignments = {};
+    readTable_('Assignments').forEach(function (a) { assignments[normId_(a.assignment_id)] = a; });
+    var existing = {};
+    readTable_('Submissions').forEach(function (r) { existing[normId_(r.student_id) + '|' + normId_(r.assignment_id)] = r; });
+
+    var allowLate = getBoolSetting_('ALLOW_LATE_SUBMISSION', true);
+    var now = new Date();
+    var hs = headers_('Submissions');
+    var newRows = [];
+    var results = items.map(function (it) {
+      var sid = parseStudentCode_(it.studentId);
+      var aid = parseTaskCode_(it.assignmentId);
+      var s = students[normId_(sid)];
+      var a = assignments[normId_(aid)];
+      var res = { cid: it.cid };
+      if (!s) return Object.assign(res, { ok: false, code: 'STUDENT_NOT_FOUND', message: 'ไม่พบรหัสนักเรียน ' + sid });
+      if (!isStudentActive_(s)) return Object.assign(res, { ok: false, code: 'STUDENT_INACTIVE', message: 'นักเรียนไม่อยู่ในสถานะใช้งาน' });
+      if (!a) return Object.assign(res, { ok: false, code: 'ASSIGNMENT_NOT_FOUND', message: 'ไม่พบงาน ' + aid });
+      if (!isAssignmentOpen_(a)) return Object.assign(res, { ok: false, code: 'ASSIGNMENT_CLOSED', message: 'งานนี้ปิดรับแล้ว' });
+      if (!isStudentTarget_(a, s)) return Object.assign(res, { ok: false, code: 'NOT_TARGET', message: 'ไม่ใช่ห้องที่สั่งงาน (' + className_(s) + ')' });
+
+      var key = normId_(s.student_id) + '|' + normId_(a.assignment_id);
+      var ex = existing[key];
+      if (ex) {
+        return Object.assign(res, {
+          ok: false, code: 'DUPLICATE', message: 'ส่งแล้ว', submission_id: ex.submission_id,
+          submittedText: fmtDateTimeTH_(ex.timestamp)
+        });
+      }
+      // ใช้เวลาที่สแกนบนมือถือ (ถ้าสมเหตุสมผล) เพื่อให้เวลาถูกต้องแม้ส่งขึ้นช้า
+      var ts = it.ts ? new Date(it.ts) : now;
+      if (isNaN(ts.getTime()) || ts.getTime() > now.getTime() + 5 * 60000 || ts.getTime() < now.getTime() - 3 * 86400000) ts = now;
+      var due = toDate_(a.due_date);
+      var isLate = !!(due && ts.getTime() > due.getTime());
+      if (isLate && !allowLate) return Object.assign(res, { ok: false, code: 'OVERDUE', message: 'เลยกำหนดส่งแล้ว' });
+
+      var rec = {
+        submission_id: newId_('SUB') + newRows.length, timestamp: ts,
+        student_id: String(s.student_id), name: s.name, class: s.class, room: s.room,
+        assignment_id: String(a.assignment_id), assignment: a.assignment_name, subject: a.subject,
+        status: SUBMISSION_STATUS.SUBMITTED, attempt: 1, is_late: isLate ? 'TRUE' : 'FALSE',
+        line_user_id: actor.userId || '', submitted_by: actor.teacherName || actor.displayName || '', updated_at: now
+      };
+      existing[key] = rec;
+      newRows.push(hs.map(function (h) { return rec[h] !== undefined ? rec[h] : ''; }));
+      return Object.assign(res, { ok: true, code: 'SUBMITTED', submission_id: rec.submission_id, timestamp: ts.toISOString(), isLate: isLate });
+    });
+
+    if (newRows.length) {
+      var sh = sheet_('Submissions');
+      sh.getRange(sh.getLastRow() + 1, 1, newRows.length, hs.length).setValues(newRows);
+    }
+    log_('SUBMIT_BATCH', { line_user_id: actor.userId, result: newRows.length + '/' + items.length });
+    return results;
   } finally {
     lock.releaseLock();
   }

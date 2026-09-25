@@ -61,50 +61,15 @@ function adminSave(sheetName, obj, isNew) {
   var cfg = ADMIN_EDITABLE[sheetName];
   if (!cfg) throw new Error('ไม่อนุญาต');
   requireAuth_(cfg.adminOnly);
-  var key = SHEET_KEYS[sheetName];
-  var id = String(obj[key] || '').trim();
-  if (!id) throw new Error('กรุณากรอก ' + key);
-
-  var clean = {};
-  SCHEMA[sheetName].forEach(function (c) {
-    if (Object.prototype.hasOwnProperty.call(obj, c)) clean[c] = obj[c];
-  });
-  clean[key] = id;
-  if (sheetName === 'Assignments') {
-    if (clean.due_date) clean.due_date = toDate_(clean.due_date) || clean.due_date;
-    if (clean.status) clean.status = String(clean.status).toUpperCase();
-  }
-
-  var lock = LockService.getScriptLock();
-  lock.waitLock(20000);
-  try {
-    var existing = findOne_(sheetName, key, id);
-    if (existing && isNew) throw new Error(key + ' "' + id + '" มีอยู่แล้ว');
-    if (existing) {
-      // ถ้าเปลี่ยนวันกำหนดส่ง ให้เตือนใหม่ได้อีกครั้ง
-      if (sheetName === 'Assignments' && clean.due_date && String(toDate_(existing.due_date)) !== String(toDate_(clean.due_date))) {
-        clean.reminded_at = '';
-      }
-      updateRow_(sheetName, existing._row, clean);
-    } else {
-      if (sheetName === 'Assignments') clean.created_at = new Date();
-      appendRow_(sheetName, clean);
-    }
-  } finally {
-    lock.releaseLock();
-  }
-  if (sheetName === 'Settings') _settingsMemo = null;
-  log_('ADMIN_SAVE', { result: sheetName + ':' + id });
+  saveRecord_(sheetName, obj, isNew);
+  log_('ADMIN_SAVE', { result: sheetName + ':' + obj[SHEET_KEYS[sheetName]] });
   return true;
 }
 
 function adminDelete(sheetName, id) {
   if (!ADMIN_EDITABLE[sheetName] && sheetName !== 'Submissions') throw new Error('ไม่อนุญาต');
   requireAuth_(true);
-  var key = SHEET_KEYS[sheetName];
-  var row = findOne_(sheetName, key, id);
-  if (!row) throw new Error('ไม่พบข้อมูล');
-  deleteRow_(sheetName, row._row);
+  deleteRecord_(sheetName, id);
   log_('ADMIN_DELETE', { result: sheetName + ':' + id });
   return true;
 }
@@ -112,33 +77,7 @@ function adminDelete(sheetName, id) {
 /** นำเข้านักเรียนจากการวางข้อมูลจาก Excel/Sheets: student_id, name, class, room (คั่นด้วย Tab หรือ ,) */
 function adminImportStudents(text) {
   requireAuth_();
-  var lines = String(text || '').split(/\r?\n/).map(function (l) { return l.trim(); }).filter(Boolean);
-  var existing = {};
-  readTable_('Students').forEach(function (s) { existing[normId_(s.student_id)] = s; });
-  var added = 0, updated = 0, skipped = 0;
-  var lock = LockService.getScriptLock();
-  lock.waitLock(30000);
-  try {
-    var newRows = [];
-    lines.forEach(function (l) {
-      var c = l.split(/\t|,/).map(function (x) { return x.trim(); });
-      if (!c[0] || /student_id|รหัส/i.test(c[0])) { skipped++; return; }
-      var obj = { student_id: c[0], name: c[1] || '', class: c[2] || '', room: c[3] || '', status: 'active' };
-      var ex = existing[normId_(c[0])];
-      if (ex) { updateRow_('Students', ex._row, { name: obj.name, class: obj.class, room: obj.room }); updated++; }
-      else { newRows.push(obj); existing[normId_(c[0])] = obj; added++; }
-    });
-    if (newRows.length) {
-      var sh = sheet_('Students');
-      var hs = headers_('Students');
-      var vals = newRows.map(function (o) { return hs.map(function (h) { return o[h] !== undefined ? o[h] : ''; }); });
-      sh.getRange(sh.getLastRow() + 1, 1, vals.length, hs.length).setValues(vals);
-    }
-  } finally {
-    lock.releaseLock();
-  }
-  log_('ADMIN_IMPORT', { result: 'added ' + added + ', updated ' + updated });
-  return { added: added, updated: updated, skipped: skipped };
+  return importStudents_(text);
 }
 
 // ---------------- Submissions ----------------

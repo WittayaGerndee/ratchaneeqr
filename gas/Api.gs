@@ -2,7 +2,10 @@
  * Api.gs : JSON API สำหรับหน้า LIFF (ใช้เฉพาะครู)
  *
  * LIFF เรียกด้วย fetch(POST, body = JSON string, ไม่ตั้ง Content-Type เพื่อเลี่ยง CORS preflight)
- *   { action: 'init' | 'assignment' | 'submit' | 'undo' | 'summary' | 'createAssignment', idToken: '...', ... }
+ *   { action, idToken, ... }
+ *
+ * ความเร็ว: หน้า LIFF เรียก bootstrap ครั้งเดียวเพื่อโหลดนักเรียน/งาน/การส่งทั้งหมด
+ * แล้วตรวจผลการสแกนบนมือถือทันที ส่วนการบันทึกส่งขึ้นเป็นชุดด้วย submitBatch
  *
  * สิทธิ์: LINE userId ต้องอยู่ใน Teachers.line_user_id (status = active) หรือเป็น ADMIN_LINE_ID
  */
@@ -12,7 +15,7 @@ function handleApi_(body) {
     var actor = resolveActor_(body);
     var fn = API_ACTIONS[body.action];
     if (!fn) return { ok: false, code: 'UNKNOWN_ACTION', message: 'ไม่รู้จักคำสั่ง ' + body.action };
-    if (body.action !== 'init' && !actor.isTeacher) {
+    if (body.action !== 'bootstrap' && !actor.isTeacher) {
       return { ok: false, code: 'NOT_TEACHER', message: 'ระบบนี้สำหรับครูเท่านั้น' };
     }
     return serialize_(fn(body, actor));
@@ -46,61 +49,117 @@ function findTeacherByLineId_(userId) {
 }
 
 var API_ACTIONS = {
-  init: function (b, actor) {
+  /** โหลดข้อมูลทั้งหมดที่หน้า LIFF ต้องใช้ในครั้งเดียว */
+  bootstrap: function (b, actor) {
     var out = {
       ok: true,
       school: getSetting_('SCHOOL_NAME', ''),
       user: { displayName: actor.displayName, isTeacher: actor.isTeacher, teacherName: actor.teacherName },
-      maxFileMb: getNumberSetting_('MAX_FILE_MB', 10)
+      studentPrefix: getSetting_('QR_STUDENT_PREFIX', 'STU-'),
+      taskPrefix: getSetting_('QR_TASK_PREFIX', 'TASK-'),
+      liffId: getSetting_('LIFF_ID', '')
     };
     if (!actor.isTeacher) {
       out.userId = actor.userId; // ให้ครูส่ง userId นี้ให้ผู้ดูแลเพิ่มสิทธิ์
-      out.assignments = [];
       return out;
     }
-    out.assignments = listOpenAssignments_();
-    out.classes = classNames_();
-    return out;
+    return Object.assign(out, loadData_());
   },
 
-  assignment: function (b) {
-    var a = getAssignment_(parseTaskCode_(b.code));
-    if (!a) return { ok: false, code: 'ASSIGNMENT_NOT_FOUND', message: 'ไม่พบงานจาก QR นี้' };
-    if (!isAssignmentOpen_(a)) return { ok: false, code: 'ASSIGNMENT_CLOSED', message: 'งาน "' + a.assignment_name + '" ปิดรับแล้ว' };
-    return { ok: true, assignment: publicAssignment_(a), progress: assignmentProgress_(a) };
-  },
-
-  submit: function (b, actor) {
-    var r = submitAssignment_({
-      studentId: b.studentId, assignmentId: b.assignmentId, resubmit: !!b.resubmit, file: b.file
-    }, actor);
-    var a = getAssignment_(parseTaskCode_(b.assignmentId));
-    if (a) r.progress = assignmentProgress_(a);
-    return r;
+  submitBatch: function (b, actor) {
+    return { ok: true, results: submitBatch_(b.items, actor) };
   },
 
   undo: function (b, actor) {
     return undoSubmission_(b.submissionId, actor);
   },
 
-  summary: function (b) {
-    var d = buildDashboard_(parseTaskCode_(b.assignmentId || ''));
-    if (!d.selected) return { ok: false, code: 'NO_ASSIGNMENT', message: 'ยังไม่มีงาน' };
-    var aid = normId_(d.selected.assignment.assignment_id);
-    var submitted = readTable_('Submissions').filter(function (r) { return normId_(r.assignment_id) === aid; })
-      .map(function (r) {
-        return {
-          submission_id: r.submission_id, student_id: String(r.student_id), name: r.name,
-          class_name: className_(r), time: fmtDateTimeTH_(r.timestamp), is_late: isTrue_(r.is_late), status: r.status
-        };
-      });
-    return { ok: true, summary: d.selected, submitted: submitted, assignments: d.assignments };
+  // ---------- นักเรียน ----------
+  saveStudent: function (b, actor) {
+    var s = b.student || {};
+    var row = saveRecord_('Students', {
+      student_id: s.student_id, name: s.name, class: s.class, room: s.room, status: s.status || 'active'
+    }, !b.oldId, b.oldId);
+    log_('SAVE_STUDENT', { student_id: s.student_id, line_user_id: actor.userId, result: b.oldId ? 'edit' : 'new' });
+    return { ok: true, student: studentRow_(row) };
   },
 
-  createAssignment: function (b, actor) {
-    return createAssignment_(b, actor);
+  deleteStudent: function (b, actor) {
+    deleteRecord_('Students', b.studentId);
+    log_('DELETE_STUDENT', { student_id: b.studentId, line_user_id: actor.userId });
+    return { ok: true };
+  },
+
+  importStudents: function (b) {
+    var r = importStudents_(b.text);
+    r.students = loadData_().students;
+    return r;
+  },
+
+  // ---------- งาน ----------
+  saveAssignment: function (b, actor) {
+    var a = b.assignment || {};
+    if (!String(a.subject || '').trim() || !String(a.assignment_name || '').trim()) {
+      return { ok: false, message: 'กรุณากรอกวิชาและชื่องาน' };
+    }
+    var isNew = !a.assignment_id;
+    if (isNew) a.assignment_id = nextAssignmentId_();
+    var rec = {
+      assignment_id: a.assignment_id, subject: a.subject, assignment_name: a.assignment_name,
+      class_target: String(a.class_target || 'ALL').trim() || 'ALL', due_date: a.due_date || ''
+    };
+    if (isNew) rec.teacher = actor.teacherName || actor.displayName || '';
+    if (a.status) rec.status = a.status;
+    var row = saveRecord_('Assignments', rec, isNew);
+    log_('SAVE_ASSIGNMENT', { line_user_id: actor.userId, result: rec.assignment_id });
+    return { ok: true, assignment: publicAssignment_(row) };
+  },
+
+  deleteAssignment: function (b, actor) {
+    var aid = normId_(b.assignmentId);
+    var used = readTable_('Submissions').some(function (r) { return normId_(r.assignment_id) === aid; });
+    if (used) return { ok: false, message: 'งานนี้มีการส่งแล้ว ลบไม่ได้ — ใช้ "ปิดรับ" แทน' };
+    deleteRecord_('Assignments', b.assignmentId);
+    log_('DELETE_ASSIGNMENT', { line_user_id: actor.userId, result: b.assignmentId });
+    return { ok: true };
   }
 };
+
+/** ข้อมูลทั้งหมดสำหรับหน้า LIFF (ส่งแบบกระชับเพื่อให้โหลดเร็ว) */
+function loadData_() {
+  var students = readTable_('Students').filter(isStudentActive_).map(studentRow_);
+  var assignments = readTable_('Assignments').map(publicAssignment_);
+  // งานที่เปิดอยู่ + งานที่ปิดล่าสุด 10 งาน
+  var open = assignments.filter(function (a) { return a.status === ASSIGNMENT_STATUS.OPEN; });
+  var closed = assignments.filter(function (a) { return a.status !== ASSIGNMENT_STATUS.OPEN; }).slice(-10);
+  var list = open.concat(closed);
+  var wanted = {};
+  list.forEach(function (a) { wanted[normId_(a.assignment_id)] = true; });
+
+  // subs[assignment_id][student_id] = [timestampISO, submission_id, isLate]
+  var subs = {};
+  readTable_('Submissions').forEach(function (r) {
+    var aid = String(r.assignment_id);
+    if (!wanted[normId_(aid)]) return;
+    var d = toDate_(r.timestamp);
+    (subs[aid] = subs[aid] || {})[String(r.student_id)] = [d ? d.toISOString() : '', r.submission_id, isTrue_(r.is_late)];
+  });
+  return { students: students, assignments: list, subs: subs };
+}
+
+/** นักเรียนแบบ array: [student_id, name, class, room] */
+function studentRow_(s) {
+  return [String(s.student_id), s.name, String(s.class), String(s.room)];
+}
+
+function nextAssignmentId_() {
+  var max = 0;
+  readTable_('Assignments').forEach(function (a) {
+    var m = String(a.assignment_id).match(/^HW(\d+)$/i);
+    if (m) max = Math.max(max, Number(m[1]));
+  });
+  return 'HW' + ('00' + (max + 1)).slice(-3);
+}
 
 /** ความคืบหน้าของงาน: ส่งแล้ว / ทั้งหมด */
 function assignmentProgress_(a) {
@@ -112,41 +171,4 @@ function assignmentProgress_(a) {
     if (normId_(r.assignment_id) === normId_(a.assignment_id) && ids[normId_(r.student_id)]) done[normId_(r.student_id)] = true;
   });
   return { submitted: Object.keys(done).length, target: target.length };
-}
-
-function classNames_() {
-  var set = {};
-  readTable_('Students').forEach(function (s) { if (isStudentActive_(s)) set[className_(s)] = true; });
-  readTable_('Classes').forEach(function (c) { if (c.class_name) set[c.class_name] = true; });
-  return Object.keys(set).sort();
-}
-
-/** ครูสร้างงานใหม่จากมือถือ (รหัสงานสร้างอัตโนมัติ HW001, HW002, ...) */
-function createAssignment_(b, actor) {
-  var subject = String(b.subject || '').trim();
-  var name = String(b.assignment_name || '').trim();
-  if (!subject || !name) return { ok: false, code: 'INVALID', message: 'กรุณากรอกวิชาและชื่องาน' };
-  var lock = LockService.getScriptLock();
-  lock.waitLock(20000);
-  try {
-    var max = 0;
-    readTable_('Assignments').forEach(function (a) {
-      var m = String(a.assignment_id).match(/^HW(\d+)$/i);
-      if (m) max = Math.max(max, Number(m[1]));
-    });
-    var id = 'HW' + ('00' + (max + 1)).slice(-3);
-    var row = {
-      assignment_id: id, subject: subject, assignment_name: name, description: String(b.description || ''),
-      class_target: String(b.class_target || 'ALL').trim() || 'ALL',
-      due_date: b.due_date ? (toDate_(b.due_date) || '') : '',
-      teacher: actor.teacherName || actor.displayName || '', status: ASSIGNMENT_STATUS.OPEN,
-      allow_resubmit: 'FALSE', require_file: 'FALSE', created_at: new Date()
-    };
-    appendRow_('Assignments', row);
-    log_('CREATE_ASSIGNMENT', { line_user_id: actor.userId, result: id });
-    var a = getAssignment_(id);
-    return { ok: true, assignment: publicAssignment_(a), progress: assignmentProgress_(a) };
-  } finally {
-    lock.releaseLock();
-  }
 }

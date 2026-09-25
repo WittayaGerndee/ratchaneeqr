@@ -51,39 +51,66 @@ R('setup()'); R('seedSampleData()');
 props.LINE_CHANNEL_ACCESS_TOKEN='tok';
 R("setSettingValue_('REQUIRE_ID_TOKEN','FALSE')"); R("setSettingValue_('ADMIN_LINE_ID','U1')");
 const post = body => JSON.parse(R(`doPost({postData:{contents:${JSON.stringify(JSON.stringify(body))}}})`).text);
-const init = post({action:'init', userId:'U1', displayName:'สมชาย'});
-assert(init.ok && init.assignments.length===2, 'init returns 2 open assignments');
 ctx.__email='owner@x.com';
-let r = post({action:'assignment', code:'TASK-HW001', userId:'U1'});
-assert(r.ok && r.assignment.assignment_id==='HW001' && r.progress.target===6, 'assignment by TASK- QR');
-r = post({action:'submit', studentId:'STU-65001', assignmentId:'HW001', userId:'U1', displayName:'สมชาย'});
-assert(r.ok && r.code==='SUBMITTED' && r.progress.submitted===1 && r.progress.target===6, 'first submit ok, progress 1/6');
-assert(pushed.length===0, 'no LINE push per scan (teacher mode)');
-r = post({action:'submit', studentId:'65001', assignmentId:'HW001', userId:'U_STUDENT'});
+const T = {userId:'U1', displayName:'ครูทดสอบ'};
+const call = (action, extra) => post(Object.assign({action}, T, extra||{}));
+let r = call('bootstrap');
+assert(r.ok && r.user.isTeacher && r.students.length===6 && r.assignments.length===2 && typeof r.students[0][0]==='string', 'bootstrap: 6 students, 2 assignments');
+r = post({action:'bootstrap', userId:'U_STUDENT'});
+assert(r.ok && !r.user.isTeacher && r.userId==='U_STUDENT' && !r.students, 'non-teacher bootstrap returns userId only');
+r = post({action:'submitBatch', userId:'U_STUDENT', items:[{cid:'x', studentId:'65001', assignmentId:'HW001'}]});
 assert(!r.ok && r.code==='NOT_TEACHER', 'non-teacher cannot submit');
-r = post({action:'init', userId:'U_STUDENT'});
-assert(r.ok && r.user.isTeacher===false && r.userId==='U_STUDENT' && r.assignments.length===0, 'non-teacher init shows userId only');
-r = post({action:'submit', studentId:'65001', assignmentId:'HW001', userId:'U1'});
-assert(!r.ok && r.code==='DUPLICATE', 'duplicate blocked: '+r.submittedText);
-r = post({action:'submit', studentId:'65004', assignmentId:'HW002', userId:'U1'});
-assert(!r.ok && r.code==='NOT_TARGET', 'class target enforced (ม.5/2 vs ม.5/1)');
-r = post({action:'submit', studentId:'65002', assignmentId:'https://liff.line.me/x?task=HW002', userId:'U1'});
-assert(r.ok, 'teacher may skip required file');
-post({action:'undo', submissionId:r.submission_id, userId:'U1'});
-r = post({action:'submit', studentId:'65002', assignmentId:'HW002', userId:'U1', file:{name:'a.pdf',mimeType:'application/pdf',data:Buffer.from('hi').toString('base64')}});
-assert(r.ok && r.fileUrl.includes('65002_สมใจ_ใบงานที่2.pdf'), 'file saved: '+files[0]);
-r = post({action:'submit', studentId:'65002', assignmentId:'HW002', userId:'U1', resubmit:true, file:{name:'b.pdf',data:'aGk='}});
-assert(r.ok && r.code==='RESUBMITTED' && r.attempt===2, 'resubmit allowed → attempt 2');
-assert(sheets.Submissions.data.length===3, 'Submissions has 2 rows (+header), no dup rows');
-r = post({action:'undo', submissionId: R("adminList('Submissions')[1].submission_id"), userId:'U1'});
-assert(r.ok && sheets.Submissions.data[2][10]===1, 'undo resubmit → attempt back to 1');
-let sub = post({action:'submit', studentId:'65003', assignmentId:'HW001', userId:'U1'});
-r = post({action:'undo', submissionId: sub.submission_id, userId:'U1'});
-assert(r.ok && r.progress.submitted===1 && sheets.Submissions.data.length===3, 'undo first submit deletes row');
-r = post({action:'createAssignment', subject:'ไทย', assignment_name:'เรียงความ', class_target:'ม.5/2', due_date:'2026-10-01T16:00', userId:'U1'});
-assert(r.ok && r.assignment.assignment_id==='HW003' && r.progress.target===2, 'create assignment HW003 for ม.5/2 (2 students)');
-r = post({action:'summary', assignmentId:'HW001', userId:'U1'});
-assert(r.ok && r.summary.missingCount===5 && r.submitted.length===1, 'summary: 5 missing, 1 submitted');
+
+// batch submit: ok, ok, duplicate in same batch, not found, wrong class, closed-by-target
+const ts = new Date(Date.now()-60000).toISOString();
+r = call('submitBatch', {items:[
+  {cid:'a', studentId:'STU-65001', assignmentId:'HW001', ts},
+  {cid:'b', studentId:'65002', assignmentId:'HW001', ts},
+  {cid:'c', studentId:'65001', assignmentId:'HW001', ts},
+  {cid:'d', studentId:'99999', assignmentId:'HW001', ts},
+  {cid:'e', studentId:'65004', assignmentId:'HW002', ts}
+]});
+const by = Object.fromEntries(r.results.map(x=>[x.cid,x]));
+assert(by.a.ok && by.b.ok && by.a.submission_id!==by.b.submission_id, 'batch: 2 recorded with distinct ids');
+assert(by.c.code==='DUPLICATE' && by.d.code==='STUDENT_NOT_FOUND' && by.e.code==='NOT_TARGET', 'batch: dup / not found / wrong class');
+assert(sheets.Submissions.data.length===3, 'one setValues wrote exactly 2 rows');
+assert(new Date(sheets.Submissions.data[1][1]).toISOString()===ts, 'uses scan time from phone');
+assert(pushed.length===0, 'no LINE push per scan');
+r = call('submitBatch', {items:[{cid:'f', studentId:'65001', assignmentId:'HW001'}]});
+assert(r.results[0].code==='DUPLICATE' && r.results[0].submittedText, 'duplicate across batches: '+r.results[0].submittedText);
+r = call('bootstrap');
+assert(r.subs.HW001 && r.subs.HW001['65001'] && r.subs.HW001['65002'] && Object.keys(r.subs.HW001).length===2, 'bootstrap returns subs map');
+
+// undo
+r = call('undo', {submissionId: by.b.submission_id});
+assert(r.ok && sheets.Submissions.data.length===2, 'undo deletes row');
+
+// students CRUD
+r = call('saveStudent', {student:{student_id:'65020', name:'นายใหม่ เอี่ยม', class:'ม.5', room:'2'}});
+assert(r.ok && r.student[0]==='65020', 'add student');
+r = call('saveStudent', {student:{student_id:'65020', name:'ซ้ำ', class:'ม.5', room:'2'}});
+assert(!r.ok && /มีอยู่แล้ว/.test(r.message), 'add duplicate id rejected');
+r = call('saveStudent', {student:{student_id:'65021', name:'นายใหม่ แก้ชื่อ', class:'ม.5', room:'3'}, oldId:'65020'});
+assert(r.ok && R("getStudent_('65021').name")==='นายใหม่ แก้ชื่อ' && !R("getStudent_('65020')"), 'edit student incl. id change');
+r = call('deleteStudent', {studentId:'65021'});
+assert(r.ok && !R("getStudent_('65021')"), 'delete student');
+r = call('importStudents', {text:'รหัส\tชื่อ\tชั้น\tห้อง\n65030\tนางสาวเอ บี\tม.6\t1\n65001\tนายสมชาย ใจดีมาก\tม.5\t1\n\n'});
+assert(r.ok && r.added===1 && r.updated===1 && r.skipped===1 && r.students.length===7, 'import: 1 added, 1 updated, header skipped');
+assert(R("getStudent_('65001').name")==='นายสมชาย ใจดีมาก', 'import updates name');
+
+// assignments
+r = call('saveAssignment', {assignment:{subject:'ไทย', assignment_name:'เรียงความ', class_target:'ม.5/2', due_date:'2026-10-01T16:00'}});
+assert(r.ok && r.assignment.assignment_id==='HW003' && r.assignment.status==='OPEN', 'create assignment HW003');
+r = call('saveAssignment', {assignment:{assignment_id:'HW003', subject:'ไทย', assignment_name:'เรียงความ', class_target:'ม.5/2', status:'CLOSED'}});
+assert(r.ok && r.assignment.status==='CLOSED', 'close assignment');
+r = call('submitBatch', {items:[{cid:'g', studentId:'65004', assignmentId:'HW003'}]});
+assert(r.results[0].code==='ASSIGNMENT_CLOSED', 'closed assignment rejects scans');
+r = call('deleteAssignment', {assignmentId:'HW001'});
+assert(!r.ok, 'cannot delete assignment with submissions');
+r = call('deleteAssignment', {assignmentId:'HW003'});
+assert(r.ok, 'delete unused assignment');
+
+// webhook
 R(`doPost({postData:{contents:${JSON.stringify(JSON.stringify({events:[{type:'message',replyToken:'rt',source:{userId:'U1'},message:{type:'text',text:'สรุป'}}]}))}}})`);
 assert(replies.length===1 && replies[0].messages[0].text.includes('สรุปการส่งงาน'), 'webhook สรุป for teacher');
 R(`doPost({postData:{contents:${JSON.stringify(JSON.stringify({events:[{type:'message',replyToken:'rt2',source:{userId:'UX'},message:{type:'text',text:'สรุป'}}]}))}}})`);
@@ -91,7 +118,7 @@ assert(replies[1].messages[0].text.includes('สำหรับครูเท�
 // admin
 ctx.__email='owner@x.com';
 const d = R("adminDashboard('HW001')");
-assert(d.selected.target===6 && d.selected.submitted===1 && d.selected.rooms.length===3, 'dashboard HW001: 1/6 across 3 rooms, rate '+d.selected.rate);
+assert(d.selected.target===6 && d.selected.submitted===1 && d.selected.rooms.length===3, 'dashboard HW001: 1/6 across 3 rooms');
 const miss = R("adminMissing('HW001','ม.5/1')");
 assert(miss.students.length===2, 'missing in ม.5/1 = 2');
 R("adminUpdateSubmission(adminList('Submissions')[0].submission_id,{status:'ผ่าน',score:'10',notify:true})");
@@ -99,8 +126,7 @@ assert(sheets.Submissions.data[1][9]==='ผ่าน', 'teacher sets status ผ�
 const imp = R("adminImportStudents('65010\\tนายใหม่ มาแล้ว\\tม.6\\t1\\n65001\\tนายสมชาย ใจดีมาก\\tม.5\\t1')");
 assert(imp.added===1 && imp.updated===1, 'import students upsert');
 const rep = R("adminStudentReport('')");
-assert(rep.length===7, 'student report rows');
-R("adminDelete('Assignments','HW003')");
+assert(rep.length===8, 'student report rows');
 const soon = new Date(Date.now()+2*3600e3); const p2=n=>String(n).padStart(2,'0');
 const soonStr = `${soon.getFullYear()}-${p2(soon.getMonth()+1)}-${p2(soon.getDate())}T${p2(soon.getHours())}:${p2(soon.getMinutes())}`;
 R(`adminSave('Assignments',{assignment_id:'HW003',subject:'ไทย',assignment_name:'เรียงความ',class_target:'ALL',due_date:'${soonStr}',status:'open'},true)`);
