@@ -429,13 +429,27 @@ function api(action, data) {
   });
   return p.then(function (res) {
     updateSync();
-    if (res.code === 'UNAUTHORIZED' && window.liff && CFG.LIFF_ID && liff.isLoggedIn()) {
-      liff.logout(); liff.login({ redirectUri: location.href }); // ID Token หมดอายุ
-      return new Promise(function () {});
-    }
+    if (res.code === 'UNAUTHORIZED' && window.liff && CFG.LIFF_ID) return reauth();
     return res;
   }, function (err) { updateSync(); throw err; });
 }
+/**
+ * ID Token หมดอายุ: ในแอป LINE ห้ามเรียก liff.login() (LINE จะขึ้น 400) → โหลดหน้าใหม่ครั้งเดียวเพื่อรับ token ใหม่
+ * นอกแอป LINE (Chrome/Safari) → เข้าสู่ระบบใหม่ด้วยหน้า LINE Login
+ */
+function reauth() {
+  var key = 'rq_reauth_at', last = 0;
+  try { last = Number(sessionStorage.getItem(key) || 0); } catch (e) {}
+  if (Date.now() - last < 60000) {
+    toast('เข้าสู่ระบบ LINE ไม่สำเร็จ — ปิดหน้านี้แล้วเปิดใหม่อีกครั้ง', 'err', 6000);
+    return Promise.reject(new Error('UNAUTHORIZED'));
+  }
+  try { sessionStorage.setItem(key, String(Date.now())); } catch (e) {}
+  if (liff.isInClient()) location.reload();
+  else { try { liff.logout(); } catch (e) {} liff.login({ redirectUri: location.href.split('#')[0] }); }
+  return new Promise(function () {});
+}
+
 /** แจ้งเมื่อลองครบแล้วยังไม่สำเร็จ — คำสั่งอาจบันทึกไปแล้ว จึงโหลดข้อมูลล่าสุดให้ */
 function netError(e) {
   toast((e && e.message || 'เชื่อมต่อไม่สำเร็จ') + ' — กำลังโหลดข้อมูลล่าสุด', 'warn', 4000);
@@ -1350,7 +1364,7 @@ $('requestForm').onsubmit = function (ev) {
 (function boot() {
   if (!CFG.API_URL) { $('byLine').textContent = 'ยังไม่ได้ตั้งค่า API_URL ใน config.js'; return; }
   var login = CFG.LIFF_ID ? liff.init({ liffId: CFG.LIFF_ID }).then(function () {
-    if (!liff.isLoggedIn()) { liff.login({ redirectUri: location.href }); return new Promise(function () {}); }
+    if (!liff.isLoggedIn()) { liff.login({ redirectUri: location.href.split('#')[0] }); return new Promise(function () {}); }
     STATE.idToken = liff.getIDToken();
     var tok = liff.getDecodedIDToken();
     STATE.uid = tok && tok.sub || 'LINE';
