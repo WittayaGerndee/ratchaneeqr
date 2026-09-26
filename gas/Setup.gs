@@ -134,7 +134,7 @@ function installTriggers() {
 /**
  * ปรับข้อมูลเวอร์ชันเก่าให้เป็นปัจจุบัน (รันอัตโนมัติครั้งเดียวต่อเวอร์ชัน เมื่อมีคำขอแรกเข้ามา)
  */
-var MIGRATION_VERSION = '4';
+var MIGRATION_VERSION = '5';
 function runMigrations_() {
   var props = PropertiesService.getScriptProperties();
   if (props.getProperty('MIGRATION_VERSION') === MIGRATION_VERSION) return;
@@ -150,7 +150,7 @@ function runMigrations_() {
       var sh = sheet_(name);
       setTextFormat_(sh, headers_(name), 2, Math.max(sh.getMaxRows() - 1, 1));
     });
-    // v4: ทะเบียนบัญชี (Tenants / Members) สำหรับระบบสมัครใช้งาน
+    // v4/v5: ทะเบียนบัญชี (Tenants / Members) + คอลัมน์อีเมล
     ensureRegistry_();
     props.setProperty('MIGRATION_VERSION', MIGRATION_VERSION);
     log_('MIGRATION', { result: 'v' + MIGRATION_VERSION });

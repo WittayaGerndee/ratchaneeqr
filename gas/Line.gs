@@ -121,15 +121,18 @@ function handleEvent_(ev) {
   var t = String(ev.message.text || '').trim().replace(/^[^\wก-๙]+/, '').toLowerCase();
 
   if (t === 'myid' || t === 'ไอดี') {
-    return lineReply_(ev.replyToken, textMsg_('LINE userId ของคุณ:\n' + userId +
-      '\n\nส่งรหัสนี้ให้ผู้ดูแลระบบ เพื่อเพิ่มในแผ่น Teachers (คอลัมน์ line_user_id)'));
+    return lineReply_(ev.replyToken, [
+      textMsg_(userId),
+      textMsg_('☝️ นี่คือ LINE ID ของคุณ\n\nหากต้องการใช้งานระบบ ส่ง LINE ID นี้พร้อมอีเมล Gmail ให้ผู้ดูแลระบบ\n(ผู้ดูแลจะสร้างบัญชีและแชร์ Google Sheet ไปที่อีเมลของคุณ)'),
+      liffButtonMsg_('หรือกดส่งคำขอใช้งานได้เลย', 'ส่งคำขอใช้งาน', {})
+    ]);
   }
 
   var member = resolveMember_(userId);
   useTenant_(member ? member.tenant : null);
   var isTeacher = !!member;
   if (!isTeacher) {
-    return lineReply_(ev.replyToken, liffButtonMsg_('ยังไม่ได้สมัครใช้งาน\nกดปุ่มด้านล่างเพื่อสมัคร ระบบจะสร้าง Google Sheet และโฟลเดอร์ของคุณเอง', 'สมัครใช้งาน', {}));
+    return lineReply_(ev.replyToken, liffButtonMsg_('ยังไม่มีบัญชีใช้งาน\nกดปุ่มด้านล่างเพื่อส่ง LINE ID และอีเมลให้ผู้ดูแลระบบสร้างบัญชีให้', 'ส่งคำขอใช้งาน', {}));
   }
 
   if (t.indexOf('สแกน') === 0 || t.indexOf('ส่งงาน') === 0) {

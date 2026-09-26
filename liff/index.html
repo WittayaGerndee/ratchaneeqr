@@ -151,22 +151,25 @@
 </header>
 
 <main>
-  <!-- สมัครใช้งาน (ยังไม่มีบัญชี) -->
+  <!-- ขอใช้งาน (ยังไม่มีบัญชี) -->
   <section id="view-signup" class="hidden">
     <div class="card" style="padding:22px 18px">
-      <h2 style="font-size:1.3rem">เริ่มใช้งานระบบเช็คการส่งงาน</h2>
-      <p class="muted small" style="margin-top:-4px">ระบบจะสร้าง Google Sheet และโฟลเดอร์ Drive ใหม่สำหรับคุณโดยเฉพาะ ข้อมูลไม่ปนกับโรงเรียนอื่น</p>
-      <form id="signupForm">
-        <label class="field"><span>ชื่อโรงเรียน *</span><input class="input" name="school" required placeholder="เช่น โรงเรียนอนุบาลศรีสุทโธ"></label>
-        <label class="field"><span>ชื่อครู *</span><input class="input" name="teacher" required placeholder="เช่น ครูรัชนี"></label>
-        <label class="field hidden" id="signupCodeField"><span>รหัสสมัครใช้งาน *</span><input class="input" name="code" placeholder="ขอรหัสจากผู้ดูแลระบบ"></label>
-        <button class="btn primary block lg" type="submit">สมัครใช้งาน</button>
+      <h2 style="font-size:1.3rem">ขอใช้งานระบบเช็คการส่งงาน</h2>
+      <p class="muted small" style="margin-top:-4px">ส่ง LINE ID และอีเมล Gmail ให้ผู้ดูแลระบบ ผู้ดูแลจะสร้างบัญชี (Google Sheet ของคุณเอง) และแชร์ลิงก์ไปที่อีเมล</p>
+      <label class="field"><span>LINE ID ของคุณ</span>
+        <div class="row"><input class="input grow" id="myUserId" readonly style="font-family:monospace;font-size:.8rem"><button class="btn" id="copyId" type="button">คัดลอก</button></div></label>
+      <form id="requestForm">
+        <label class="field"><span>อีเมล Gmail * (สำหรับรับลิงก์ Google Sheet)</span><input class="input" name="email" type="email" required placeholder="name@gmail.com" autocomplete="email"></label>
+        <div class="grid2">
+          <label class="field"><span>ชื่อครู</span><input class="input" name="name" placeholder="เช่น ครูรัชนี"></label>
+          <label class="field"><span>โรงเรียน</span><input class="input" name="school" placeholder="ชื่อโรงเรียน"></label>
+        </div>
+        <button class="btn primary block lg" type="submit">ส่งคำขอถึงผู้ดูแลระบบ</button>
       </form>
-    </div>
-    <div class="card" style="padding:16px 18px">
-      <h3>เข้าร่วมโรงเรียนที่มีอยู่แล้ว?</h3>
-      <p class="muted small" style="margin:0 0 8px">ส่งรหัสนี้ให้ผู้ดูแลของโรงเรียน เพื่อเพิ่มคุณเป็นครู (เมนู ⚙️ → ครูในบัญชี)</p>
-      <div class="row"><input class="input grow" id="myUserId" readonly style="font-family:monospace;font-size:.8rem"><button class="btn" id="copyId">คัดลอก</button></div>
+      <div id="requestDone" class="hidden" style="background:var(--accent-weak);border-radius:12px;padding:14px;margin-top:4px">
+        <b style="color:var(--accent)">ส่งคำขอแล้ว</b>
+        <div class="small muted">เมื่อผู้ดูแลสร้างบัญชีเสร็จ คุณจะได้รับข้อความใน LINE และอีเมลลิงก์ Google Sheet — จากนั้นปิดแล้วเปิดหน้านี้ใหม่</div>
+      </div>
     </div>
   </section>
 
@@ -1158,15 +1161,12 @@ $('qrPdfOpen').onclick = function () {
    ตั้งค่า (ผู้ดูแล)
    ===================================================== */
 $('settingsBtn').onclick = function () {
+  var sup = !!(DATA.user && DATA.user.isSuper);
   openSheet('<h2>ตั้งค่า</h2><form id="stf">' +
     '<label class="field"><span>ชื่อโรงเรียน</span><input class="input" name="school" value="' + esc(DATA.school) + '"></label>' +
     '<label class="field"><span>ชื่อครู (แสดงบนหัวหน้าจอ)</span><input class="input" name="admin" value="' + esc(DATA.adminName) + '"></label>' +
     '<button class="btn primary block" type="submit">บันทึก</button></form>' +
-    '<h3 style="margin-top:22px">ครูในบัญชีนี้</h3><div id="memList" class="small muted">กำลังโหลด…</div>' +
-    '<form id="memForm" style="margin-top:10px"><label class="field"><span>เพิ่มครู: วางรหัส LINE (ครูเปิดแอปนี้แล้วกดคัดลอกรหัส)</span>' +
-    '<input class="input" name="lid" required placeholder="U1234…" autocomplete="off" style="font-family:monospace"></label>' +
-    '<div class="grid2"><input class="input" name="name" required placeholder="ชื่อครู"><select class="input" name="role"><option value="teacher">ครู</option><option value="admin">ผู้ดูแล</option></select></div>' +
-    '<button class="btn block" type="submit" style="margin-top:10px">' + icon('plus') + 'เพิ่มครู</button></form>', function () {
+    (sup ? '<button class="btn block lg" id="openAccounts" style="margin-top:14px">' + icon('users') + 'จัดการบัญชีผู้ใช้</button>' : ''), function () {
       $('stf').onsubmit = function (ev) {
         ev.preventDefault();
         var f = ev.target, b = f.querySelector('[type=submit]');
@@ -1178,35 +1178,93 @@ $('settingsBtn').onclick = function () {
           saveLocal(); renderHeader(); toast('บันทึกแล้ว');
         }).catch(function (e) { b.disabled = false; b.textContent = 'บันทึก'; netError(e); });
       };
-      function drawMembers(list) {
-        $('memList').innerHTML = list.map(function (m) {
-          return '<div class="list-item" style="padding:8px 0"><div class="grow"><div style="font-weight:600;color:var(--text)">' + esc(m.name || '-') + ' <span class="badge">' + (m.role === 'admin' ? 'ผู้ดูแล' : 'ครู') + '</span></div>' +
-            '<div class="xs muted ellipsis" style="font-family:monospace">' + esc(m.line_user_id) + '</div></div>' +
-            (m.source === 'registry' && m.line_user_id !== STATE.uid ? '<button class="btn sm ghost danger" data-rm="' + esc(m.line_user_id) + '">ลบ</button>' : '') + '</div>';
-        }).join('') || 'ยังไม่มี';
-      }
-      api('members').then(function (r) { if (r.ok) drawMembers(r.members); }).catch(function () { $('memList').textContent = 'โหลดไม่สำเร็จ'; });
-      $('memList').addEventListener('click', function (ev) {
-        var b = ev.target.closest('[data-rm]');
-        if (!b) return;
-        b.disabled = true;
-        api('removeMember', { lineUserId: b.dataset.rm }).then(function (r) {
-          if (!r.ok) { toast(r.message, 'err'); b.disabled = false; return; }
-          drawMembers(r.members); toast('ลบแล้ว');
-        }).catch(function (e) { b.disabled = false; netError(e); });
-      });
-      $('memForm').onsubmit = function (ev) {
-        ev.preventDefault();
-        var f = ev.target, b = f.querySelector('[type=submit]');
-        b.disabled = true;
-        api('addMember', { lineUserId: f.lid.value.trim(), name: f.name.value.trim(), role: f.role.value }).then(function (r) {
-          b.disabled = false;
-          if (!r.ok) { toast(r.message, 'err', 4000); return; }
-          f.reset(); drawMembers(r.members); toast('เพิ่มครูแล้ว — ให้ครูปิดแล้วเปิดแอปใหม่');
-        }).catch(function (e) { b.disabled = false; netError(e); });
-      };
+      if ($('openAccounts')) $('openAccounts').onclick = function () { accountsSheet({}); };
     });
 };
+
+/* =====================================================
+   จัดการบัญชีผู้ใช้ (ผู้ดูแลระบบ)
+   ===================================================== */
+function accountsSheet(prefill) {
+  openSheet('<h2>จัดการบัญชีผู้ใช้</h2>' +
+    '<form id="accForm">' +
+    '<label class="field"><span>LINE ID ของผู้ใช้ * (ผู้ใช้พิมพ์ myid ในแชท)</span><input class="input" name="lid" required placeholder="U1234…" autocomplete="off" style="font-family:monospace" value="' + esc(prefill.lid || '') + '"></label>' +
+    '<label class="field"><span>อีเมล Gmail (ระบบจะแชร์ Google Sheet ไปที่อีเมลนี้)</span><input class="input" name="email" type="email" placeholder="name@gmail.com" value="' + esc(prefill.email || '') + '"></label>' +
+    '<label class="field"><span>บัญชี</span><select class="input" name="tenant" id="accTenant"><option value="">➕ สร้างบัญชีใหม่ (Sheet + Drive ใหม่)</option></select></label>' +
+    '<div class="grid2"><label class="field"><span>ชื่อครู *</span><input class="input" name="name" required value="' + esc(prefill.name || '') + '"></label>' +
+    '<label class="field" id="accSchoolField"><span>โรงเรียน *</span><input class="input" name="school" value="' + esc(prefill.school || '') + '"></label>' +
+    '<label class="field hidden" id="accRoleField"><span>สิทธิ์</span><select class="input" name="role"><option value="teacher">ครู</option><option value="admin">ผู้ดูแลบัญชี</option></select></label></div>' +
+    '<button class="btn primary block lg" type="submit">สร้างบัญชี</button></form>' +
+    '<div id="accResult" class="hidden" style="background:var(--accent-weak);border-radius:12px;padding:12px 14px;margin-top:10px"></div>' +
+    '<h3 style="margin-top:22px">บัญชีทั้งหมด</h3><div id="accList" class="small muted">กำลังโหลด…</div>', function () {
+      var f = $('accForm');
+      var accounts = [];
+      function syncMode() {
+        var existing = !!f.tenant.value;
+        show('accSchoolField', !existing); show('accRoleField', existing);
+        f.school.required = !existing;
+        f.querySelector('[type=submit]').textContent = existing ? 'เพิ่มเข้าบัญชีนี้' : 'สร้างบัญชี';
+      }
+      f.tenant.onchange = syncMode;
+      function draw(list) {
+        accounts = list;
+        var keep = f.tenant.value;
+        f.tenant.innerHTML = '<option value="">➕ สร้างบัญชีใหม่ (Sheet + Drive ใหม่)</option>' + list.filter(function (a) { return a.status === 'active'; }).map(function (a) {
+          return '<option value="' + esc(a.tenant_id) + '">เพิ่มเข้า: ' + esc(a.school) + '</option>';
+        }).join('');
+        f.tenant.value = keep; syncMode();
+        $('accList').innerHTML = list.map(function (a) {
+          var main = a.tenant_id === 'MAIN', off = a.status !== 'active';
+          return '<div class="card" style="padding:12px 14px;margin:8px 0;box-shadow:none;border:1px solid var(--line)' + (off ? ';opacity:.55' : '') + '">' +
+            '<div class="row between"><div class="grow"><b style="color:var(--text)">' + esc(a.school) + '</b>' + (off ? ' <span class="badge off">ปิดใช้งาน</span>' : '') +
+            '<div class="xs muted">' + esc(a.teacher_name) + (a.email ? ' · ' + esc(a.email) : '') + '</div></div>' +
+            '<a class="btn sm" href="' + esc(a.sheet_url) + '" target="_blank" rel="noopener">Sheet</a></div>' +
+            (a.members.length ? '<div style="margin-top:6px">' + a.members.map(function (m) {
+              return '<div class="row between xs" style="padding:3px 0"><span class="grow ellipsis">' + esc(m.name || '-') + ' · ' + (m.role === 'admin' ? 'ผู้ดูแล' : 'ครู') + (m.email ? ' · ' + esc(m.email) : '') + '</span>' +
+                (m.line_user_id !== STATE.uid ? '<button class="btn sm ghost danger" data-rm="' + esc(a.tenant_id) + '|' + esc(m.line_user_id) + '">ลบ</button>' : '') + '</div>';
+            }).join('') + '</div>' : '') +
+            (main ? '' : '<button class="btn sm block" style="margin-top:6px" data-st="' + esc(a.tenant_id) + '|' + (off ? 'active' : 'disabled') + '">' + (off ? 'เปิดใช้งานอีกครั้ง' : 'ปิดใช้งานบัญชีนี้') + '</button>') +
+            '</div>';
+        }).join('');
+      }
+      api('accounts').then(function (r) { if (r.ok) draw(r.accounts); else $('accList').textContent = r.message; }).catch(function () { $('accList').textContent = 'โหลดไม่สำเร็จ'; });
+      $('accList').addEventListener('click', function (ev) {
+        var rm = ev.target.closest('[data-rm]'), st = ev.target.closest('[data-st]');
+        if (rm) {
+          var p = rm.dataset.rm.split('|');
+          confirmSheetInline('ลบผู้ใช้นี้ออกจากบัญชี?', function () {
+            api('removeAccountMember', { tenantId: p[0], lineUserId: p[1] }).then(function (r) { r.ok ? (draw(r.accounts), toast('ลบแล้ว')) : toast(r.message, 'err'); }).catch(netError);
+          });
+        }
+        if (st) {
+          var q = st.dataset.st.split('|');
+          st.disabled = true;
+          api('setAccountStatus', { tenantId: q[0], status: q[1] }).then(function (r) { r.ok ? (draw(r.accounts), toast('บันทึกแล้ว')) : toast(r.message, 'err'); }).catch(netError);
+        }
+      });
+      f.onsubmit = function (ev) {
+        ev.preventDefault();
+        var b = f.querySelector('[type=submit]'), label = b.textContent;
+        b.disabled = true; b.textContent = f.tenant.value ? 'กำลังเพิ่ม…' : 'กำลังสร้าง Google Sheet… (ประมาณ 20 วินาที)';
+        hide('accResult');
+        api('createAccount', { lineUserId: f.lid.value.trim(), email: f.email.value.trim(), school: f.school.value.trim(), teacherName: f.name.value.trim(), tenantId: f.tenant.value, role: f.role.value }).then(function (r) {
+          b.disabled = false; b.textContent = label;
+          if (!r.ok) { toast(r.message, 'err', 5000); return; }
+          draw(r.accounts);
+          $('accResult').innerHTML = '<b style="color:var(--accent)">' + (r.created ? 'สร้างบัญชีแล้ว' : 'เพิ่มผู้ใช้แล้ว') + '</b><div class="small muted">' +
+            (r.shared ? 'แชร์ Google Sheet ไปที่อีเมลแล้ว (Google ส่งอีเมลแจ้งให้อัตโนมัติ) · ' : (f.email.value ? 'แชร์ไปที่อีเมลไม่สำเร็จ — ส่งลิงก์ด้านล่างให้ผู้ใช้เอง · ' : '')) +
+            'ส่งข้อความแจ้งผู้ใช้ทาง LINE แล้ว</div>' +
+            '<div class="row" style="margin-top:8px"><input class="input grow" readonly value="' + esc(r.sheet_url) + '" style="font-size:.75rem"><button class="btn" type="button" id="copySheet">คัดลอกลิงก์</button></div>';
+          show('accResult');
+          $('copySheet').onclick = function () { copyText(r.sheet_url).then(function () { toast('คัดลอกแล้ว'); }); };
+          f.reset(); syncMode();
+        }).catch(function (e) { b.disabled = false; b.textContent = label; toast((e && e.message || 'เชื่อมต่อไม่สำเร็จ') + ' — กดอีกครั้งได้ (ไม่สร้างซ้ำ)', 'err', 5000); api('accounts').then(function (r) { if (r.ok) draw(r.accounts); }); });
+      };
+      syncMode();
+    });
+}
+/** ยืนยันแบบไม่ปิด sheet ปัจจุบัน */
+function confirmSheetInline(text, yes) { if (window.confirm(text)) yes(); }
 
 /* =====================================================
    นำทาง
@@ -1261,34 +1319,31 @@ function startApp() {
   var view = { summary: 'summary', new: 'tasks', tasks: 'tasks', students: 'students', manage: 'students', qr: 'qr' }[mode] || 'scan';
   go(view);
   if (mode === 'new') taskForm(null);
+  if (mode === 'accounts' && DATA.user && DATA.user.isSuper) {
+    accountsSheet({ lid: urlParam('lid'), email: urlParam('email'), name: urlParam('name'), school: urlParam('school') });
+  }
   if (task && findTask(task)) selectTask(task, false);
 }
 function showSignup(r) {
   DATA = null;
   hide('tabbar'); VIEWS.forEach(function (x) { hide('view-' + x); });
   $('schoolName').textContent = 'เช็คการส่งงาน';
-  $('byLine').textContent = 'สมัครใช้งานฟรี';
+  $('byLine').textContent = 'ยังไม่มีบัญชีใช้งาน';
   hide('syncPill'); hide('settingsBtn');
   $('myUserId').value = r.userId || '';
-  show('signupCodeField', !!r.signupNeedsCode);
-  $('signupForm').code.required = !!r.signupNeedsCode;
   show('view-signup');
 }
-$('signupForm').onsubmit = function (ev) {
+$('requestForm').onsubmit = function (ev) {
   ev.preventDefault();
   var f = ev.target, b = f.querySelector('[type=submit]');
-  b.disabled = true; b.textContent = 'กำลังสร้าง Google Sheet ของคุณ… (ประมาณ 20 วินาที)';
-  api('register', { school: f.school.value.trim(), teacherName: f.teacher.value.trim(), code: f.code.value.trim() }).then(function (r) {
-    b.disabled = false; b.textContent = 'สมัครใช้งาน';
+  b.disabled = true; b.textContent = 'กำลังส่ง…';
+  api('requestAccess', { email: f.email.value.trim(), name: f.name.value.trim(), school: f.school.value.trim() }).then(function (r) {
+    b.disabled = false; b.textContent = 'ส่งคำขอถึงผู้ดูแลระบบ';
     if (!r.ok) { toast(r.message, 'err', 4000); return; }
-    hide('view-signup');
-    setData(r);
-    startApp();
-    go('students');
-    toast('พร้อมใช้งาน — เริ่มจากเพิ่มรายชื่อนักเรียน', '', 4000);
+    hide('requestForm'); show('requestDone');
   }).catch(function (e) {
-    b.disabled = false; b.textContent = 'สมัครใช้งาน';
-    toast((e && e.message || 'เชื่อมต่อไม่สำเร็จ') + ' — กดสมัครอีกครั้งได้ (จะไม่สร้างซ้ำ)', 'err', 5000);
+    b.disabled = false; b.textContent = 'ส่งคำขอถึงผู้ดูแลระบบ';
+    toast((e && e.message || 'เชื่อมต่อไม่สำเร็จ') + ' — หรือคัดลอก LINE ID ส่งให้ผู้ดูแลเอง', 'err', 5000);
   });
 };
 
