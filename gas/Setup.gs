@@ -20,6 +20,8 @@ function setup() {
   _ssMemo = ss;
 
   Object.keys(SCHEMA).forEach(function (name) { ensureSheet_(ss, name, SCHEMA[name]); });
+  _masterMemo = ss;
+  ensureRegistry_();
   var def = ss.getSheetByName('Sheet1') || ss.getSheetByName('แผ่น1');
   if (def && ss.getSheets().length > 1 && def.getLastRow() === 0) ss.deleteSheet(def);
 
@@ -132,7 +134,7 @@ function installTriggers() {
 /**
  * ปรับข้อมูลเวอร์ชันเก่าให้เป็นปัจจุบัน (รันอัตโนมัติครั้งเดียวต่อเวอร์ชัน เมื่อมีคำขอแรกเข้ามา)
  */
-var MIGRATION_VERSION = '3';
+var MIGRATION_VERSION = '4';
 function runMigrations_() {
   var props = PropertiesService.getScriptProperties();
   if (props.getProperty('MIGRATION_VERSION') === MIGRATION_VERSION) return;
@@ -148,6 +150,8 @@ function runMigrations_() {
       var sh = sheet_(name);
       setTextFormat_(sh, headers_(name), 2, Math.max(sh.getMaxRows() - 1, 1));
     });
+    // v4: ทะเบียนบัญชี (Tenants / Members) สำหรับระบบสมัครใช้งาน
+    ensureRegistry_();
     props.setProperty('MIGRATION_VERSION', MIGRATION_VERSION);
     log_('MIGRATION', { result: 'v' + MIGRATION_VERSION });
   } catch (err) {

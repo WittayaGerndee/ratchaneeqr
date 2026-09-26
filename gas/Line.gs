@@ -125,9 +125,11 @@ function handleEvent_(ev) {
       '\n\nส่งรหัสนี้ให้ผู้ดูแลระบบ เพื่อเพิ่มในแผ่น Teachers (คอลัมน์ line_user_id)'));
   }
 
-  var isTeacher = !!findTeacherByLineId_(userId) || userId === getSetting_('ADMIN_LINE_ID');
+  var member = resolveMember_(userId);
+  useTenant_(member ? member.tenant : null);
+  var isTeacher = !!member;
   if (!isTeacher) {
-    return lineReply_(ev.replyToken, textMsg_('ระบบนี้สำหรับครูเท่านั้น\nหากเป็นครู พิมพ์ myid แล้วส่งรหัสให้ผู้ดูแลระบบ'));
+    return lineReply_(ev.replyToken, liffButtonMsg_('ยังไม่ได้สมัครใช้งาน\nกดปุ่มด้านล่างเพื่อสมัคร ระบบจะสร้าง Google Sheet และโฟลเดอร์ของคุณเอง', 'สมัครใช้งาน', {}));
   }
 
   if (t.indexOf('สแกน') === 0 || t.indexOf('ส่งงาน') === 0) {

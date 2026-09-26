@@ -99,8 +99,14 @@ var SECRET_KEYS = ['LINE_CHANNEL_ACCESS_TOKEN'];
 
 var _settingsMemo = null;
 
-/** อ่านค่า Setting: Script Properties ก่อน แล้วค่อยดูใน Sheet Settings */
+/** ค่าที่ใช้ร่วมกันทุกบัญชี (อ่านจาก PRESET/Script Properties ได้เสมอ) */
+var GLOBAL_SETTING_KEYS = { LIFF_ID: true, LINE_LOGIN_CHANNEL_ID: true, LINE_CHANNEL_ACCESS_TOKEN: true, REQUIRE_ID_TOKEN: true, QR_STUDENT_PREFIX: true, QR_TASK_PREFIX: true, TIMEZONE: true, MAX_FILE_MB: true };
+
+/** อ่านค่า Setting: Script Properties ก่อน แล้วค่อยดูใน Sheet Settings ของบัญชีที่ใช้งาน */
 function getSetting_(key, fallback) {
+  var sub = typeof _tenant !== 'undefined' && _tenant; // บัญชีย่อย (ไม่ใช่ MAIN)
+  if (sub && key === 'ADMIN_LINE_ID') return _tenant.owner_line_id || '';
+  if (sub && GLOBAL_SETTING_KEYS[key]) return mainSetting_(key, fallback); // ค่าส่วนกลาง อ่านจากบัญชีหลักเสมอ
   var prop = PropertiesService.getScriptProperties().getProperty(key);
   if (prop !== null && prop !== '') return prop;
   // ค่าลับ (SECRET_KEYS) ยังอ่านจาก Sheet ได้เป็น fallback แต่ไม่แนะนำ
@@ -113,9 +119,27 @@ function getSetting_(key, fallback) {
     } catch (err) { /* ยังไม่ได้ setup */ }
   }
   var v = _settingsMemo[key];
-  if ((v === undefined || v === null || v === '') && PRESET_SETTINGS[key]) v = PRESET_SETTINGS[key];
+  if (sub && (v === undefined || v === null || v === '')) {
+    if (key === 'GOOGLE_DRIVE_FOLDER_ID') v = _tenant.folder_id;
+    else if (key === 'ADMIN_NAME') v = _tenant.teacher_name;
+    else if (key === 'SCHOOL_NAME') v = _tenant.school;
+  }
+  if ((v === undefined || v === null || v === '') && PRESET_SETTINGS[key] && (!sub || GLOBAL_SETTING_KEYS[key])) v = PRESET_SETTINGS[key];
   if (v === undefined || v === null || v === '') return fallback !== undefined ? fallback : '';
   return v;
+}
+
+/** อ่านค่าจาก Settings ของบัญชีหลัก (MAIN) ไม่ว่าจะใช้งานบัญชีไหนอยู่ */
+function mainSetting_(key, fallback) {
+  var saved = _tenant;
+  _tenant = null;
+  var memo = _settingsMemo, ssm = _ssMemo;
+  _settingsMemo = null; _ssMemo = null;
+  try {
+    return getSetting_(key, fallback);
+  } finally {
+    _tenant = saved; _settingsMemo = memo; _ssMemo = ssm;
+  }
 }
 
 function getBoolSetting_(key, fallback) {

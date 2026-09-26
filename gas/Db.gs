@@ -4,8 +4,9 @@
 
 var _ssMemo = null;
 
+/** Spreadsheet ของบัญชีที่กำลังใช้งาน (ดู Tenant.gs) */
 function ss_() {
-  if (!_ssMemo) _ssMemo = SpreadsheetApp.openById(getSpreadsheetId_());
+  if (!_ssMemo) _ssMemo = _tenant && _tenant.spreadsheet_id ? SpreadsheetApp.openById(_tenant.spreadsheet_id) : masterSs_();
   return _ssMemo;
 }
 
@@ -48,7 +49,7 @@ function headers_(name) {
 var TABLE_CACHE_SECONDS = 120;
 function cachedTable_(name) {
   var cache = CacheService.getScriptCache();
-  var key = 'tbl_' + name;
+  var key = 'tbl_' + currentTenantId_() + '_' + name;
   var hit = cache.get(key);
   if (hit) return JSON.parse(hit);
   var rows = readTable_(name).map(function (r) { var o = {}; Object.keys(r).forEach(function (k) { o[k] = r[k]; }); return o; });
@@ -56,7 +57,7 @@ function cachedTable_(name) {
   return rows;
 }
 function invalidateTableCache_(name) {
-  CacheService.getScriptCache().remove('tbl_' + name);
+  CacheService.getScriptCache().remove('tbl_' + currentTenantId_() + '_' + name);
 }
 
 function appendRow_(name, obj) {

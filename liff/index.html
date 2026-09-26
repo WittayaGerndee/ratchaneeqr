@@ -151,12 +151,21 @@
 </header>
 
 <main>
-  <!-- ไม่มีสิทธิ์ -->
-  <section id="view-denied" class="hidden">
-    <div class="card" style="text-align:center;padding:28px 18px">
-      <svg style="width:48px;height:48px;color:var(--faint)"><use href="#i-lock"/></svg>
-      <h2 style="margin-top:10px">สำหรับครูเท่านั้น</h2>
-      <p class="muted small">ส่งรหัสด้านล่างให้ผู้ดูแลระบบ เพื่อเพิ่มสิทธิ์ในแผ่น Teachers</p>
+  <!-- สมัครใช้งาน (ยังไม่มีบัญชี) -->
+  <section id="view-signup" class="hidden">
+    <div class="card" style="padding:22px 18px">
+      <h2 style="font-size:1.3rem">เริ่มใช้งานระบบเช็คการส่งงาน</h2>
+      <p class="muted small" style="margin-top:-4px">ระบบจะสร้าง Google Sheet และโฟลเดอร์ Drive ใหม่สำหรับคุณโดยเฉพาะ ข้อมูลไม่ปนกับโรงเรียนอื่น</p>
+      <form id="signupForm">
+        <label class="field"><span>ชื่อโรงเรียน *</span><input class="input" name="school" required placeholder="เช่น โรงเรียนอนุบาลศรีสุทโธ"></label>
+        <label class="field"><span>ชื่อครู *</span><input class="input" name="teacher" required placeholder="เช่น ครูรัชนี"></label>
+        <label class="field hidden" id="signupCodeField"><span>รหัสสมัครใช้งาน *</span><input class="input" name="code" placeholder="ขอรหัสจากผู้ดูแลระบบ"></label>
+        <button class="btn primary block lg" type="submit">สมัครใช้งาน</button>
+      </form>
+    </div>
+    <div class="card" style="padding:16px 18px">
+      <h3>เข้าร่วมโรงเรียนที่มีอยู่แล้ว?</h3>
+      <p class="muted small" style="margin:0 0 8px">ส่งรหัสนี้ให้ผู้ดูแลของโรงเรียน เพื่อเพิ่มคุณเป็นครู (เมนู ⚙️ → ครูในบัญชี)</p>
       <div class="row"><input class="input grow" id="myUserId" readonly style="font-family:monospace;font-size:.8rem"><button class="btn" id="copyId">คัดลอก</button></div>
     </div>
   </section>
@@ -248,7 +257,7 @@
   <!-- ===== พิมพ์ QR ===== -->
   <section id="view-qr" class="hidden">
     <div class="card no-print">
-      <h2>พิมพ์สติกเกอร์ QR ติดสมุด</h2>
+      <h2>สติกเกอร์ QR ติดสมุด</h2>
       <div class="grid2">
         <label class="field"><span>ห้อง</span><select class="input" id="qrClass"></select></label>
         <label class="field"><span>ขนาด</span><select class="input" id="qrSize">
@@ -256,8 +265,14 @@
           <option value="38" selected>กลาง 3.8 ซม. · 4 ดวง/แถว</option>
           <option value="50">ใหญ่ 5 ซม. · 3 ดวง/แถว</option></select></label>
       </div>
-      <button class="btn primary block lg" id="qrPrint"><svg><use href="#i-print"/></svg>พิมพ์ / บันทึกเป็น PDF</button>
-      <p class="small muted" id="qrHint" style="margin:10px 0 0"></p>
+      <button class="btn primary block lg" id="qrPdfBtn"><svg><use href="#i-print"/></svg>สร้างไฟล์ PDF</button>
+      <div id="qrPdfResult" class="hidden" style="margin-top:12px;background:var(--accent-weak);border-radius:12px;padding:12px 14px">
+        <div style="font-weight:600;color:var(--accent)" id="qrPdfTitle"></div>
+        <div class="small muted" id="qrPdfSub" style="margin-bottom:10px"></div>
+        <button class="btn primary block" id="qrPdfOpen">เปิด / ดาวน์โหลด PDF</button>
+      </div>
+      <button class="btn ghost block small hidden" id="qrPrint" style="margin-top:6px">หรือพิมพ์จากหน้านี้ (คอมพิวเตอร์)</button>
+      <p class="small muted" style="margin:10px 0 0">ตัวอย่างด้านล่าง · ไฟล์ PDF ขนาด A4 พิมพ์แบบ Scale 100% · ใช้กระดาษสติกเกอร์ หรือกระดาษธรรมดาแล้วติดเทปใส</p>
     </div>
     <div class="card"><div class="sticker-sheet" id="qrSheet"></div></div>
   </section>
@@ -312,8 +327,8 @@
    - เรียก API ซ้ำอัตโนมัติ + reqId กันบันทึกซ้ำ
    ============================================================ */
 var CFG = window.APP_CONFIG || {};
-var LS_DATA = 'rq_data_v3', LS_QUEUE = 'rq_queue_v2';
-var STATE = { idToken: '', view: 'scan', task: null, log: [], camWanted: false };
+var LS_DATA = 'rq_data_v4', LS_QUEUE = 'rq_queue_v4';
+var STATE = { idToken: '', uid: '', view: 'scan', task: null, log: [], camWanted: false };
 var DATA = null, BY_ID = {}, QUEUE = [];
 
 /* ---------------- helpers ---------------- */
@@ -383,7 +398,7 @@ function fetchOnce(payload) {
   var timer = ctrl ? setTimeout(function () { ctrl.abort(); }, TIMEOUT_MS) : null;
   return fetch(CFG.API_URL, { method: 'POST', body: payload, signal: ctrl ? ctrl.signal : undefined })
     .then(function (r) { return r.text(); })
-    .then(function (t) { clearTimeout(timer); try { return JSON.parse(t); } catch (e) { throw new Error('BAD_RESPONSE'); } },
+    .then(function (t) { clearTimeout(timer); var j; try { j = JSON.parse(t); } catch (e) { throw new Error('BAD_RESPONSE'); } if (j && j.code === 'BUSY') throw new Error('BUSY'); return j; },
           function (e) { clearTimeout(timer); throw e; });
 }
 function api(action, data) {
@@ -1111,16 +1126,32 @@ function renderQr() {
   list.forEach(function (s, i) {
     new QRCode($('qr' + i), { text: (DATA.studentPrefix || 'STU-') + s.id, width: 256, height: 256, correctLevel: QRCode.CorrectLevel.M });
   });
-  var inLine = !!(window.liff && CFG.LIFF_ID && liff.isInClient());
-  $('qrHint').innerHTML = inLine
-    ? 'แอป LINE สั่งพิมพ์ไม่ได้ — ปุ่มด้านบนจะเปิดหน้านี้ใน Chrome/Safari หรือเปิดบนคอมพิวเตอร์ที่ <b>liff.line.me/' + esc(CFG.LIFF_ID) + '?mode=qr</b>'
-    : 'ตั้งค่าพิมพ์: กระดาษ A4 · Scale 100% · พิมพ์บนกระดาษสติกเกอร์ หรือกระดาษธรรมดาแล้วติดเทปใส';
+  show('qrPrint', !(window.liff && CFG.LIFF_ID && liff.isInClient()));
 }
 $('qrClass').onchange = function () { this.dataset.touched = '1'; renderQr(); };
 $('qrSize').onchange = renderQr;
-$('qrPrint').onclick = function () {
-  if (window.liff && CFG.LIFF_ID && liff.isInClient()) { liff.openWindow({ url: 'https://liff.line.me/' + CFG.LIFF_ID + '?mode=qr', external: true }); return; }
-  window.print();
+$('qrPrint').onclick = function () { window.print(); };
+var lastPdf = null;
+$('qrPdfBtn').onclick = function () {
+  var b = this, c = $('qrClass').value;
+  b.disabled = true; b.innerHTML = icon('print') + 'กำลังสร้างไฟล์… (10–30 วินาที)';
+  hide('qrPdfResult');
+  api('qrPdf', { classFilter: c, size: Number($('qrSize').value) }).then(function (r) {
+    b.disabled = false; b.innerHTML = icon('print') + 'สร้างไฟล์ PDF';
+    if (!r.ok) { toast(r.message, 'err', 4000); return; }
+    lastPdf = r;
+    $('qrPdfTitle').textContent = 'สร้างไฟล์แล้ว · ' + r.title + ' · ' + r.count + ' คน';
+    $('qrPdfSub').textContent = r.sentToLine ? 'ส่งลิงก์ไฟล์เข้าแชท LINE ของคุณแล้ว — เปิดจากแชทเพื่อพิมพ์หรือส่งต่อได้' : 'ไฟล์เก็บในโฟลเดอร์ Google Drive ของคุณ (QR Codes/PDF)';
+    show('qrPdfResult');
+  }).catch(function (e) {
+    b.disabled = false; b.innerHTML = icon('print') + 'สร้างไฟล์ PDF';
+    toast((e && e.message || 'เชื่อมต่อไม่สำเร็จ') + ' — ลองกดอีกครั้ง', 'err', 4000);
+  });
+};
+$('qrPdfOpen').onclick = function () {
+  if (!lastPdf) return;
+  if (window.liff && CFG.LIFF_ID && liff.isInClient()) liff.openWindow({ url: lastPdf.url, external: true });
+  else window.open(lastPdf.url, '_blank');
 };
 
 /* =====================================================
@@ -1130,17 +1161,49 @@ $('settingsBtn').onclick = function () {
   openSheet('<h2>ตั้งค่า</h2><form id="stf">' +
     '<label class="field"><span>ชื่อโรงเรียน</span><input class="input" name="school" value="' + esc(DATA.school) + '"></label>' +
     '<label class="field"><span>ชื่อครู (แสดงบนหัวหน้าจอ)</span><input class="input" name="admin" value="' + esc(DATA.adminName) + '"></label>' +
-    '<button class="btn primary block lg" type="submit">บันทึก</button></form>', function () {
+    '<button class="btn primary block" type="submit">บันทึก</button></form>' +
+    '<h3 style="margin-top:22px">ครูในบัญชีนี้</h3><div id="memList" class="small muted">กำลังโหลด…</div>' +
+    '<form id="memForm" style="margin-top:10px"><label class="field"><span>เพิ่มครู: วางรหัส LINE (ครูเปิดแอปนี้แล้วกดคัดลอกรหัส)</span>' +
+    '<input class="input" name="lid" required placeholder="U1234…" autocomplete="off" style="font-family:monospace"></label>' +
+    '<div class="grid2"><input class="input" name="name" required placeholder="ชื่อครู"><select class="input" name="role"><option value="teacher">ครู</option><option value="admin">ผู้ดูแล</option></select></div>' +
+    '<button class="btn block" type="submit" style="margin-top:10px">' + icon('plus') + 'เพิ่มครู</button></form>', function () {
       $('stf').onsubmit = function (ev) {
         ev.preventDefault();
         var f = ev.target, b = f.querySelector('[type=submit]');
         b.disabled = true; b.textContent = 'กำลังบันทึก…';
         api('saveSettings', { settings: { SCHOOL_NAME: f.school.value, ADMIN_NAME: f.admin.value } }).then(function (r) {
-          if (!r.ok) { toast(r.message, 'err'); b.disabled = false; b.textContent = 'บันทึก'; return; }
+          b.disabled = false; b.textContent = 'บันทึก';
+          if (!r.ok) { toast(r.message, 'err'); return; }
           DATA.school = r.school; DATA.adminName = r.adminName;
-          if (DATA.user) DATA.user.teacherName = r.adminName || DATA.user.teacherName;
-          saveLocal(); renderHeader(); closeSheet(); toast('บันทึกแล้ว');
+          saveLocal(); renderHeader(); toast('บันทึกแล้ว');
         }).catch(function (e) { b.disabled = false; b.textContent = 'บันทึก'; netError(e); });
+      };
+      function drawMembers(list) {
+        $('memList').innerHTML = list.map(function (m) {
+          return '<div class="list-item" style="padding:8px 0"><div class="grow"><div style="font-weight:600;color:var(--text)">' + esc(m.name || '-') + ' <span class="badge">' + (m.role === 'admin' ? 'ผู้ดูแล' : 'ครู') + '</span></div>' +
+            '<div class="xs muted ellipsis" style="font-family:monospace">' + esc(m.line_user_id) + '</div></div>' +
+            (m.source === 'registry' && m.line_user_id !== STATE.uid ? '<button class="btn sm ghost danger" data-rm="' + esc(m.line_user_id) + '">ลบ</button>' : '') + '</div>';
+        }).join('') || 'ยังไม่มี';
+      }
+      api('members').then(function (r) { if (r.ok) drawMembers(r.members); }).catch(function () { $('memList').textContent = 'โหลดไม่สำเร็จ'; });
+      $('memList').addEventListener('click', function (ev) {
+        var b = ev.target.closest('[data-rm]');
+        if (!b) return;
+        b.disabled = true;
+        api('removeMember', { lineUserId: b.dataset.rm }).then(function (r) {
+          if (!r.ok) { toast(r.message, 'err'); b.disabled = false; return; }
+          drawMembers(r.members); toast('ลบแล้ว');
+        }).catch(function (e) { b.disabled = false; netError(e); });
+      });
+      $('memForm').onsubmit = function (ev) {
+        ev.preventDefault();
+        var f = ev.target, b = f.querySelector('[type=submit]');
+        b.disabled = true;
+        api('addMember', { lineUserId: f.lid.value.trim(), name: f.name.value.trim(), role: f.role.value }).then(function (r) {
+          b.disabled = false;
+          if (!r.ok) { toast(r.message, 'err', 4000); return; }
+          f.reset(); drawMembers(r.members); toast('เพิ่มครูแล้ว — ให้ครูปิดแล้วเปิดแอปใหม่');
+        }).catch(function (e) { b.disabled = false; netError(e); });
       };
     });
 };
@@ -1200,42 +1263,64 @@ function startApp() {
   if (mode === 'new') taskForm(null);
   if (task && findTask(task)) selectTask(task, false);
 }
-function denied(r) {
-  try { localStorage.removeItem(LS_DATA); } catch (e) {}
+function showSignup(r) {
   DATA = null;
   hide('tabbar'); VIEWS.forEach(function (x) { hide('view-' + x); });
-  $('schoolName').textContent = r.school || 'เช็คการส่งงาน';
-  $('byLine').textContent = '';
+  $('schoolName').textContent = 'เช็คการส่งงาน';
+  $('byLine').textContent = 'สมัครใช้งานฟรี';
   hide('syncPill'); hide('settingsBtn');
   $('myUserId').value = r.userId || '';
-  show('view-denied');
+  show('signupCodeField', !!r.signupNeedsCode);
+  $('signupForm').code.required = !!r.signupNeedsCode;
+  show('view-signup');
 }
+$('signupForm').onsubmit = function (ev) {
+  ev.preventDefault();
+  var f = ev.target, b = f.querySelector('[type=submit]');
+  b.disabled = true; b.textContent = 'กำลังสร้าง Google Sheet ของคุณ… (ประมาณ 20 วินาที)';
+  api('register', { school: f.school.value.trim(), teacherName: f.teacher.value.trim(), code: f.code.value.trim() }).then(function (r) {
+    b.disabled = false; b.textContent = 'สมัครใช้งาน';
+    if (!r.ok) { toast(r.message, 'err', 4000); return; }
+    hide('view-signup');
+    setData(r);
+    startApp();
+    go('students');
+    toast('พร้อมใช้งาน — เริ่มจากเพิ่มรายชื่อนักเรียน', '', 4000);
+  }).catch(function (e) {
+    b.disabled = false; b.textContent = 'สมัครใช้งาน';
+    toast((e && e.message || 'เชื่อมต่อไม่สำเร็จ') + ' — กดสมัครอีกครั้งได้ (จะไม่สร้างซ้ำ)', 'err', 5000);
+  });
+};
 
 (function boot() {
   if (!CFG.API_URL) { $('byLine').textContent = 'ยังไม่ได้ตั้งค่า API_URL ใน config.js'; return; }
-  QUEUE = lsGet(LS_QUEUE) || [];
-  var cached = lsGet(LS_DATA);
-  // 1) แสดงข้อมูลที่เคยโหลดไว้ทันที (ไม่ต้องรอ LINE / Google)
-  if (cached && cached.user && cached.user.isTeacher) {
-    setData(cached);
-    startApp();
-    setSync('wait', 'กำลังอัปเดต');
-  }
-  // 2) เข้าสู่ระบบ LINE แล้วโหลดข้อมูลล่าสุด
   var login = CFG.LIFF_ID ? liff.init({ liffId: CFG.LIFF_ID }).then(function () {
     if (!liff.isLoggedIn()) { liff.login({ redirectUri: location.href }); return new Promise(function () {}); }
     STATE.idToken = liff.getIDToken();
-  }) : Promise.resolve();
-  login.then(function () { return api('bootstrap'); }).then(function (r) {
+    var tok = liff.getDecodedIDToken();
+    STATE.uid = tok && tok.sub || 'LINE';
+  }) : Promise.resolve().then(function () { STATE.uid = 'DEV_USER'; });
+
+  login.then(function () {
+    // ข้อมูลในเครื่องแยกตามบัญชี LINE (ใช้มือถือเครื่องเดียวกันหลายคนได้)
+    LS_DATA = 'rq_data_v4_' + STATE.uid;
+    LS_QUEUE = 'rq_queue_v4_' + STATE.uid;
+    QUEUE = lsGet(LS_QUEUE) || [];
+    var cached = lsGet(LS_DATA);
+    if (cached && cached.user && cached.user.isTeacher) {   // แสดงข้อมูลเดิมทันที แล้วค่อยอัปเดต
+      setData(cached); startApp(); setSync('wait', 'กำลังอัปเดต');
+    }
+    return api('bootstrap');
+  }).then(function (r) {
     if (!r.ok) { toast(r.message, 'err', 5000); return; }
-    if (!r.user.isTeacher) { denied(r); return; }
+    if (!r.user.isTeacher) { try { localStorage.removeItem(LS_DATA); } catch (e) {} showSignup(r); return; }
     setData(r);
     startApp();
     scheduleFlush(0);
   }).catch(function (e) {
     if (started) { setSync('wait', 'ออฟไลน์'); scheduleFlush(8000); return; }
     $('byLine').textContent = 'เชื่อมต่อไม่สำเร็จ — ปิดแล้วเปิดใหม่อีกครั้ง';
-    toast(e.message, 'err', 5000);
+    toast(e && e.message || 'เชื่อมต่อไม่สำเร็จ', 'err', 5000);
   });
 })();
 </script>

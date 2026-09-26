@@ -6,6 +6,7 @@
  */
 
 function doPost(e) {
+  useTenant_(null); // เริ่มที่บัญชีหลักเสมอ (resolveActor_ จะสลับไปบัญชีของผู้ใช้)
   runMigrations_();
   var body = {};
   try {
@@ -29,6 +30,7 @@ function doGet(e) {
   if (page === 'health') {
     return json_({ ok: true, app: APP_NAME, version: APP_VERSION, time: new Date().toISOString() });
   }
+  useTenant_(null);
   runMigrations_();
   var auth = adminAuth_();
   if (!auth.ok) {

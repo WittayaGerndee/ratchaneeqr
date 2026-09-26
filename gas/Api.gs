@@ -7,16 +7,25 @@
  * ความเร็ว: หน้า LIFF เรียก bootstrap ครั้งเดียวเพื่อโหลดนักเรียน/งาน/การส่งทั้งหมด
  * แล้วตรวจผลการสแกนบนมือถือทันที ส่วนการบันทึกส่งขึ้นเป็นชุดด้วย submitBatch
  *
- * สิทธิ์: LINE userId ต้องอยู่ใน Teachers.line_user_id (status = active) หรือเป็น ADMIN_LINE_ID
+ * สิทธิ์: LINE userId ต้องเป็นครูของบัญชีใดบัญชีหนึ่ง (ดู Tenant.gs) — คนที่ยังไม่มีบัญชีเรียกได้แค่ bootstrap / register
+ * ทุกคำสั่งทำงานกับ Google Sheet + Drive ของบัญชีนั้นเท่านั้น
  */
+
+/** คำสั่งที่คนยังไม่มีบัญชีเรียกได้ */
+var PUBLIC_ACTIONS = { bootstrap: true, register: true };
+/** คำสั่งเฉพาะผู้ดูแลบัญชี */
+var ADMIN_ACTIONS = { saveSettings: true, addMember: true, removeMember: true };
 
 function handleApi_(body) {
   try {
     var actor = resolveActor_(body);
     var fn = API_ACTIONS[body.action];
     if (!fn) return { ok: false, code: 'UNKNOWN_ACTION', message: 'ไม่รู้จักคำสั่ง ' + body.action };
-    if (body.action !== 'bootstrap' && !actor.isTeacher) {
-      return { ok: false, code: 'NOT_TEACHER', message: 'ระบบนี้สำหรับครูเท่านั้น' };
+    if (!PUBLIC_ACTIONS[body.action] && !actor.isTeacher) {
+      return { ok: false, code: 'NOT_TEACHER', message: 'ยังไม่ได้สมัครใช้งาน' };
+    }
+    if (ADMIN_ACTIONS[body.action] && !actor.isAdmin) {
+      return { ok: false, code: 'NOT_ADMIN', message: 'เฉพาะผู้ดูแลบัญชี' };
     }
     // กันทำซ้ำ: Google บางครั้งรันคำสั่งสำเร็จแต่ส่งผลกลับไม่ถึงมือถือ → หน้า LIFF ส่งซ้ำด้วย reqId เดิม
     var reqKey = body.reqId && WRITE_ACTIONS[body.action] ? 'req_' + actor.userId + '_' + String(body.reqId).substring(0, 60) : '';
@@ -53,25 +62,24 @@ function resolveActor_(body) {
     // โหมดทดสอบเท่านั้น (REQUIRE_ID_TOKEN = FALSE)
     user = { userId: String(body.userId || 'DEV_USER'), displayName: String(body.displayName || 'Developer') };
   }
-  var teacher = findTeacherByLineId_(user.userId);
-  var isAdminLine = !!user.userId && user.userId === getSetting_('ADMIN_LINE_ID');
-  user.isTeacher = !!teacher || isAdminLine;
-  user.isAdmin = isAdminLine || !!(teacher && String(teacher.role || '').toLowerCase() === 'admin');
-  user.teacherName = teacher ? teacher.name : (isAdminLine ? getSetting_('ADMIN_NAME', 'ผู้ดูแลระบบ') : '');
+  applyMember_(user, resolveMember_(user.userId));
   return user;
 }
 
-function findTeacherByLineId_(userId) {
-  if (!userId) return null;
-  return cachedTable_('Teachers').filter(function (t) {
-    return t.line_user_id && t.line_user_id === userId && String(t.status || 'active').toLowerCase() === 'active';
-  })[0] || null;
+/** ผูกผู้ใช้กับบัญชี แล้วสลับไปใช้ข้อมูลของบัญชีนั้น */
+function applyMember_(user, m) {
+  user.isTeacher = !!m;
+  user.isAdmin = !!m && m.role === 'admin';
+  user.teacherName = m ? m.name : '';
+  user.tenantId = m ? m.tenant.tenant_id : '';
+  useTenant_(m ? m.tenant : null);
 }
 
 /** คำสั่งที่เปลี่ยนข้อมูล (ต้องกันการทำซ้ำเมื่อหน้า LIFF ส่งซ้ำ) */
 var WRITE_ACTIONS = {
   submitBatch: true, undo: true, saveStudent: true, deleteStudent: true,
-  importStudents: true, saveAssignment: true, deleteAssignment: true, saveSettings: true
+  importStudents: true, saveAssignment: true, deleteAssignment: true, saveSettings: true,
+  register: true, addMember: true, removeMember: true, qrPdf: true
 };
 
 var API_ACTIONS = {
@@ -87,10 +95,55 @@ var API_ACTIONS = {
       liffId: getSetting_('LIFF_ID', '')
     };
     if (!actor.isTeacher) {
-      out.userId = actor.userId; // ให้ครูส่ง userId นี้ให้ผู้ดูแลเพิ่มสิทธิ์
+      useTenant_(null);
+      out.registered = false;
+      out.userId = actor.userId; // ให้ครูส่ง userId นี้ให้ผู้ดูแลเพิ่มเข้าโรงเรียนที่มีอยู่
+      out.signupNeedsCode = !!getSetting_('SIGNUP_CODE');
+      out.school = '';
+      out.adminName = '';
       return out;
     }
+    out.registered = true;
     return Object.assign(out, loadData_());
+  },
+
+  /** สมัครใช้งาน: สร้าง Google Sheet + โฟลเดอร์ Drive ใหม่ของตัวเอง */
+  register: function (b, actor) {
+    if (!actor.isTeacher) {
+      useTenant_(null);
+      var code = String(getSetting_('SIGNUP_CODE') || '').trim();
+      if (code && String(b.code || '').trim() !== code) return { ok: false, code: 'BAD_CODE', message: 'รหัสสมัครใช้งานไม่ถูกต้อง' };
+      applyMember_(actor, registerTenant_(actor.userId, b.school, b.teacherName));
+    }
+    return API_ACTIONS.bootstrap(b, actor);
+  },
+
+  // ---------- ครูในบัญชี ----------
+  members: function () {
+    return { ok: true, members: tenantMembers_() };
+  },
+  addMember: function (b) {
+    return { ok: true, members: addMember_(b.lineUserId, b.name, b.role) };
+  },
+  removeMember: function (b, actor) {
+    return { ok: true, members: removeMember_(b.lineUserId, actor) };
+  },
+
+  // ---------- QR เป็น PDF ----------
+  qrPdf: function (b, actor) {
+    var r = buildQrPdf_(b.classFilter || '', Number(b.size) || 38);
+    try {
+      linePush_(actor.userId, {
+        type: 'template', altText: 'ไฟล์ QR ติดสมุด ' + r.title,
+        template: {
+          type: 'buttons', title: 'ไฟล์ QR ติดสมุด', text: (r.title + ' · ' + r.count + ' คน').substring(0, 60),
+          actions: [{ type: 'uri', label: 'เปิด / ดาวน์โหลด PDF', uri: r.url }]
+        }
+      });
+      r.sentToLine = true;
+    } catch (e) { r.sentToLine = false; }
+    r.ok = true;
+    return r;
   },
 
   submitBatch: function (b, actor) {

@@ -5,7 +5,7 @@ const dir = path.join(__dirname, '..', 'gas');
 
 // ---- in-memory Spreadsheet ----
 function makeSheet(name){ const data=[]; return {
-  name, data,
+  name, data, getName(){ return name; },
   getLastRow(){ return data.length; }, getLastColumn(){ return data.reduce((m,r)=>Math.max(m,r.length),0); },
   getRange(a,b,c,d){ if(typeof a==='string') return {setNumberFormat(){return this}};
     const r=a,col=b,nr=c||1,nc=d||1; return {
@@ -16,33 +16,36 @@ function makeSheet(name){ const data=[]; return {
   getDataRange(){ return this.getRange(1,1,Math.max(data.length,1),Math.max(this.getLastColumn(),1)); },
   appendRow(row){ data.push(row.slice()); }, deleteRow(n){ data.splice(n-1,1); }, setFrozenRows(){}, getMaxRows(){ return Math.max(data.length, 1000); }
 };}
-const sheets={}; const cacheStore=new Map();
-const ss={ getId:()=> 'SSID', getUrl:()=>'https://sheet', getSheetByName:n=>sheets[n]||null,
-  insertSheet:n=>(sheets[n]=makeSheet(n)), getSheets:()=>Object.values(sheets), deleteSheet(){}};
+const cacheStore=new Map();
+const spreadsheets={};
+function makeSS(id){ const sh={}; const o={ id, sheets:sh, getId:()=>id, getUrl:()=>'https://sheet/'+id, getSheetByName:n=>sh[n]||null,
+  insertSheet:n=>(sh[n]=makeSheet(n)), getSheets:()=>Object.values(sh), deleteSheet(x){ delete sh[x.name]; } }; spreadsheets[id]=o; return o; }
+const ss=makeSS('SSID'); const sheets=ss.sheets; let ssCount=0;
 const props={}; const pushed=[]; const replies=[];
 const pad=n=>String(n).padStart(2,'0');
 const ctx = {
   console,
-  SpreadsheetApp:{ getActiveSpreadsheet:()=>ss, openById:()=>ss, create:()=>ss, flush(){} },
+  SpreadsheetApp:{ getActiveSpreadsheet:()=>ss, openById:id=>spreadsheets[id]||ss, create:()=>{ const n=makeSS('NEWSS'+(++ssCount)); n.insertSheet('Sheet1'); return n; }, flush(){} },
   PropertiesService:{ getScriptProperties:()=>({ getProperty:k=>props[k]??null, setProperty:(k,v)=>{props[k]=v;} }) },
   LockService:{ getScriptLock:()=>({ tryLock:()=>true, waitLock(){}, releaseLock(){} }), getUserLock:()=>({ tryLock:()=>true, waitLock(){}, releaseLock(){} }) },
-  CacheService:{ getScriptCache:()=>({ get:k=>cacheStore.has(k)?cacheStore.get(k):null, put:(k,v)=>cacheStore.set(k,v), remove:k=>cacheStore.delete(k) }) },
+  CacheService:{ getScriptCache:()=>({ get:k=>cacheStore.has(k)?cacheStore.get(k):null, put:(k,v)=>cacheStore.set(k,v), remove:k=>cacheStore.delete(k), removeAll:ks=>ks.forEach(k=>cacheStore.delete(k)) }) },
   Session:{ getEffectiveUser:()=>({getEmail:()=>'owner@x.com'}), getActiveUser:()=>({getEmail:()=>ctx.__email}) },
-  DriveApp:{ createFolder:()=>({getId:()=>'FOLDER'}), getFolderById:()=>fakeFolder() },
+  DriveApp:{ createFolder:()=>({getId:()=>'FOLDER'}), getFolderById:()=>fakeFolder(), getFileById:()=>({ moveTo(){}, setSharing(){} }), Access:{ANYONE_WITH_LINK:1}, Permission:{VIEW:1} },
   ScriptApp:{ getProjectTriggers:()=>[], newTrigger:()=>{const t={timeBased:()=>t,everyHours:()=>t,everyDays:()=>t,atHour:()=>t,create:()=>t};return t;}, deleteTrigger(){} },
   Utilities:{
     formatDate(d,tz,f){ const y=d.getFullYear(); return f.replace(/yyyy/g,y).replace(/yy/g,String(y).slice(2)).replace(/MM/g,pad(d.getMonth()+1)).replace(/dd/g,pad(d.getDate())).replace(/HH/g,pad(d.getHours())).replace(/mm/g,pad(d.getMinutes())).replace(/ss/g,pad(d.getSeconds())).replace(/'T'/g,'T'); },
     parseDate(s){ return new Date(s.replace(' ','T')); },
-    base64Decode:s=>Buffer.from(s,'base64'), newBlob:(b,m,n)=>({b,m,n}),
+    base64Decode:s=>Buffer.from(s,'base64'), base64Encode:b=>Buffer.from(b).toString('base64'),
+    newBlob:(b,m,n)=>({b,m,n, getAs(){ return { n:'pdf', setName(x){ this.n=x; return this; } }; }}),
     computeDigest:(a,s)=>[...Buffer.from(s)], base64EncodeWebSafe:b=>Buffer.from(b).toString('base64'),
     DigestAlgorithm:{SHA_256:1}
   },
-  UrlFetchApp:{ fetch(url,opt){ const p=JSON.parse(opt.payload||'{}'); if(url.includes('/push')) pushed.push(p); if(url.includes('/reply')) replies.push(p); if(url.includes('/multicast')) pushed.push(p);
+  UrlFetchApp:{ fetchAll(reqs){ return reqs.map(()=>({ getResponseCode:()=>200, getBlob:()=>({getBytes:()=>[1,2,3]}) })); }, fetch(url,opt){ opt=opt||{}; const p=JSON.parse(opt.payload||'{}'); if(url.includes('/push')) pushed.push(p); if(url.includes('/reply')) replies.push(p); if(url.includes('/multicast')) pushed.push(p);
      return { getResponseCode:()=>200, getContentText:()=>'{}', getBlob:()=>({setName(){return this}}) }; } },
   ContentService:{ createTextOutput:t=>({ setMimeType(){ return {text:t}; } }), MimeType:{JSON:'json'} },
   HtmlService:{ createTemplateFromFile:()=>({ evaluate:()=>({setTitle(){return this},addMetaTag(){return this},setXFrameOptionsMode(){return this}}) }), XFrameOptionsMode:{DEFAULT:1} },
 };
-const files=[]; function fakeFolder(){ return { getFoldersByName:()=>({hasNext:()=>false}), createFolder:()=>fakeFolder(), getFilesByName:()=>({hasNext:()=>false}), createFile:b=>{files.push(b.n);return {getUrl:()=>'https://drive/'+b.n};}, getUrl:()=>'https://drive/f' }; }
+const files=[]; let folderN=0; function fakeFolder(){ const id='FOLDER'+(folderN++); return { getId:()=>id, getFoldersByName:()=>({hasNext:()=>false}), createFolder:()=>fakeFolder(), getFilesByName:()=>({hasNext:()=>false}), createFile:b=>{files.push(b.n);return {getUrl:()=>'https://drive/'+b.n, getId:()=>'FILE1', setSharing(){}};}, getUrl:()=>'https://drive/f' }; }
 vm.createContext(ctx);
 for (const f of fs.readdirSync(dir).filter(f=>f.endsWith('.gs'))) vm.runInContext(fs.readFileSync(path.join(dir,f),'utf8'), ctx, {filename:f});
 const R = code => vm.runInContext(code, ctx);
@@ -140,7 +143,53 @@ assert(r.ok, 'delete unused assignment');
 R(`doPost({postData:{contents:${JSON.stringify(JSON.stringify({events:[{type:'message',replyToken:'rt',source:{userId:'U1'},message:{type:'text',text:'สรุป'}}]}))}}})`);
 assert(replies.length===1 && replies[0].messages[0].text.includes('สรุปการส่งงาน'), 'webhook สรุป for teacher');
 R(`doPost({postData:{contents:${JSON.stringify(JSON.stringify({events:[{type:'message',replyToken:'rt2',source:{userId:'UX'},message:{type:'text',text:'สรุป'}}]}))}}})`);
-assert(replies[1].messages[0].text.includes('สำหรับครูเท่านั้น'), 'webhook blocks non-teacher');
+assert(replies[1].messages[0].altText.includes('ยังไม่ได้สมัครใช้งาน'), 'webhook: non-teacher gets signup button');
+// ---------------- บัญชีแยก (multi-tenant) ----------------
+const NEWU='U'+'a'.repeat(32), T2='U'+'b'.repeat(32), OUT='U'+'c'.repeat(32);
+const as = (uid, action, extra) => post(Object.assign({action, userId:uid, displayName:'x'}, extra||{}));
+const mainStudentsBefore = as('U1','bootstrap').students.length;
+r = as(NEWU,'bootstrap');
+assert(r.ok && r.registered===false && r.userId===NEWU && !r.students, 'new user sees signup (registered=false)');
+r = as(NEWU,'saveStudent',{student:{student_id:'1', name:'x', class:'ป.1', room:'1'}});
+assert(!r.ok && r.code==='NOT_TEACHER', 'unregistered cannot write');
+r = as(NEWU,'register',{school:'โรงเรียนใหม่', teacherName:'ครูใหม่'});
+assert(r.ok && r.registered && r.school==='โรงเรียนใหม่' && r.user.teacherName==='ครูใหม่' && r.user.isAdmin && r.students.length===0 && r.assignments.length===0, 'register creates empty account');
+assert(Object.keys(spreadsheets).includes('NEWSS1') && spreadsheets.NEWSS1.sheets.Students && !spreadsheets.NEWSS1.sheets.Sheet1, 'new Google Sheet with all tabs');
+r = as(NEWU,'register',{school:'อีกรอบ', teacherName:'x'});
+assert(r.ok && r.school==='โรงเรียนใหม่' && ssCount===1, 'register again returns same account (no 2nd sheet)');
+r = as(NEWU,'saveStudent',{student:{student_id:'0001', name:'นักเรียนบัญชีใหม่', class:'ป.1', room:'1'}});
+assert(r.ok && spreadsheets.NEWSS1.sheets.Students.data.length===2, 'student saved into the new account sheet');
+assert(as('U1','bootstrap').students.length===mainStudentsBefore && !as('U1','bootstrap').students.some(x=>x[1]==='นักเรียนบัญชีใหม่'), 'MAIN account does not see new account data');
+assert(as(NEWU,'bootstrap').students.length===1, 'new account sees only its own students');
+r = as(NEWU,'saveAssignment',{assignment:{subject:'คณิต', assignment_name:'แบบฝึก 1', class_target:'ALL'}});
+const na = r.assignment.assignment_id;
+r = as(NEWU,'submitBatch',{items:[{cid:'n1', studentId:'1', assignmentId:na}]});
+assert(r.results[0].ok && spreadsheets.NEWSS1.sheets.Submissions.data.length===2, 'scan saved into new account');
+r = as('U1','submitBatch',{items:[{cid:'n2', studentId:'0001', assignmentId:na}]});
+assert(!r.results[0].ok, 'MAIN teacher cannot scan into another account assignment');
+const MAINT='U'+'d'.repeat(32);
+R("useTenant_(null); appendRow_('Teachers',{teacher_id:'T009',name:'ครูบัญชีหลัก',line_user_id:'"+MAINT+"',role:'teacher',status:'active'}); invalidateTableCache_('Teachers')");
+assert(as(MAINT,'bootstrap').school==='โรงเรียนอนุบาลศรีสุทโธ', 'legacy Teachers-sheet teacher belongs to MAIN');
+r = as(NEWU,'addMember',{lineUserId:MAINT, name:'แย่ง', role:'teacher'});
+assert(!r.ok && /อีกบัญชี/.test(r.message), 'cannot steal a teacher from another account');
+r = as(NEWU,'addMember',{lineUserId:T2, name:'ครูผู้ช่วย', role:'teacher'});
+assert(r.ok && r.members.some(m=>m.line_user_id===T2), 'admin adds co-teacher');
+r = as(T2,'bootstrap');
+assert(r.registered && r.school==='โรงเรียนใหม่' && r.students.length===1 && !r.user.isAdmin, 'co-teacher joins the same account (not admin)');
+r = as(T2,'addMember',{lineUserId:OUT, name:'x', role:'teacher'});
+assert(!r.ok && r.code==='NOT_ADMIN', 'co-teacher cannot manage teachers');
+r = as(T2,'saveSettings',{settings:{SCHOOL_NAME:'แฮก'}});
+assert(!r.ok, 'co-teacher cannot change settings');
+r = as(NEWU,'removeMember',{lineUserId:T2});
+assert(r.ok && as(T2,'bootstrap').registered===false, 'removed teacher loses access');
+r = as(NEWU,'qrPdf',{classFilter:'ป.1/1', size:38});
+assert(r.ok && r.count===1 && /drive\.google\.com\/file\/d\//.test(r.url) && r.sentToLine, 'QR PDF created + link pushed to LINE');
+replies.length=0;
+R(`doPost({postData:{contents:${JSON.stringify(JSON.stringify({events:[{type:'message',replyToken:'rt9',source:{userId:NEWU},message:{type:'text',text:'สรุป'}}]}))}}})`);
+assert(replies[0] && replies[0].messages[0].text.includes('แบบฝึก 1') && !replies[0].messages[0].text.includes('ใบงานที่ 2'), 'webhook summary uses own account');
+R("useTenant_(null)");
+assert(R("getSetting_('SCHOOL_NAME')")==='โรงเรียนอนุบาลศรีสุทโธ', 'MAIN settings untouched');
+
 // admin
 ctx.__email='owner@x.com';
 const d = R("adminDashboard('HW001')");

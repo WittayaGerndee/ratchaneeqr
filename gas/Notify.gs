@@ -4,18 +4,23 @@
  *   - สรุปรายวันให้ ADMIN_LINE_ID (Trigger 18:00)
  */
 
-/** รายชื่อ LINE ของครูทั้งหมด (Teachers.line_user_id + ADMIN_LINE_ID) */
+/** รายชื่อ LINE ของครูทั้งหมดในบัญชีที่ใช้งานอยู่ */
 function teacherLineIds_() {
-  var ids = readTable_('Teachers').filter(function (t) {
-    return t.line_user_id && String(t.status || 'active').toLowerCase() === 'active';
-  }).map(function (t) { return t.line_user_id; });
-  var admin = getSetting_('ADMIN_LINE_ID');
-  if (admin && ids.indexOf(admin) < 0) ids.push(admin);
-  return ids;
+  return tenantMembers_().map(function (m) { return m.line_user_id; }).filter(Boolean);
+}
+
+/** Trigger ทุกชั่วโมง: เตือนครูของทุกบัญชี */
+function sendDueReminders() {
+  forEachTenant_(sendDueRemindersForTenant_);
+}
+
+/** Trigger 18:00: สรุปรายวันให้ผู้ดูแลของทุกบัญชี */
+function sendDailySummary() {
+  forEachTenant_(sendDailySummaryForTenant_);
 }
 
 /** เตือนครูก่อนครบกำหนด REMINDER_HOURS_BEFORE ชั่วโมง พร้อมรายชื่อคนที่ยังไม่ส่ง (ครั้งเดียวต่องาน) */
-function sendDueReminders() {
+function sendDueRemindersForTenant_() {
   var hours = getNumberSetting_('REMINDER_HOURS_BEFORE', 24);
   if (hours <= 0) return;
   var teachers = teacherLineIds_();
@@ -49,8 +54,8 @@ function sendDueReminders() {
   });
 }
 
-/** สรุปรายวันส่งให้ผู้ดูแล */
-function sendDailySummary() {
+/** สรุปรายวันส่งให้ผู้ดูแลบัญชี */
+function sendDailySummaryForTenant_() {
   var admin = getSetting_('ADMIN_LINE_ID');
   if (!admin) return;
   var d = buildDashboard_('');
