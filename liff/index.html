@@ -1580,7 +1580,7 @@ function bindLinkRows(root, rows) {
   root.onclick = function (ev) {
     var b = ev.target.closest('[data-copy]'), o = ev.target.closest('[data-open]'), inp = ev.target.closest('[data-link]');
     if (inp) inp.select();
-    if (o) openUrl(rows[Number(o.dataset.open)][1]);
+    if (o) { var r = rows[Number(o.dataset.open)]; openUrl(r[3] || r[1]); }
     if (!b) return;
     copyText(rows[Number(b.dataset.copy)][1]).then(function () { b.innerHTML = icon('check') + 'คัดลอกแล้ว'; toast('คัดลอกลิงก์แล้ว — วางในแชท LINE / อีเมล แล้วเปิดบนคอม'); });
   };
@@ -1590,12 +1590,22 @@ function openUrl(url) {
   if (window.liff && CFG.LIFF_ID && liff.isInClient()) liff.openWindow({ url: url, external: true });
   else window.open(url, '_blank', 'noopener');
 }
+/** ลิงก์ตรงของหน้าเว็บนี้ (ไม่ผ่าน liff.line.me ซึ่งบนมือถืออาจเด้งกลับเข้าแอป LINE) — ใช้ตอนกดเปิดในเบราว์เซอร์ */
+function directLink(params) {
+  var qs = Object.keys(params || {}).map(function (k) { return k + '=' + encodeURIComponent(params[k]); }).join('&');
+  return location.origin + location.pathname + (qs ? '?' + qs : '');
+}
+/** [ชื่อ, ลิงก์สำหรับคัดลอก, มีปุ่มเปิด, ลิงก์ที่ใช้ตอนเปิด] */
 function pcLinks() {
-  return [['ตารางคะแนนทุกงาน', appLink({ mode: 'scores' })], ['สรุปการส่งงาน', appLink({ mode: 'summary' })], ['หน้าหลัก (สแกน / จัดการงาน)', appLink()]];
+  return [
+    ['ตารางคะแนนทุกงาน', appLink({ mode: 'scores' }), true, directLink({ mode: 'scores' })],
+    ['สรุปการส่งงาน', appLink({ mode: 'summary' }), true, directLink({ mode: 'summary' })],
+    ['หน้าหลัก (สแกน / จัดการงาน)', appLink(), true, directLink()]
+  ];
 }
 /** ลิงก์ของงานเดียว (จากเมนูในหน้า "งาน") */
 function linkSheet(a) {
-  var rows = [['สรุปงาน "' + a.assignment_name + '"', appLink({ mode: 'summary', task: a.assignment_id })]].concat(pcLinks());
+  var rows = [['สรุปงาน "' + a.assignment_name + '"', appLink({ mode: 'summary', task: a.assignment_id }), true, directLink({ mode: 'summary', task: a.assignment_id })]].concat(pcLinks());
   openSheet('<h2>เปิดบนคอม / iPad</h2><p class="small muted" style="margin-top:-4px">คัดลอกลิงก์ แล้วเปิดใน Chrome / Safari บนคอมหรือ iPad → เข้าสู่ระบบด้วย LINE บัญชีเดียวกับมือถือ</p>' +
     '<div id="lsRows">' + linkRowsHtml(rows) + '</div>', function () { bindLinkRows($('lsRows'), rows); });
 }
