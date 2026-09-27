@@ -146,6 +146,8 @@
   .btn.red { background: var(--bad); border-color: var(--bad); color: #fff; }
   .stu-no { min-width: 34px; height: 34px; border-radius: 10px; background: var(--accent-weak); color: var(--accent); font-weight: 700; display: flex; align-items: center; justify-content: center; flex: none; font-size: .9rem; }
   .id-badge { font-family: ui-monospace, monospace; font-size: .72rem; padding: 2px 7px; border-radius: 6px; background: #eef2f7; color: #475569; white-space: nowrap; }
+  .task-name { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.35; }
+  .task-sub { margin-top: 2px; line-height: 1.6; }
   .task-prog { width: 110px; flex: none; text-align: right; font-size: .82rem; color: var(--muted); }
   .task-prog b { color: var(--text); font-size: .95rem; } .task-prog .bar { height: 6px; margin-top: 4px; }
   .name-line:last-child { border-bottom: 0; }
@@ -177,6 +179,9 @@
   @media (max-width: 520px) { .stu-actions { width: 100%; display: grid !important; grid-template-columns: repeat(3, 1fr); } }
   .set-card h3 { display: flex; align-items: center; gap: 8px; } .set-card h3 svg { width: 20px; height: 20px; color: var(--accent); }
   .set-actions { display: grid; gap: 8px; }
+  .manual-card { border: 2px solid var(--accent-weak); }
+  .manual-ic { width: 48px; height: 48px; border-radius: 14px; background: var(--accent-weak); color: var(--accent); display: flex; align-items: center; justify-content: center; flex: none; }
+  .manual-ic svg { width: 26px; height: 26px; }
   .link-row { margin-bottom: 14px; } .link-row b { display: block; font-size: .92rem; margin-bottom: 4px; }
   .link-row .input { font-size: .78rem; font-family: ui-monospace, monospace; min-height: 42px; }
 
@@ -475,6 +480,15 @@
   <!-- ===== ตั้งค่า ===== -->
   <section id="view-settings" class="hidden">
     <h2 style="margin:4px 2px 10px">ตั้งค่า</h2>
+    <div class="card set-card manual-card">
+      <div class="row" style="gap:14px;align-items:center;flex-wrap:wrap">
+        <div class="manual-ic"><svg><use href="#i-book"/></svg></div>
+        <div class="grow" style="min-width:180px"><h3 style="margin:0">คู่มือการใช้งานสำหรับครู</h3>
+          <div class="small muted">ไฟล์ PDF อธิบายทุกขั้นตอน พร้อมภาพประกอบ — เปิดได้ทุกคนที่มีลิงก์ ส่งต่อให้ครูท่านอื่นได้</div></div>
+        <div class="row" style="gap:6px"><button class="btn primary" id="manualOpen"><svg><use href="#i-book"/></svg>เปิดคู่มือ (PDF)</button>
+          <button class="btn" id="manualCopy" title="คัดลอกลิงก์คู่มือ"><svg><use href="#i-copy"/></svg>คัดลอกลิงก์</button></div>
+      </div>
+    </div>
     <div id="setGrid">
       <div class="set-col">
       <div class="card set-card">
@@ -549,6 +563,7 @@
     <symbol id="i-more" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></symbol>
     <symbol id="i-monitor" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></symbol>
     <symbol id="i-send" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 3L10 14M21 3l-7 18-4-7-7-4z"/></symbol>
+    <symbol id="i-book" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 21V5M8 7h7M8 11h7"/></symbol>
     <symbol id="i-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></symbol>
   </defs>
 </svg>
@@ -1121,7 +1136,7 @@ function dupPop(a, s, prev) {
   var scored = hasScore(a), v = prev[3];
   $('popHost').innerHTML = '<div class="pop" role="alert"><div class="ic">' + icon('alert') + '</div>' +
     '<div class="t">ส่งแล้ว (สแกนซ้ำ)</div><div class="n">' + esc(s.name) + '</div>' +
-    '<div class="s">' + esc(s.id) + ' · ' + esc(s.className) + ' · บันทึกไว้ ' + esc(thDate(prev[0])) + '</div>' +
+    '<div class="s">' + (s.num ? 'เลขที่ ' + esc(s.num) : esc(s.id)) + ' · ' + esc(s.className) + ' · บันทึกไว้ ' + esc(thDate(prev[0])) + '</div>' +
     (scored ? '<div class="s" style="margin-top:4px">คะแนน: <b style="color:var(--text)">' + (hasVal(v) ? esc(fmtScore(v)) + '/' + esc(a.max_score) : 'ยังไม่ให้') + '</b></div>' : '') +
     '<div class="row" style="gap:8px">' + (scored ? '<button class="btn grow" id="popScore">' + (hasVal(v) ? 'แก้คะแนน' : 'ให้คะแนน') + '</button>' : '') +
     '<button class="btn primary grow" id="popOk">ตกลง</button></div></div>';
@@ -1201,7 +1216,7 @@ function openScorePad(a, s) {
     if (noScoreTasks()[a.assignment_id]) return false;
     scoreFor = { aid: a.assignment_id, sid: s.id };
     $('scHead').textContent = 'ให้คะแนนงานนี้ไหม? เลือกคะแนนเต็มก่อน (ตั้งครั้งเดียว)';
-    $('scName').textContent = s.name + ' · ' + s.id;
+    $('scName').textContent = s.name + (s.num ? ' · เลขที่ ' + s.num : ' · ' + s.id);
     $('scPad').innerHTML = '<div class="score-setup">' + [5, 10, 20, 50, 100].map(function (n) { return '<button class="btn" type="button" data-max="' + n + '">' + n + '</button>'; }).join('') + '</div>' +
       '<div class="row" style="margin-top:8px"><input class="input grow" id="maxInput" type="number" inputmode="decimal" min="1" max="1000" placeholder="คะแนนเต็มอื่น ๆ"><button class="btn primary" type="button" data-max-ok>ตั้งค่า</button></div>' +
       '<button class="btn ghost sm block" type="button" data-no-score style="margin-top:6px">ไม่ให้คะแนนงานนี้ (บันทึกแค่การส่ง)</button>';
@@ -1228,7 +1243,7 @@ function openScorePad(a, s) {
   var max = Number(a.max_score), cur = (subsOf(a.assignment_id)[norm(s.id)] || [])[3];
   scoreFor = { aid: a.assignment_id, sid: s.id };
   $('scHead').textContent = 'ให้คะแนน · เต็ม ' + max;
-  $('scName').textContent = s.name + ' · ' + s.id;
+  $('scName').textContent = s.name + (s.num ? ' · เลขที่ ' + s.num : ' · ' + s.id);
   $('scPad').innerHTML = scorePadHtml(max, cur);
   bindScorePad($('scPad'), max, function (v) {
     setScore(a.assignment_id, s.id, v);
@@ -1710,9 +1725,9 @@ function renderTasks() {
   var rows = paginate('tasks', list, 'taskPager');
   $('taskList').innerHTML = rows.length ? rows.map(function (a) {
     var p = progressOf(a);
-    return '<div class="list-item tap" data-task-menu="' + esc(a.assignment_id) + '"><div class="grow"><div class="row" style="gap:6px"><span class="id-badge">' + esc(a.assignment_id) + '</span><b class="ellipsis">' + esc(a.assignment_name) + '</b>' +
-      (a.status === 'OPEN' ? '' : '<span class="badge off">ปิดรับ</span>') + (hasScore(a) ? '<span class="badge">เต็ม ' + esc(a.max_score) + '</span>' : '') + '</div>' +
-      '<div class="small muted ellipsis">' + esc(a.subject) + ' · ' + esc(targetLabel(a)) + (a.due_date ? ' · ส่ง ' + esc(thDate(a.due_date)) : '') + '</div></div>' +
+    return '<div class="list-item tap" data-task-menu="' + esc(a.assignment_id) + '"><div class="grow"><div class="row" style="gap:6px;align-items:flex-start"><span class="id-badge" style="margin-top:2px">' + esc(a.assignment_id) + '</span><b class="task-name">' + esc(a.assignment_name) + '</b></div>' +
+      '<div class="small muted task-sub">' + (a.status === 'OPEN' ? '' : '<span class="badge off">ปิดรับ</span> ') + (hasScore(a) ? '<span class="badge">เต็ม ' + esc(a.max_score) + '</span> ' : '') +
+      esc(a.subject) + ' · ' + esc(targetLabel(a)) + (a.due_date ? ' · ส่ง ' + esc(thDate(a.due_date)) : '') + '</div></div>' +
       '<div class="task-prog"><span class="lbl">ส่ง </span><b>' + p.done + '</b>/' + p.target + '<div class="bar"><i style="width:' + (p.target ? Math.round(p.done / p.target * 100) : 0) + '%"></i></div></div>' +
       '<div class="row-acts"><button class="btn ghost edit" data-task-edit="' + esc(a.assignment_id) + '" title="แก้ไขใบงาน" aria-label="แก้ไขใบงาน">' + icon('edit') + '</button>' +
       '<button class="btn ghost del" data-task-del="' + esc(a.assignment_id) + '" title="ลบใบงาน" aria-label="ลบใบงาน">' + icon('trash') + '</button>' +
@@ -2214,6 +2229,10 @@ $('openAccounts').onclick = function () { accountsSheet({}); };
 $('setPrintQr').onclick = function () { go('qr'); };
 $('setPrintGrade').onclick = function () { STATE.seg = 'grade'; go('summary'); };
 $('stuQr').onclick = function () { go('qr'); };
+/** คู่มือ PDF อยู่ข้างไฟล์หน้าเว็บนี้ (GitHub Pages — เปิดได้ทุกคนที่มีลิงก์) */
+function manualUrl() { return new URL('manual.pdf', location.origin + location.pathname).href; }
+$('manualOpen').onclick = function () { openUrl(manualUrl()); };
+$('manualCopy').onclick = function () { copyText(manualUrl()).then(function () { toast('คัดลอกลิงก์คู่มือแล้ว — ส่งให้ครูท่านอื่นได้เลย'); }); };
 $('qrBack').onclick = function () { go('students'); };
 
 /* =====================================================

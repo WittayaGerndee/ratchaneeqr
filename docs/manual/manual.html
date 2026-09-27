@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<title>คู่มือการใช้งาน ระบบเช็คการส่งงานด้วย QR Code</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  @page { size: A4; margin: 14mm 14mm 16mm; }
+  * { box-sizing: border-box; }
+  body { font-family: 'IBM Plex Sans Thai', sans-serif; color: #0f172a; font-size: 10.5pt; line-height: 1.6; margin: 0; }
+  h1 { font-size: 26pt; line-height: 1.2; margin: 0 0 4mm; }
+  h2 { font-size: 16pt; margin: 0 0 3mm; padding-bottom: 2mm; border-bottom: 2px solid #00a651; display: flex; align-items: center; gap: 3mm; }
+  h2 .no { background: #00a651; color: #fff; border-radius: 50%; width: 9mm; height: 9mm; display: inline-flex; align-items: center; justify-content: center; font-size: 13pt; flex: none; }
+  h3 { font-size: 12pt; margin: 4mm 0 1.5mm; color: #00804a; }
+  p { margin: 0 0 2mm; }
+  ol, ul { margin: 0 0 2mm; padding-left: 6mm; }
+  li { margin-bottom: 1mm; }
+  b { font-weight: 600; }
+  .page { page-break-after: always; }
+  .page:last-child { page-break-after: auto; }
+  .cover { height: 250mm; display: flex; flex-direction: column; justify-content: center; }
+  .cover .tag { color: #00a651; font-weight: 600; font-size: 13pt; margin-bottom: 3mm; }
+  .cover .sub { font-size: 13pt; color: #475569; margin-bottom: 10mm; }
+  .cover .box { background: #e7f7ee; border-radius: 5mm; padding: 6mm 8mm; font-size: 11pt; }
+  .cover .box ol { margin: 2mm 0 0; }
+  .toc { columns: 2; column-gap: 10mm; margin-top: 8mm; font-size: 11pt; }
+  .toc div { break-inside: avoid; padding: 1mm 0; border-bottom: 1px dotted #cbd5e1; }
+  .cols { display: flex; gap: 7mm; align-items: flex-start; }
+  .cols .txt { flex: 1; min-width: 0; }
+  .shot { flex: none; width: 60mm; border-radius: 4mm; border: 0.3mm solid #cbd5e1; box-shadow: 0 1mm 3mm rgba(15,23,42,.12); }
+  .shot.sm { width: 52mm; }
+  .shot.wide { width: 100%; border-radius: 3mm; }
+  figure { margin: 0; text-align: center; }
+  figcaption { font-size: 8.5pt; color: #64748b; margin-top: 1.5mm; }
+  .tip { background: #e7f7ee; border-left: 1.2mm solid #00a651; border-radius: 2mm; padding: 2.5mm 4mm; margin: 3mm 0; font-size: 10pt; }
+  .warn { background: #fef3c7; border-left: 1.2mm solid #b45309; border-radius: 2mm; padding: 2.5mm 4mm; margin: 3mm 0; font-size: 10pt; }
+  .btn { display: inline-block; background: #00a651; color: #fff; border-radius: 1.5mm; padding: 0 2mm; font-weight: 600; font-size: 9.5pt; white-space: nowrap; }
+  .btn.o { background: #fff; color: #00a651; border: 0.3mm solid #00a651; }
+  .btn.g { background: #f1f5f9; color: #0f172a; border: 0.3mm solid #cbd5e1; }
+  .k { font-family: ui-monospace, monospace; background: #f1f5f9; border-radius: 1mm; padding: 0 1.5mm; font-size: 9.5pt; }
+  table.t { border-collapse: collapse; width: 100%; font-size: 10pt; margin: 2mm 0 3mm; }
+  table.t th, table.t td { border: 0.3mm solid #e2e8f0; padding: 1.5mm 2.5mm; text-align: left; vertical-align: top; }
+  table.t th { background: #f8fafc; }
+  table.t tr:nth-child(even) td { background: #f8fafc; }
+  .sp { height: 4mm; }
+</style>
+</head>
+<body>
+
+<!-- ปก -->
+<section class="page cover">
+  <div class="tag">คู่มือการใช้งานสำหรับครู</div>
+  <h1>ระบบเช็คการส่งงาน<br>ด้วย QR Code ผ่าน LINE</h1>
+  <div class="sub">สแกน QR บนสมุดนักเรียน · บันทึกการส่งงานและให้คะแนนทันที · ดูสรุปบนมือถือ คอมพิวเตอร์ หรือ iPad</div>
+  <div class="box">
+    <b>เริ่มใช้งานใน 4 ขั้นตอน</b>
+    <ol>
+      <li>เพิ่มรายชื่อนักเรียน แล้วพิมพ์สติกเกอร์ QR ติดสมุด <span style="color:#64748b">(ทำครั้งเดียว)</span></li>
+      <li>เพิ่มวิชาที่สอน</li>
+      <li>สร้างใบงานในวิชานั้น (ตั้งคะแนนเต็มได้)</li>
+      <li>สแกน QR บนสมุด → บันทึกการส่ง และกดคะแนนได้ทันที</li>
+    </ol>
+  </div>
+  <div class="toc">
+    <div>1. เปิดใช้งานระบบ</div>
+    <div>2. เพิ่มรายชื่อนักเรียน</div>
+    <div>3. พิมพ์สติกเกอร์ QR ติดสมุด</div>
+    <div>4. เพิ่มวิชาและสร้างใบงาน</div>
+    <div>5. สแกนสมุดส่งงานและให้คะแนน</div>
+    <div>6. ดูสรุปการส่งงาน</div>
+    <div>7. ตารางคะแนน (คอม / iPad)</div>
+    <div>8. แก้ไข ลบ ปิดรับใบงานและวิชา</div>
+    <div>9. หน้าตั้งค่า</div>
+    <div>10. คำถามที่พบบ่อย / แก้ปัญหา</div>
+  </div>
+</section>
+
+<!-- 1 -->
+<section class="page">
+  <h2><span class="no">1</span>เปิดใช้งานระบบ</h2>
+  <div class="cols">
+    <div class="txt">
+      <h3>บนมือถือ (แนะนำ)</h3>
+      <ol>
+        <li>เพิ่มเพื่อน LINE OA ของโรงเรียน</li>
+        <li>กดเมนู <b>สแกนส่งงาน</b> ในแชท ระบบจะเปิดขึ้นในแอป LINE</li>
+        <li>ครั้งแรกระบบจะขอสิทธิ์ใช้กล้อง ให้กด <b>อนุญาต</b></li>
+      </ol>
+      <div class="tip">ถ้ายังไม่มีบัญชี หน้าจอจะให้กรอกอีเมล Gmail แล้วกด <b>ส่งคำขอ</b> — ผู้ดูแลระบบจะสร้างบัญชีให้ (มี Google Sheet และ Google Drive แยกของครูแต่ละท่าน) และแจ้งกลับทาง LINE</div>
+
+      <h3>เมนูด้านล่างของหน้าจอ</h3>
+      <table class="t">
+        <tr><th>เมนู</th><th>ใช้ทำอะไร</th></tr>
+        <tr><td><b>สแกน</b></td><td>เลือกใบงาน แล้วสแกนสมุดส่งงาน / ให้คะแนน</td></tr>
+        <tr><td><b>สรุป</b></td><td>ดูว่าใครส่งแล้ว ใครยังไม่ส่ง · ตารางคะแนน</td></tr>
+        <tr><td><b>งาน</b></td><td>เพิ่มวิชา · สร้าง / แก้ไข / ลบใบงาน</td></tr>
+        <tr><td><b>นักเรียน</b></td><td>รายชื่อนักเรียน · พิมพ์ QR</td></tr>
+        <tr><td><b>ตั้งค่า</b></td><td>ลิงก์เปิดบนคอม · Google Sheet/Drive · คู่มือ</td></tr>
+      </table>
+
+      <h3>บนคอมพิวเตอร์ / iPad</h3>
+      <p>ไปที่เมนู <b>ตั้งค่า</b> → <b>ลิงก์เปิดบนคอม / iPad</b> กด <span class="btn">คัดลอก</span> แล้วส่งลิงก์ไปเปิดใน Chrome หรือ Safari → เข้าสู่ระบบด้วยบัญชี LINE เดียวกับมือถือ (บนคอมสแกน QR เข้าสู่ระบบด้วยมือถือได้)</p>
+      <p>บนคอมหรือ iPad หน้าจอจะกว้างขึ้น เหมาะกับดูตารางคะแนน และใช้กล้องเว็บแคมสแกนได้เช่นกัน</p>
+    </div>
+    <figure><img class="shot" src="shots/06-scan-pick.png"><figcaption>หน้าแรก: เลือกใบงานที่จะตรวจ</figcaption></figure>
+  </div>
+</section>
+
+<!-- 2 -->
+<section class="page">
+  <h2><span class="no">2</span>เพิ่มรายชื่อนักเรียน</h2>
+  <p>ไปที่เมนู <b>นักเรียน</b> เพิ่มได้ 2 วิธี</p>
+  <div class="cols">
+    <div class="txt">
+      <h3>วิธีที่ 1: เพิ่มทีละคน</h3>
+      <ol>
+        <li>กด <span class="btn">+ เพิ่ม</span></li>
+        <li>กรอก <b>ชั้น / ห้อง</b> เช่น ป.4 ห้อง 1</li>
+        <li><b>เลขที่</b> — ระบบเติมเลขถัดไปของห้องให้ (แก้ได้)</li>
+        <li>กรอก <b>ชื่อ-สกุล</b> แล้วกด <span class="btn">บันทึกและเพิ่มคนถัดไป</span></li>
+      </ol>
+      <div class="tip"><b>รหัสนักเรียนระบบสร้างให้อัตโนมัติ</b> (ใช้ใน QR) ไม่ต้องกรอก<br>
+        <b>เลขที่ห้ามซ้ำในห้องเดียวกัน</b> ถ้าซ้ำระบบจะเตือนสีแดงทันที (ต่างห้องใช้เลขเดียวกันได้)</div>
+      <p>แก้ไข / ลบนักเรียน: แตะที่ชื่อนักเรียนในรายการ</p>
+    </div>
+    <figure><img class="shot sm" src="shots/12-stuform.png"><figcaption>ฟอร์มเพิ่มนักเรียน</figcaption></figure>
+  </div>
+  <div class="sp"></div>
+  <div class="cols">
+    <div class="txt">
+      <h3>วิธีที่ 2: วางจาก Excel ทั้งห้อง (เร็วที่สุด)</h3>
+      <ol>
+        <li>ใน Excel / Google Sheets จัดคอลัมน์เป็น<br><span class="k">เลขที่ · ชื่อ-สกุล · ชั้น · ห้อง</span><br>(หรือ <span class="k">เลขที่ · ชื่อ-สกุล · ป.4/1</span>)</li>
+        <li>คลุมเลือกข้อมูลแล้วคัดลอก</li>
+        <li>กด <span class="btn g">วางจาก Excel</span> แล้ววางในช่อง ระบบจะบอกว่าพบกี่คน</li>
+        <li>กด <span class="btn">นำเข้า</span></li>
+      </ol>
+      <div class="tip">วางซ้ำได้ไม่เกิดรายชื่อซ้ำ — ถ้าห้องและเลขที่ (หรือห้องและชื่อ) ตรงกับคนเดิม ระบบจะแก้ข้อมูลคนเดิมให้ เช่น ใช้เติมเลขที่ให้นักเรียนเดิมทั้งห้อง</div>
+    </div>
+    <figure><img class="shot sm" src="shots/13-import.png"><figcaption>วางรายชื่อจาก Excel</figcaption></figure>
+  </div>
+</section>
+
+<!-- 3 -->
+<section class="page">
+  <h2><span class="no">3</span>พิมพ์สติกเกอร์ QR ติดสมุด</h2>
+  <div class="cols">
+    <div class="txt">
+      <p>เมนู <b>นักเรียน</b> → <span class="btn g">พิมพ์ QR</span> (หรือ <b>ตั้งค่า → พิมพ์</b>)</p>
+      <ol>
+        <li>เลือก <b>ห้อง</b> (หรือทุกห้อง) และ <b>ขนาด</b> สติกเกอร์<br>เล็ก 3 ซม. / กลาง 3.8 ซม. / ใหญ่ 5 ซม.</li>
+        <li>เลือกวิธีพิมพ์
+          <ul>
+            <li><span class="btn">สร้างไฟล์ PDF แล้วส่งเข้า LINE</span> — ระบบส่งลิงก์ไฟล์เข้าแชท LINE เปิดแล้วพิมพ์หรือส่งต่อร้านพิมพ์ได้</li>
+            <li><span class="btn o">พิมพ์จากหน้านี้ (คอมพิวเตอร์)</span> — แสดงเมื่อเปิดบนคอม</li>
+          </ul>
+        </li>
+        <li>พิมพ์ขนาด A4 แบบ <b>Scale 100%</b> บนกระดาษสติกเกอร์ หรือกระดาษธรรมดาแล้วติดเทปใส</li>
+      </ol>
+      <div class="tip">แต่ละห้องขึ้นหน้าใหม่ และมีหัว <b>“ห้อง …”</b> ทุกหน้า แจกตามห้องได้ง่าย · สติกเกอร์เรียงตามเลขที่</div>
+      <h3>QR ผูกกับตัวนักเรียน ไม่ผูกกับใบงาน</h3>
+      <p>พิมพ์ครั้งเดียว ใช้ได้ทุกใบงาน ทุกวิชา ทั้งปี · แก้ชื่อหรือย้ายห้องก็ไม่ต้องพิมพ์ใหม่ · พิมพ์ใหม่เฉพาะนักเรียนใหม่หรือสติกเกอร์ชำรุด (QR เหมือนเดิม)</p>
+    </div>
+    <figure><img class="shot" src="shots/14-qr.png"><figcaption>หน้าพิมพ์สติกเกอร์ QR</figcaption></figure>
+  </div>
+</section>
+
+<!-- 4 -->
+<section class="page">
+  <h2><span class="no">4</span>เพิ่มวิชาและสร้างใบงาน</h2>
+  <p>ลำดับคือ <b>เพิ่มวิชาก่อน → สร้างใบงานในวิชานั้น</b> · ทั้งหมดอยู่ที่เมนู <b>งาน</b></p>
+  <div class="cols">
+    <div class="txt">
+      <h3>ขั้นที่ 1: เพิ่มวิชา</h3>
+      <ol>
+        <li>กด <span class="btn o">+ เพิ่มวิชา</span></li>
+        <li>กรอกชื่อวิชา และเลือก <b>ห้องที่สอน</b> (ใช้เป็นค่าเริ่มต้นตอนสร้างใบงาน)</li>
+        <li>กด <span class="btn">+ เพิ่มวิชา</span> วิชาจะขึ้นในรายการด้านล่าง</li>
+      </ol>
+      <p>ในรายการวิชา: <b>＋ ใบงาน</b> สร้างใบงานในวิชานั้น · <b>✎</b> แก้ไข · <b>🗑</b> ลบ</p>
+      <div class="tip">ครูใหม่ที่ยังไม่มีวิชา หน้า <b>งาน</b> จะแสดงคำแนะนำ 3 ขั้น พร้อมปุ่ม <b>เพิ่มวิชาแรก</b></div>
+    </div>
+    <figure><img class="shot sm" src="shots/02-subjects.png"><figcaption>เพิ่มวิชา / รายการวิชา</figcaption></figure>
+  </div>
+  <div class="sp"></div>
+  <div class="cols">
+    <div class="txt">
+      <h3>ขั้นที่ 2: สร้างใบงาน</h3>
+      <ol>
+        <li>กด <span class="btn">+ ใบงานใหม่</span></li>
+        <li>เลือก <b>วิชา</b> (มีตัวเลือก ➕ เพิ่มวิชาใหม่… ข้อมูลที่กรอกไว้ไม่หาย)</li>
+        <li>กรอก <b>ชื่อใบงาน</b> เลือก <b>ห้อง</b> และ <b>กำหนดส่ง</b> (ถ้ามี)</li>
+        <li><b>คะแนนเต็ม</b> (ถ้ามี) — ใส่แล้วหลังสแกนจะมีปุ่มให้คะแนนทันที · เว้นว่าง = บันทึกแค่การส่ง</li>
+        <li>กด <span class="btn">สร้างใบงานและเริ่มสแกน</span></li>
+      </ol>
+      <div class="tip">ใบงานแต่ละใบมีรหัส เช่น <span class="k">HW001</span> ใช้ค้นหาในหน้างานได้ · ส่งเลยกำหนดยังบันทึกได้ และระบบจะทำเครื่องหมาย “ส่งช้า”</div>
+    </div>
+    <figure><img class="shot sm" src="shots/03-taskform.png"><figcaption>ฟอร์มสร้างใบงาน</figcaption></figure>
+  </div>
+</section>
+
+<!-- 5 -->
+<section class="page">
+  <h2><span class="no">5</span>สแกนสมุดส่งงานและให้คะแนน</h2>
+  <div class="cols">
+    <div class="txt">
+      <ol>
+        <li>เมนู <b>สแกน</b> → แตะใบงานที่จะตรวจ</li>
+        <li>กด <span class="btn">เริ่มสแกน</span> แล้วส่องกล้องไปที่ QR บนสมุด</li>
+        <li>ได้ยินเสียง <b>“ปี๊บ”</b> = บันทึกแล้ว ชื่อนักเรียนขึ้นบนกล้อง</li>
+        <li>ถ้าใบงานมีคะแนนเต็ม จะมี<b>ปุ่มคะแนน</b>ขึ้นใต้กล้อง → แตะคะแนน (หรือพิมพ์ เช่น 7.5 แล้วกดบันทึก)</li>
+        <li>สแกนเล่มถัดไปได้เลย กล้องเปิดค้างไว้ ไม่ต้องกดใหม่</li>
+      </ol>
+      <div class="tip"><b>ช่องให้คะแนนค้างไว้จนกว่าครูจะกดคะแนนหรือกด “ข้าม”</b> · สมุดเล่มเดิมที่ยังอยู่หน้ากล้องไม่ถูกนับซ้ำ · ถ้าสแกนเล่มอื่นระหว่างรอ ระบบจะเตือนให้ให้คะแนนก่อน</div>
+      <h3>เสียงและสัญญาณ</h3>
+      <table class="t">
+        <tr><th>เสียง</th><th>ความหมาย</th></tr>
+        <tr><td>ปี๊บ (เสียงสูง สั้น)</td><td>บันทึกการส่งแล้ว</td></tr>
+        <tr><td>ปี๊บ-ปี๊บ</td><td>ส่งแล้ว (สแกนซ้ำ) — ขึ้นป๊อปอัพแจ้ง</td></tr>
+        <tr><td>เสียงต่ำ</td><td>ไม่พบรหัส / ไม่ใช่ห้องที่สั่งงาน</td></tr>
+      </table>
+      <p style="font-size:9.5pt;color:#64748b">iPhone: แตะหน้าจอ 1 ครั้งก่อนเริ่มสแกน เพื่อให้เบราว์เซอร์อนุญาตให้มีเสียง</p>
+    </div>
+    <figure><img class="shot" src="shots/07-scan-score.png"><figcaption>สแกนแล้วให้คะแนนทันที</figcaption></figure>
+  </div>
+</section>
+
+<section class="page">
+  <h2><span class="no">5</span>สแกนสมุดส่งงาน (ต่อ)</h2>
+  <div class="cols">
+    <div class="txt">
+      <h3>สแกนซ้ำ</h3>
+      <p>ถ้าสแกนสมุดที่ส่งแล้ว จะขึ้นป๊อปอัพ <b>“ส่งแล้ว (สแกนซ้ำ)”</b> พร้อมเวลาที่ส่งและคะแนน (ไม่เพิ่มในรายการล่าสุด) กด <span class="btn g">แก้คะแนน</span> เพื่อแก้คะแนน หรือ <span class="btn">ตกลง</span> แล้วสแกนต่อ</p>
+
+      <h3>ยกเลิกเมื่อสแกนผิดคน</h3>
+      <p>ในรายการ <b>ล่าสุด</b> ใต้กล้อง กดปุ่ม <b>↶</b> หลังชื่อ แล้วยืนยัน — นักเรียนคนนั้นจะกลับเป็น “ยังไม่ส่ง”</p>
+      <p>แตะป้ายคะแนนในรายการล่าสุด เพื่อแก้คะแนนได้</p>
+
+      <h3>สติกเกอร์หลุด / สแกนไม่ติด</h3>
+      <p>กดปุ่ม <b>⌨ พิมพ์รหัส</b> ใต้กล้อง แล้วพิมพ์รหัสนักเรียน ผลเหมือนการสแกนทุกอย่าง</p>
+
+      <h3>กล้องไม่เปิดในแอป LINE</h3>
+      <p>กด <span class="btn">เปิดใน Chrome / Safari</span> (สแกนต่อเนื่องได้) หรือ <span class="btn g">ใช้ตัวสแกนของ LINE</span></p>
+
+      <h3>อินเทอร์เน็ตหลุดระหว่างสแกน</h3>
+      <p>สแกนต่อได้ตามปกติ ระบบเก็บไว้ในเครื่อง (มุมขวาบนขึ้น <b>“รอบันทึก …”</b>) แล้วส่งขึ้น Google ให้เองเมื่อกลับมาออนไลน์ แม้ปิดแอปแล้วเปิดใหม่ก็ไม่หาย · เมื่อขึ้น <b>“บันทึกครบแล้ว”</b> แปลว่าข้อมูลอยู่ใน Google Sheet แล้ว</p>
+    </div>
+    <figure><img class="shot" src="shots/08-scan-dup.png"><figcaption>ป๊อปอัพเมื่อสแกนซ้ำ</figcaption></figure>
+  </div>
+</section>
+
+<!-- 6 -->
+<section class="page">
+  <h2><span class="no">6</span>ดูสรุปการส่งงาน</h2>
+  <div class="cols">
+    <div class="txt">
+      <p>เมนู <b>สรุป</b> → แท็บ <b>สรุปรายงาน</b> → เลือกใบงาน</p>
+      <ul>
+        <li>จำนวน <b>ทั้งหมด / ส่งแล้ว / ยังไม่ส่ง</b> และความคืบหน้าแยกตามห้อง</li>
+        <li>ใบงานที่มีคะแนน: <b>คะแนนเฉลี่ย</b> และจำนวนที่ <b>ยังไม่ให้คะแนน</b></li>
+        <li>รายชื่อ <b>ยังไม่ส่ง</b> แยกตามห้อง เรียงตามเลขที่ · กด <span class="btn g">คัดลอกรายชื่อ</span> แล้ววางในกลุ่ม LINE ได้ทันที</li>
+        <li>รายชื่อ <b>ส่งแล้ว</b> พร้อมเวลาส่ง (มีคำว่า “ช้า” ถ้าเลยกำหนด)</li>
+      </ul>
+      <h3>ให้คะแนนย้อนหลัง</h3>
+      <p>ในรายชื่อส่งแล้ว แตะ <b>ป้ายคะแนน</b> (หรือ “ให้คะแนน”) หลังชื่อนักเรียน แล้วเลือกคะแนน — ใช้ได้แม้ใบงานปิดรับแล้ว</p>
+      <div class="tip">ใบงานที่ตั้ง <b>กำหนดส่ง</b> ไว้ ระบบจะส่งแจ้งเตือนทาง LINE ก่อนครบกำหนด (ค่าเริ่มต้น 24 ชั่วโมง) พร้อมรายชื่อคนที่ยังไม่ส่ง</div>
+    </div>
+    <figure><img class="shot" src="shots/09-summary.png"><figcaption>สรุปรายงานของใบงาน</figcaption></figure>
+  </div>
+</section>
+
+<!-- 7 -->
+<section class="page">
+  <h2><span class="no">7</span>ตารางคะแนน (เหมาะกับคอม / iPad)</h2>
+  <p>เมนู <b>สรุป</b> → แท็บ <b>ตารางคะแนน</b> (หรือเปิดลิงก์ “ตารางคะแนนทุกงาน” จากหน้าตั้งค่า)</p>
+  <figure><img class="shot wide" src="shots/10-gradebook.png"><figcaption>ตารางคะแนนบนคอมพิวเตอร์</figcaption></figure>
+  <div class="sp"></div>
+  <table class="t">
+    <tr><th style="width:28%">ในตาราง</th><th>ความหมาย</th></tr>
+    <tr><td>ตัวเลข</td><td>คะแนนที่ได้</td></tr>
+    <tr><td>✓</td><td>ส่งแล้ว ยังไม่ให้คะแนน (หรือใบงานไม่มีคะแนน)</td></tr>
+    <tr><td style="color:#dc2626">–</td><td>ยังไม่ส่ง</td></tr>
+    <tr><td style="color:#b45309">•</td><td>ส่งช้า</td></tr>
+    <tr><td style="color:#94a3b8">·</td><td>ใบงานนี้ไม่ได้สั่งให้ห้องนี้</td></tr>
+  </table>
+  <ul>
+    <li>เลือก <b>ห้อง</b> และ <b>วิชา</b> ด้านบน · ท้ายตารางมี <b>ส่งแล้ว / คะแนนรวม / %</b></li>
+    <li>แตะช่องที่ส่งแล้ว เพื่อ <b>ให้/แก้คะแนน</b></li>
+    <li><span class="btn g">คัดลอกไป Excel</span> วางใน Excel / Google Sheets ได้ทันที · <span class="btn g">ดาวน์โหลด CSV</span> · <span class="btn g">พิมพ์</span> (พิมพ์ครบทุกคน)</li>
+    <li>เลือกจำนวนแถวต่อหน้าได้ 15 / 25 / 35 / 50 / 100</li>
+  </ul>
+</section>
+
+<!-- 8 -->
+<section class="page">
+  <h2><span class="no">8</span>แก้ไข ลบ ปิดรับใบงานและวิชา</h2>
+  <div class="cols">
+    <div class="txt">
+      <h3>ใบงาน (เมนู งาน)</h3>
+      <p>แตะใบงานในรายการ (หรือปุ่ม <b>…</b>) จะมีเมนู:</p>
+      <ul>
+        <li><b>สแกนงานนี้</b> · <b>ดูสรุป / คนที่ยังไม่ส่ง</b></li>
+        <li><b>แก้ไขใบงาน / ตั้งคะแนนเต็ม</b></li>
+        <li><b>คัดลอกลิงก์เปิดบนคอม</b> (สรุปของใบงานนี้)</li>
+        <li><b>ปิดรับงาน</b> — หยุดรับส่ง แต่ยังดูสรุปและให้คะแนนได้ · เปิดรับอีกครั้งได้</li>
+        <li><b>ลบใบงาน</b> — ระบบแจ้งจำนวนนักเรียนที่ส่งและคะแนนที่จะถูกลบ ต้องกดยืนยันก่อน</li>
+      </ul>
+      <p>บนคอม / iPad มีปุ่ม ✎ แก้ไข และ 🗑 ลบ ในแต่ละแถว · ค้นหาใบงานได้จากชื่อ วิชา หรือรหัส และกรองตามวิชา / สถานะ</p>
+      <div class="warn"><b>ลบแล้วกู้คืนไม่ได้</b> — ถ้าแค่ไม่อยากรับงานเพิ่ม ให้ใช้ “ปิดรับงาน” แทน</div>
+
+      <h3>วิชา (ปุ่ม + เพิ่มวิชา)</h3>
+      <ul>
+        <li><b>✎ แก้ไข</b> — เปลี่ยนชื่อวิชาแล้ว ใบงานเดิมของวิชานั้นเปลี่ยนตามให้</li>
+        <li><b>🗑 ลบ</b> — ลบได้เฉพาะวิชาที่ <b>ไม่มีใบงาน</b> ถ้ายังมีใบงาน ระบบจะแจ้งรายชื่อใบงาน และมีปุ่ม <b>ดูใบงานของวิชานี้</b> ให้ลบใบงานก่อน</li>
+      </ul>
+    </div>
+    <figure><img class="shot" src="shots/05-taskmenu.png"><figcaption>เมนูของใบงาน</figcaption></figure>
+  </div>
+</section>
+
+<!-- 9 -->
+<section class="page">
+  <h2><span class="no">9</span>หน้าตั้งค่า</h2>
+  <div class="cols">
+    <div class="txt">
+      <ul>
+        <li><b>คู่มือการใช้งาน</b> — เปิดคู่มือนี้ · คัดลอกลิงก์ส่งให้ครูท่านอื่นได้</li>
+        <li><b>ลิงก์เปิดบนคอม / iPad</b> — ตารางคะแนน · สรุปการส่งงาน · หน้าหลัก<br>กด <b>🖥</b> เปิดในเบราว์เซอร์ หรือ <span class="btn">คัดลอก</span> ไปเปิดบนเครื่องอื่น</li>
+        <li><b>Google Sheet / Drive</b> — ข้อมูลทั้งหมดของบัญชี (นักเรียน · วิชา · ใบงาน · การส่งและคะแนน) และไฟล์ PDF QR</li>
+        <li><b>พิมพ์</b> — สติกเกอร์ QR · ตารางคะแนน</li>
+        <li><b>ข้อมูลโรงเรียน</b> (ผู้ดูแลบัญชี) — ชื่อโรงเรียน ชื่อครูบนหัวหน้าจอ</li>
+      </ul>
+      <div class="warn">ข้อมูลทั้งหมดเก็บใน Google Sheet ของครู · <b>ไม่ควรแก้ไข / ลบแถวใน Google Sheet โดยตรง</b> ให้ทำผ่านแอป · ถ้าลบผิด ย้อนได้จาก Google Sheet เมนู <b>ไฟล์ → ประวัติเวอร์ชัน</b></div>
+    </div>
+    <figure><img class="shot" src="shots/15-settings.png"><figcaption>หน้าตั้งค่า</figcaption></figure>
+  </div>
+</section>
+
+<!-- 10 -->
+<section class="page">
+  <h2><span class="no">10</span>คำถามที่พบบ่อย / แก้ปัญหา</h2>
+  <table class="t">
+    <tr><th style="width:36%">อาการ / คำถาม</th><th>วิธีแก้</th></tr>
+    <tr><td>สแกนแล้วขึ้น “ไม่พบรหัส”</td><td>ยังไม่มีนักเรียนคนนี้ในรายชื่อ — เพิ่มที่เมนู <b>นักเรียน</b> (ถ้าเพิ่งเพิ่มจากเครื่องอื่น ระบบจะโหลดรายชื่อใหม่ให้เอง ลองสแกนอีกครั้ง)</td></tr>
+    <tr><td>ขึ้น “ไม่ใช่ห้องที่สั่งงานนี้”</td><td>ใบงานนี้สั่งให้ห้องอื่น — แก้ห้องของใบงานที่ <b>งาน → แก้ไขใบงาน</b></td></tr>
+    <tr><td>สแกนแล้วไม่มีปุ่มคะแนน</td><td>ใบงานยังไม่ตั้งคะแนนเต็ม — หลังสแกนจะถามคะแนนเต็ม (5/10/20/50/100) ตั้งครั้งเดียว หรือแก้ที่ <b>แก้ไขใบงาน</b></td></tr>
+    <tr><td>มุมขวาบนขึ้น “รอบันทึก …” นาน</td><td>อินเทอร์เน็ตไม่เสถียร — ข้อมูลเก็บไว้ในเครื่องแล้ว ระบบส่งให้เองเมื่อออนไลน์ <b>อย่าล้างข้อมูลแอป LINE</b> จนกว่าจะขึ้น “บันทึกครบแล้ว”</td></tr>
+    <tr><td>กดยกเลิกแล้วขึ้น “กำลังบันทึก… รอสักครู่”</td><td>รายการนั้นกำลังส่งขึ้น Google — รอ 2–3 วินาทีแล้วกดยกเลิกอีกครั้ง</td></tr>
+    <tr><td>ไม่มีเสียงตอนสแกน</td><td>เปิดเสียงเครื่อง แล้วแตะหน้าจอ 1 ครั้งก่อนเริ่มสแกน</td></tr>
+    <tr><td>กล้องไม่เปิด</td><td>อนุญาตการใช้กล้องให้ LINE / เบราว์เซอร์ หรือกด <b>เปิดใน Chrome / Safari</b> · หรือใช้ <b>พิมพ์รหัส</b></td></tr>
+    <tr><td>เปิดแล้วขึ้น “เข้าสู่ระบบ LINE ไม่สำเร็จ”</td><td>ปิดหน้าแล้วเปิดใหม่จากเมนูใน LINE</td></tr>
+    <tr><td>เลขที่ซ้ำ บันทึกไม่ได้</td><td>ห้องเดียวกันใช้เลขที่ซ้ำไม่ได้ — ตรวจสอบเลขที่ของนักเรียนอีกคนในห้องนั้น</td></tr>
+    <tr><td>ลบวิชาไม่ได้</td><td>วิชายังมีใบงาน — กด <b>ดูใบงานของวิชานี้</b> แล้วลบใบงานก่อน</td></tr>
+    <tr><td>ต้องพิมพ์ QR ใหม่ไหม เมื่อสร้างใบงานใหม่</td><td><b>ไม่ต้อง</b> QR ผูกกับตัวนักเรียน ใช้ได้ทุกใบงาน</td></tr>
+    <tr><td>อยากให้ครูอีกท่านใช้ระบบ</td><td>ให้ครูท่านนั้นเพิ่มเพื่อน LINE OA แล้วส่งคำขอใช้งาน ผู้ดูแลระบบจะสร้างบัญชีให้ (ข้อมูลแยกกัน)</td></tr>
+  </table>
+  <div class="tip">ติดปัญหาที่ไม่อยู่ในตารางนี้ แคปหน้าจอแล้วส่งให้ผู้ดูแลระบบทาง LINE</div>
+</section>
+
+</body>
+</html>
