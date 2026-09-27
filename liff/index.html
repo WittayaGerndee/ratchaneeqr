@@ -100,6 +100,16 @@
   .stat.ok b { color: var(--accent); } .stat.bad b { color: var(--bad); }
   .room-title { font-weight: 600; margin: 14px 0 4px; display: flex; justify-content: space-between; }
   .name-line { padding: 6px 0; border-bottom: 1px dashed var(--line); display: flex; gap: 10px; }
+
+  /* แถบสีสลับแถว (อ่านง่ายเมื่อรายการยาว) */
+  :root { --zebra: #eef1f5; }
+  .zebra { margin: 0 -10px; }
+  .zebra > .list-item, .zebra > .name-line { padding-left: 10px; padding-right: 10px; border-bottom: 0; border-radius: 10px; }
+  .zebra > .list-item:nth-child(even), .zebra > .name-line:nth-child(even) { background: var(--zebra); }
+  .zebra > .list-item.tap:hover { background: var(--accent-weak); }
+  .zebra > .room-title { padding: 0 10px; }
+  .task-prog { width: 110px; flex: none; text-align: right; font-size: .82rem; color: var(--muted); }
+  .task-prog b { color: var(--text); font-size: .95rem; } .task-prog .bar { height: 6px; margin-top: 4px; }
   .name-line:last-child { border-bottom: 0; }
   details summary { cursor: pointer; font-weight: 600; padding: 8px 0; }
 
@@ -149,10 +159,13 @@
   .gb .c-id, .gb .c-name { position: sticky; z-index: 1; text-align: left; }
   .gb .c-id { left: 0; min-width: 64px; } .gb .c-name { left: 64px; min-width: 150px; max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
   .gb thead .c-id, .gb thead .c-name { z-index: 3; }
-  .gb td.miss { color: var(--bad); } .gb td.na { background: #f8fafc; color: var(--faint); }
+  .gb td.miss { color: var(--bad); } .gb td.na { color: #cbd5e1; }
   .gb td.done { color: var(--accent); } .gb td.edit { cursor: pointer; } .gb td.edit:hover { background: var(--accent-weak); }
   .gb td.late::after { content: '•'; color: var(--warn); margin-left: 2px; }
   .gb .tot { font-weight: 600; background: #f8fafc; }
+  .gb tbody tr:nth-child(even) td { background: var(--zebra); }
+  .gb tbody tr:nth-child(even) td.tot { background: #e6eaf0; }
+  .gb tbody tr:hover td { background: var(--accent-weak); }
 
   /* bottom nav */
   .tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; background: rgba(255,255,255,.96); backdrop-filter: blur(10px);
@@ -206,10 +219,11 @@
     #taskCards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
     #taskCards .card { margin: 0; } #taskCards .empty { grid-column: 1 / -1; }
     /* รายการงาน / นักเรียน 2 คอลัมน์ */
-    #taskList, #stuList { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 28px; }
+    #stuList { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 16px; }
+    #stuList.zebra > .list-item:nth-child(even) { background: transparent; }
+    #stuList.zebra > .list-item:nth-child(4n+1), #stuList.zebra > .list-item:nth-child(4n+2) { background: var(--zebra); }
     #taskList .empty, #stuList .empty { grid-column: 1 / -1; }
     #setGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-items: start; } #setGrid .set-col > .card + .card { margin-top: 12px; } #setGrid .card { margin-bottom: 0; }
-    #taskList .list-item:nth-last-child(2):nth-child(odd), #stuList .list-item:nth-last-child(2):nth-child(odd) { border-bottom: 0; }
     /* สแกน: กล้องซ้าย · คะแนน + รายการล่าสุด ขวา */
     #scanner { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 16px; align-items: start; }
     #scanner > .task-head, #scanner > .stage, #scanner > .controls, #scanner > #typeCard { grid-column: 1; }
@@ -319,7 +333,7 @@
         </div>
         <div class="card log hidden" id="logCard">
           <div class="row between"><h3 style="margin:0">ล่าสุด</h3><span class="small muted" id="logCount"></span></div>
-          <div id="logList"></div>
+          <div id="logList" class="zebra" style="margin-top:6px"></div>
         </div>
       </div>
     </div>
@@ -344,7 +358,7 @@
       </div>
       <h3 class="hidden" id="gbTitle" style="margin:0"></h3>
       <div class="gb-wrap"><table class="gb" id="gbTable"></table></div>
-      <p class="xs muted" style="margin:8px 0 0">ตัวเลข = คะแนน · ✓ = ส่งแล้ว (ยังไม่ให้คะแนน) · – = ยังไม่ส่ง · <span style="color:var(--warn)">•</span> = ส่งช้า · แตะช่องที่ส่งแล้วเพื่อให้/แก้คะแนน</p>
+      <p class="xs muted" style="margin:8px 0 0">ตัวเลข = คะแนน · ✓ = ส่งแล้ว (ยังไม่ให้คะแนน) · – = ยังไม่ส่ง · <span style="color:var(--warn)">•</span> = ส่งช้า · <span style="color:#94a3b8">·</span> = ไม่ได้สั่งงานนี้ให้ห้องนี้ · แตะช่องที่ส่งแล้วเพื่อให้/แก้คะแนน</p>
     </div>
   </section>
 
@@ -352,7 +366,7 @@
   <section id="view-tasks" class="hidden">
     <div class="row between" style="margin:4px 2px 10px"><h2 style="margin:0">งานทั้งหมด</h2>
       <button class="btn sm primary" data-new-task><svg><use href="#i-plus"/></svg>งานใหม่</button></div>
-    <div class="card" style="padding:4px 16px"><div id="taskList"></div></div>
+    <div class="card" style="padding:8px 16px"><div id="taskList" class="zebra"></div></div>
   </section>
 
   <!-- ===== นักเรียน ===== -->
@@ -362,7 +376,7 @@
       <button class="btn sm primary" id="stuAdd"><svg><use href="#i-plus"/></svg>เพิ่ม</button></div></div>
     <div class="card" style="padding:12px 16px 4px">
       <div class="row"><select class="input" style="max-width:42%" id="stuClass"></select><input class="input grow" id="stuSearch" placeholder="ค้นหารหัส / ชื่อ"></div>
-      <div id="stuList"></div>
+      <div id="stuList" class="zebra" style="margin-top:8px"></div>
     </div>
   </section>
 
@@ -1309,15 +1323,15 @@ function renderSummary() {
     (miss ? '<button class="btn sm" id="copyMissing">' + icon('copy') + 'คัดลอกรายชื่อ</button>' : '') + '</div>';
   html += miss ? keys.filter(function (k) { return rooms[k].miss.length; }).map(function (k) {
     return '<div class="room-title"><span>' + esc(k) + '</span><span class="muted small">' + rooms[k].miss.length + ' คน</span></div>' +
-      rooms[k].miss.map(function (s) { return '<div class="name-line"><span class="muted" style="min-width:52px">' + esc(s.id) + '</span><span>' + esc(s.name) + '</span></div>'; }).join('');
+      '<div class="zebra">' + rooms[k].miss.map(function (s) { return '<div class="name-line"><span class="muted" style="min-width:52px">' + esc(s.id) + '</span><span>' + esc(s.name) + '</span></div>'; }).join('') + '</div>';
   }).join('') : (total ? '<div class="empty" style="color:var(--accent)">ส่งครบทุกคนแล้ว 🎉</div>' : '<div class="empty">ยังไม่มีนักเรียนในห้องที่สั่งงานนี้</div>');
-  html += '<details style="margin-top:12px"' + (scored ? ' open' : '') + '><summary>ส่งแล้ว ' + done + ' คน' + (scored ? ' · แตะคะแนนเพื่อให้/แก้' : '') + '</summary>' + keys.map(function (k) {
+  html += '<details style="margin-top:12px"' + (scored ? ' open' : '') + '><summary>ส่งแล้ว ' + done + ' คน' + (scored ? ' · แตะคะแนนเพื่อให้/แก้' : '') + '</summary><div class="zebra">' + keys.map(function (k) {
     return rooms[k].done.map(function (s) {
       var x = m[norm(s.id)];
       return '<div class="name-line" style="align-items:center"><span class="muted" style="min-width:52px">' + esc(s.id) + '</span><span class="grow">' + esc(s.name) + '</span><span class="xs muted">' + esc(thDate(x[0])) + (x[2] ? ' · ช้า' : '') + '</span>' +
         (scored ? scoreChip(a.assignment_id, s.id) : '') + '</div>';
     }).join('');
-  }).join('') + '</details>';
+  }).join('') + '</div></details>';
   if (a.status === 'OPEN') html += '<button class="btn primary block lg" style="margin-top:14px" data-scan-task="' + esc(a.assignment_id) + '">' + icon('scan') + 'สแกนงานนี้</button>';
   $('sumBox').innerHTML = html;
 
@@ -1409,7 +1423,7 @@ function renderGradebook() {
   var body = md.rows.map(function (s) {
     var sent = 0, target = 0, sum = 0, full = 0;
     var tds = md.cols.map(function (a) {
-      if (!isTarget(a, s)) return '<td class="na"></td>';
+      if (!isTarget(a, s)) return '<td class="na" title="ไม่ได้สั่งงานนี้ให้ห้องนี้">·</td>';
       target++;
       var c = gbCell(a.assignment_id, s.id);
       if (hasScore(a)) full += Number(a.max_score);
@@ -1531,7 +1545,8 @@ function renderTasks() {
     var p = progressOf(a);
     return '<div class="list-item tap" data-task-menu="' + esc(a.assignment_id) + '"><div class="grow"><div class="row" style="gap:6px"><b class="ellipsis">' + esc(a.assignment_name) + '</b>' +
       (a.status === 'OPEN' ? '' : '<span class="badge off">ปิดรับ</span>') + (hasScore(a) ? '<span class="badge">เต็ม ' + esc(a.max_score) + '</span>' : '') + '</div>' +
-      '<div class="small muted ellipsis">' + esc(a.subject) + ' · ' + esc(targetLabel(a)) + ' · ส่ง ' + p.done + '/' + p.target + (a.due_date ? ' · ' + esc(thDate(a.due_date)) : '') + '</div></div>' +
+      '<div class="small muted ellipsis">' + esc(a.subject) + ' · ' + esc(targetLabel(a)) + (a.due_date ? ' · ส่ง ' + esc(thDate(a.due_date)) : '') + '</div></div>' +
+      '<div class="task-prog">ส่ง <b>' + p.done + '</b>/' + p.target + '<div class="bar"><i style="width:' + (p.target ? Math.round(p.done / p.target * 100) : 0) + '%"></i></div></div>' +
       '<span class="faint"><svg style="width:20px;height:20px"><use href="#i-more"/></svg></span></div>';
   }).join('') : '<div class="empty">ยังไม่มีงาน</div>';
 }
