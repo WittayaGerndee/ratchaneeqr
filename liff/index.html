@@ -123,6 +123,12 @@
   .step .n { width: 28px; height: 28px; border-radius: 50%; background: var(--accent-weak); color: var(--accent); font-weight: 700; display: flex; align-items: center; justify-content: center; flex: none; }
   .step.now .n { background: var(--accent); color: #fff; }
   .step-hint { font-size: .8rem; color: var(--accent); font-weight: 600; margin: -4px 0 8px; }
+  .tasks-head { flex-wrap: wrap; row-gap: 8px; }
+  .btn.subj-add { border-color: var(--accent); color: var(--accent); background: #fff; }
+  .btn.subj-add .pill-n:not(:empty) { background: var(--accent-weak); border-radius: 99px; padding: 0 7px; font-size: .75rem; }
+  @media (max-width: 400px) { .tasks-acts { width: 100%; display: grid !important; grid-template-columns: 1fr 1fr; } }
+  .sj-add-box { background: var(--accent-weak); border-radius: 14px; padding: 12px; margin: 10px 0 14px; }
+  .sj-add-box .row { flex-wrap: wrap; }
   .row-acts { display: flex; gap: 2px; flex: none; }
   .row-acts .btn { min-height: 36px; min-width: 36px; padding: 6px; color: var(--muted); }
   .row-acts .btn.del:hover { color: var(--bad); background: var(--bad-weak); }
@@ -304,7 +310,7 @@
   <section id="view-scan" class="hidden">
     <div id="pickTask">
       <div class="row between" style="margin:4px 2px 10px"><h2 style="margin:0">เลือกงานที่จะตรวจ</h2>
-        <button class="btn sm primary" data-new-task><svg><use href="#i-plus"/></svg>งานใหม่</button></div>
+        <button class="btn sm primary" data-new-task><svg><use href="#i-plus"/></svg>ใบงานใหม่</button></div>
       <div id="taskCards"></div>
     </div>
 
@@ -391,9 +397,9 @@
 
   <!-- ===== งาน ===== -->
   <section id="view-tasks" class="hidden">
-    <div class="row between" style="margin:4px 2px 10px"><h2 style="margin:0">งานทั้งหมด</h2>
-      <div class="row" style="gap:6px"><button class="btn sm" id="subjBtn"><svg><use href="#i-list"/></svg>วิชา <span class="muted" id="subjCount"></span></button>
-      <button class="btn sm primary" data-new-task><svg><use href="#i-plus"/></svg>งานใหม่</button></div></div>
+    <div class="row between tasks-head" style="margin:4px 2px 10px"><h2 style="margin:0">งานทั้งหมด</h2>
+      <div class="row tasks-acts" style="gap:6px"><button class="btn sm subj-add" id="subjBtn"><svg><use href="#i-plus"/></svg>เพิ่มวิชา <span class="pill-n" id="subjCount"></span></button>
+      <button class="btn sm primary" data-new-task><svg><use href="#i-plus"/></svg>ใบงานใหม่</button></div></div>
     <div class="card hidden" id="onboard">
       <h3 style="margin:0">เริ่มต้นใช้งาน</h3>
       <div class="steps">
@@ -1656,6 +1662,7 @@ function renderTasks() {
   var noSubject = !DATA.subjects.length;
   show('onboard', noSubject); show('taskCard', !noSubject || DATA.assignments.length > 0);
   $('subjCount').textContent = DATA.subjects.length ? DATA.subjects.length : '';
+  $('subjBtn').title = DATA.subjects.length ? 'เพิ่มวิชา / แก้ไข / ลบวิชา (มี ' + DATA.subjects.length + ' วิชา)' : 'เพิ่มวิชา';
   var q = $('taskSearch').value.trim().toLowerCase(), st = $('taskStatus').value, subj = $('taskSubject').value;
   var all = DATA.assignments.slice().sort(function (x, y) { return (x.status === 'OPEN' ? 0 : 1) - (y.status === 'OPEN' ? 0 : 1) || natCmp(y.assignment_id, x.assignment_id); });
   var list = all.filter(function (a) {
@@ -1846,16 +1853,34 @@ function subjectsSheet() {
   var count = {};
   DATA.assignments.forEach(function (a) { count[a.subject] = (count[a.subject] || 0) + 1; });
   var list = DATA.subjects.slice().sort(function (x, y) { return natCmp(x.name, y.name); });
-  openSheet('<div class="row between"><h2 style="margin:0">วิชาที่สอน</h2><button class="btn sm primary" id="sjAdd">' + icon('plus') + 'เพิ่มวิชา</button></div>' +
-    '<p class="small muted" style="margin:6px 0 10px">สร้างวิชาก่อน แล้วสร้างใบงานในแต่ละวิชา</p>' +
+  openSheet('<h2 style="margin:0">เพิ่มวิชา</h2>' +
+    '<form class="sj-add-box" id="sjQuick"><label class="field" style="margin-bottom:8px"><span>ชื่อวิชาใหม่</span><input class="input" name="name" required placeholder="เช่น ภาษาไทย" autocomplete="off"></label>' +
+    '<div class="row"><select class="input grow" name="cls" style="flex:1 1 150px">' + classOptionsHtml('<option value="">ห้องที่สอน (ไม่ระบุ)</option><option value="ALL">ทุกห้อง</option>') + '</select>' +
+    '<button class="btn primary" type="submit" style="flex:1 1 120px">' + icon('plus') + 'เพิ่มวิชา</button></div></form>' +
+    '<h3 style="margin:0 0 4px">วิชาที่มีอยู่ ' + (list.length ? '<span class="muted small">(' + list.length + ')</span>' : '') + '</h3>' +
+    '<p class="xs muted" style="margin:0 0 6px">กด ＋ ใบงาน เพื่อสร้างใบงานในวิชานั้น · ✎ แก้ไข · 🗑 ลบ</p>' +
     (list.length ? '<div class="zebra">' + list.map(function (x, i) {
       var n = count[x.name] || 0;
       return '<div class="list-item"><div class="grow"><b class="ellipsis" style="display:block" title="' + esc(x.name) + '">' + esc(x.name) + '</b><div class="small muted">' + (x.class_target ? esc(x.class_target === 'ALL' ? 'ทุกห้อง' : x.class_target) + ' · ' : '') + 'ใบงาน ' + n + ' ใบ</div></div>' +
         '<button class="btn sm" data-sj-new="' + i + '">' + icon('plus') + 'ใบงาน</button>' +
         '<div class="row-acts"><button class="btn ghost" data-sj-edit="' + i + '" title="แก้ไขวิชา" aria-label="แก้ไขวิชา">' + icon('edit') + '</button>' +
         '<button class="btn ghost del" data-sj-del="' + i + '" title="ลบวิชา" aria-label="ลบวิชา">' + icon('trash') + '</button></div></div>';
-    }).join('') + '</div>' : '<div class="empty">ยังไม่มีวิชา</div>'), function (sh) {
-      $('sjAdd').onclick = function () { subjectForm(null); };
+    }).join('') + '</div>' : '<div class="empty" style="padding:14px">ยังไม่มีวิชา — เพิ่มวิชาแรกด้านบน</div>'), function (sh) {
+      var qf = $('sjQuick');
+      if (classNames().length === 1) qf.cls.value = classNames()[0];
+      if (!list.length) setTimeout(function () { qf.name.focus(); }, 250);
+      qf.onsubmit = function (ev) {
+        ev.preventDefault();
+        var b = qf.querySelector('[type=submit]'), label = b.innerHTML;
+        b.disabled = true; b.textContent = 'กำลังเพิ่ม…';
+        api('saveSubject', { subject: { name: qf.name.value.trim(), class_target: qf.cls.value } }).then(function (r) {
+          b.disabled = false; b.innerHTML = label;
+          if (!r.ok) { toast(r.message, 'err', 3500); return; }
+          DATA.subjects = r.subjects; saveLocal(); renderCurrent();
+          toast('เพิ่มวิชา ' + r.subject.name + ' แล้ว — กด ＋ ใบงาน เพื่อสร้างใบงานในวิชานี้', '', 3500);
+          subjectsSheet();
+        }).catch(function (e) { b.disabled = false; b.innerHTML = label; netError(e); });
+      };
       sh.addEventListener('click', function (ev) {
         var nw = ev.target.closest('[data-sj-new]'), ed = ev.target.closest('[data-sj-edit]'), dl = ev.target.closest('[data-sj-del]');
         if (nw) taskForm(null, { subject: list[Number(nw.dataset.sjNew)].name });
