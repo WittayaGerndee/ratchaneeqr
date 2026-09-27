@@ -129,6 +129,8 @@
   @media (max-width: 400px) { .tasks-acts { width: 100%; display: grid !important; grid-template-columns: 1fr 1fr; } }
   .sj-add-box { background: var(--accent-weak); border-radius: 14px; padding: 12px; margin: 10px 0 14px; }
   .sj-add-box .row { flex-wrap: wrap; }
+  .btn.print-btn { border: 2px solid var(--accent); color: var(--accent); background: #fff; }
+  .btn.print-btn:hover { background: var(--accent-weak); }
   .row-acts { display: flex; gap: 2px; flex: none; }
   .row-acts .btn { min-height: 36px; min-width: 36px; padding: 6px; color: var(--muted); }
   .row-acts .btn.del:hover { color: var(--bad); background: var(--bad-weak); }
@@ -442,13 +444,14 @@
           <option value="38" selected>กลาง 3.8 ซม. · 4 ดวง/แถว</option>
           <option value="50">ใหญ่ 5 ซม. · 3 ดวง/แถว</option></select></label>
       </div>
-      <button class="btn primary block lg" id="qrPdfBtn"><svg><use href="#i-print"/></svg>สร้างไฟล์ PDF</button>
+      <button class="btn primary block lg" id="qrPdfBtn"><svg><use href="#i-send"/></svg>สร้างไฟล์ PDF แล้วส่งเข้า LINE</button>
+      <p class="xs muted" style="margin:6px 0 0;text-align:center">ระบบสร้างไฟล์ PDF แล้วส่งลิงก์ไฟล์เข้าแชท LINE ของคุณ — เปิดจากแชทเพื่อพิมพ์หรือส่งต่อ</p>
       <div id="qrPdfResult" class="hidden" style="margin-top:12px;background:var(--accent-weak);border-radius:12px;padding:12px 14px">
         <div style="font-weight:600;color:var(--accent)" id="qrPdfTitle"></div>
         <div class="small muted" id="qrPdfSub" style="margin-bottom:10px"></div>
         <button class="btn primary block" id="qrPdfOpen">เปิด / ดาวน์โหลด PDF</button>
       </div>
-      <button class="btn ghost block small hidden" id="qrPrint" style="margin-top:6px">หรือพิมพ์จากหน้านี้ (คอมพิวเตอร์)</button>
+      <button class="btn block lg hidden print-btn" id="qrPrint" style="margin-top:10px"><svg><use href="#i-print"/></svg>พิมพ์จากหน้านี้ (คอมพิวเตอร์)</button>
       <p class="small muted" style="margin:10px 0 0">ตัวอย่างด้านล่าง · ไฟล์ PDF ขนาด A4 พิมพ์แบบ Scale 100% · ใช้กระดาษสติกเกอร์ หรือกระดาษธรรมดาแล้วติดเทปใส</p>
     </div>
     <div class="card"><div class="sticker-sheet" id="qrSheet"></div></div>
@@ -529,6 +532,7 @@
     <symbol id="i-trash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></symbol>
     <symbol id="i-more" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></symbol>
     <symbol id="i-monitor" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></symbol>
+    <symbol id="i-send" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 3L10 14M21 3l-7 18-4-7-7-4z"/></symbol>
     <symbol id="i-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></symbol>
   </defs>
 </svg>
@@ -2089,17 +2093,17 @@ $('qrPrint').onclick = function () { window.print(); };
 var lastPdf = null;
 $('qrPdfBtn').onclick = function () {
   var b = this, c = $('qrClass').value;
-  b.disabled = true; b.innerHTML = icon('print') + 'กำลังสร้างไฟล์… (10–30 วินาที)';
+  b.disabled = true; b.innerHTML = icon('send') + 'กำลังสร้างไฟล์และส่งเข้า LINE… (10–30 วินาที)';
   hide('qrPdfResult');
   api('qrPdf', { classFilter: c, size: Number($('qrSize').value) }).then(function (r) {
-    b.disabled = false; b.innerHTML = icon('print') + 'สร้างไฟล์ PDF';
+    b.disabled = false; b.innerHTML = icon('send') + 'สร้างไฟล์ PDF แล้วส่งเข้า LINE';
     if (!r.ok) { toast(r.message, 'err', 4000); return; }
     lastPdf = r;
     $('qrPdfTitle').textContent = 'สร้างไฟล์แล้ว · ' + r.title + ' · ' + r.count + ' คน';
     $('qrPdfSub').textContent = r.sentToLine ? 'ส่งลิงก์ไฟล์เข้าแชท LINE ของคุณแล้ว — เปิดจากแชทเพื่อพิมพ์หรือส่งต่อได้' : 'ไฟล์เก็บในโฟลเดอร์ Google Drive ของคุณ (QR Codes/PDF)';
     show('qrPdfResult');
   }).catch(function (e) {
-    b.disabled = false; b.innerHTML = icon('print') + 'สร้างไฟล์ PDF';
+    b.disabled = false; b.innerHTML = icon('send') + 'สร้างไฟล์ PDF แล้วส่งเข้า LINE';
     toast((e && e.message || 'เชื่อมต่อไม่สำเร็จ') + ' — ลองกดอีกครั้ง', 'err', 4000);
   });
 };
