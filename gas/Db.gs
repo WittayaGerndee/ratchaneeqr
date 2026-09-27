@@ -87,11 +87,48 @@ function updateRow_(name, rowNum, obj) {
   var hs = headers_(name);
   var range = sh.getRange(rowNum, 1, 1, hs.length);
   var row = range.getValues()[0];
-  setTextFormat_(sh, hs, rowNum, 1);
+  if (touchesTextColumn_(hs, obj)) setTextFormat_(sh, hs, rowNum, 1);
   hs.forEach(function (h, i) {
     if (Object.prototype.hasOwnProperty.call(obj, h)) row[i] = obj[h];
   });
   range.setValues([row]);
+}
+
+/**
+ * แก้หลายแถวในครั้งเดียว (Array Batch): อ่านช่วงแถว×คอลัมน์ที่ต้องแก้ครั้งเดียว แก้ในหน่วยความจำ แล้วเขียนกลับครั้งเดียว
+ * เขียนเฉพาะช่วงคอลัมน์ที่มีการแก้ (ไม่ทับทั้งแถว) — ผู้เรียกต้องถือ LockService อยู่
+ * @param {string} name ชื่อแผ่น
+ * @param {Object} updates { เลขแถว: { คอลัมน์: ค่า } }
+ */
+function updateRows_(name, updates) {
+  var rows = Object.keys(updates).map(Number);
+  if (!rows.length) return;
+  if (rows.length === 1) { updateRow_(name, rows[0], updates[rows[0]]); return; }
+  var hs = headers_(name), cols = [];
+  rows.forEach(function (r) {
+    Object.keys(updates[r]).forEach(function (k) { var i = hs.indexOf(k); if (i >= 0 && cols.indexOf(i) < 0) cols.push(i); });
+  });
+  if (!cols.length) return;
+  var r0 = Math.min.apply(null, rows), r1 = Math.max.apply(null, rows);
+  var c0 = Math.min.apply(null, cols), c1 = Math.max.apply(null, cols);
+  var sh = sheet_(name);
+  var range = sh.getRange(r0, c0 + 1, r1 - r0 + 1, c1 - c0 + 1);
+  var vals = range.getValues();
+  rows.forEach(function (r) {
+    Object.keys(updates[r]).forEach(function (k) {
+      var i = hs.indexOf(k);
+      if (i >= 0) vals[r - r0][i - c0] = updates[r][k];
+    });
+  });
+  var touched = {};
+  cols.forEach(function (i) { touched[hs[i]] = true; });
+  if (touchesTextColumn_(hs, touched)) setTextFormat_(sh, hs, r0, r1 - r0 + 1);
+  range.setValues(vals);
+}
+
+/** obj มีคอลัมน์ที่ต้องเก็บเป็นข้อความหรือไม่ (ถ้าไม่มี ไม่ต้องตั้งรูปแบบซ้ำ) */
+function touchesTextColumn_(hs, obj) {
+  return hs.some(function (h) { return TEXT_COLUMNS[h] && Object.prototype.hasOwnProperty.call(obj, h); });
 }
 
 function deleteRow_(name, rowNum) {
@@ -116,10 +153,20 @@ function normId_(v) {
 /** คอลัมน์ที่ต้องเก็บเป็นข้อความ (กัน Google Sheets แปลง 0001 เป็น 1) */
 var TEXT_COLUMNS = { student_id: true, assignment_id: true, room: true, submission_id: true, key: true, line_user_id: true };
 
+/** ตั้งคอลัมน์รหัสเป็นข้อความ — ทุกคอลัมน์ในคำสั่งเดียว (RangeList) */
 function setTextFormat_(sh, hs, startRow, numRows) {
+  var a1 = [];
   hs.forEach(function (h, i) {
-    if (TEXT_COLUMNS[h]) sh.getRange(startRow, i + 1, numRows, 1).setNumberFormat('@');
+    if (TEXT_COLUMNS[h]) a1.push(colLetter_(i + 1) + startRow + ':' + colLetter_(i + 1) + (startRow + numRows - 1));
   });
+  if (a1.length) sh.getRangeList(a1).setNumberFormat('@');
+}
+
+/** 1 → A, 27 → AA */
+function colLetter_(n) {
+  var s = '';
+  for (; n > 0; n = Math.floor((n - 1) / 26)) s = String.fromCharCode(65 + (n - 1) % 26) + s;
+  return s;
 }
 
 /** แปลง Date → ISO string และตัด _row ออก เพื่อส่งให้ client ได้ */

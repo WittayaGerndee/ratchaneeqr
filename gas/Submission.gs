@@ -315,7 +315,7 @@ function submitBatch_(items, actor) {
       return Object.assign(res, { ok: true, code: 'SUBMITTED', submission_id: rec.submission_id, timestamp: ts.toISOString(), isLate: isLate, score: rec.score });
     });
 
-    Object.keys(scoreUpdates).forEach(function (row) { updateRow_('Submissions', Number(row), scoreUpdates[row]); });
+    updateRows_('Submissions', scoreUpdates); // ให้คะแนนแถวเดิมหลายแถว → อ่าน/เขียนครั้งเดียว
     if (newRecs.length) {
       var newRows = newRecs.map(function (rec) { return hs.map(function (h) { return rec[h] !== undefined ? rec[h] : ''; }); });
       var sh = sheet_('Submissions');

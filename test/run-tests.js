@@ -4,16 +4,18 @@ process.env.TZ = 'Asia/Bangkok';
 const dir = path.join(__dirname, '..', 'gas');
 
 // ---- in-memory Spreadsheet ----
+const SHEET_CALLS={n:0}; const hit=()=>SHEET_CALLS.n++; // นับจำนวนครั้งที่เรียก Google Sheets
 function makeSheet(name){ const data=[]; return {
   name, data, getName(){ return name; },
   getLastRow(){ return data.length; }, getLastColumn(){ return data.reduce((m,r)=>Math.max(m,r.length),0); },
-  getRange(a,b,c,d){ if(typeof a==='string') return {setNumberFormat(){return this}};
+  getRangeList(a1s){ return { setNumberFormat(){ hit(); return this; }, a1s }; },
+  getRange(a,b,c,d){ if(typeof a==='string') return {setNumberFormat(){ hit(); return this}};
     const r=a,col=b,nr=c||1,nc=d||1; return {
-    getValues(){ const out=[]; for(let i=0;i<nr;i++){const row=[];for(let j=0;j<nc;j++){const v=(data[r-1+i]||[])[col-1+j];row.push(v===undefined?'':v);}out.push(row);}return out;},
-    setValues(v){ for(let i=0;i<v.length;i++){ data[r-1+i]=data[r-1+i]||[]; for(let j=0;j<v[i].length;j++) data[r-1+i][col-1+j]=v[i][j]; } return this;},
+    getValues(){ hit(); const out=[]; for(let i=0;i<nr;i++){const row=[];for(let j=0;j<nc;j++){const v=(data[r-1+i]||[])[col-1+j];row.push(v===undefined?'':v);}out.push(row);}return out;},
+    setValues(v){ hit(); for(let i=0;i<v.length;i++){ data[r-1+i]=data[r-1+i]||[]; for(let j=0;j<v[i].length;j++) data[r-1+i][col-1+j]=v[i][j]; } return this;},
     setValue(v){ data[r-1]=data[r-1]||[]; data[r-1][col-1]=v; return this;},
     clearContent(){ for(let i=0;i<nr;i++){ if(data[r-1+i]) for(let j=0;j<nc;j++) data[r-1+i][col-1+j]=''; } return this;},
-    setFontWeight(){return this}, setBackground(){return this}, setNumberFormat(){return this}};},
+    setFontWeight(){return this}, setBackground(){return this}, setNumberFormat(){ hit(); return this}};},
   getDataRange(){ return this.getRange(1,1,Math.max(data.length,1),Math.max(this.getLastColumn(),1)); },
   appendRow(row){ data.push(row.slice()); }, deleteRow(n){ data.splice(n-1,1); }, setFrozenRows(){}, getMaxRows(){ return Math.max(data.length, 1000); }
 };}
@@ -169,6 +171,23 @@ assert(call('bootstrap').subjects.some(x=>x.name==='วิชาใหม่จ�
 call('saveAssignment', {assignment:{assignment_id:SC, subject:'ไทย', assignment_name:'ใบงานมีคะแนน', class_target:'ป.4/5', status:'CLOSED'}});
 r = call('submitBatch', {items:[{cid:'s8', studentId:'0001', assignmentId:SC, scoreOnly:true, score:6}]});
 assert(r.results[0].ok && subRow('0001').score===6, 'can score after assignment closed');
+// Array Batch: ให้คะแนนย้อนหลังหลายคน อ่าน/เขียน Sheets ไม่กี่ครั้ง และค่าถูกต้อง
+assert(R("colLetter_(1)")==='A' && R("colLetter_(26)")==='Z' && R("colLetter_(27)")==='AA' && R("colLetter_(52)")==='AZ', 'colLetter_');
+r = call('saveAssignment', {assignment:{subject:'คณิต', assignment_name:'batch', class_target:'ALL', max_score:'10'}});
+const BT = r.assignment.assignment_id;
+const ids = R("readTable_('Students').filter(isStudentActive_).map(function(s){return String(s.student_id)})");
+call('submitBatch', {items: ids.map((id,i)=>({cid:'bt'+i, studentId:id, assignmentId:BT}))});
+const noteBefore = R(`readTable_('Submissions').filter(function(x){return x.assignment_id==='${BT}'}).map(function(x){return x.name})`);
+SHEET_CALLS.n = 0;
+r = call('submitBatch', {items: ids.map((id,i)=>({cid:'bs'+i, studentId:id, assignmentId:BT, scoreOnly:true, score:(i%10)+0.5}))});
+const scoreCalls = SHEET_CALLS.n;
+const after = R(`readTable_('Submissions').filter(function(x){return x.assignment_id==='${BT}'})`);
+assert(r.results.every(x=>x.ok) && after.every((x,i)=>x.score===(ids.indexOf(String(x.student_id))%10)+0.5 && x.status==='ครูตรวจแล้ว' && x.checked_by), 'batch rescore '+ids.length+' students: values correct');
+assert(JSON.stringify(after.map(x=>x.name))===JSON.stringify(noteBefore), 'batch rescore keeps other columns intact');
+assert(scoreCalls <= 12, 'batch rescore uses few Sheets calls ('+scoreCalls+')');
+SHEET_CALLS.n = 0;
+call('saveStudent', {student:{student_id:'0777', name:'เลขศูนย์', class:'ป.4', room:'5'}});
+assert(R("getStudent_('0777').student_id")==='0777', 'text format still keeps leading zero (RangeList)');
 // delete assignment with submissions: needs force, removes its submissions only
 const beforeSubs = R("readTable_('Submissions').length");
 const scCount = R(`readTable_('Submissions').filter(function(x){return x.assignment_id==='${SC}'}).length`);
