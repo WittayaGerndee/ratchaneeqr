@@ -124,6 +124,11 @@
   .pop .ic svg { width: 32px; height: 32px; }
   .pop .t { font-weight: 700; font-size: 1.25rem; line-height: 1.3; } .pop .n { font-weight: 600; margin-top: 4px; } .pop .s { color: var(--muted); font-size: .88rem; }
   .pop .btn { margin-top: 12px; }
+  #view-students > .row { flex-wrap: wrap; row-gap: 8px; }
+  .stu-actions .btn { white-space: nowrap; }
+  @media (max-width: 520px) { .stu-actions { width: 100%; display: grid !important; grid-template-columns: repeat(3, 1fr); } }
+  .set-card h3 { display: flex; align-items: center; gap: 8px; } .set-card h3 svg { width: 20px; height: 20px; color: var(--accent); }
+  .set-actions { display: grid; gap: 8px; }
   .link-row { margin-bottom: 14px; } .link-row b { display: block; font-size: .92rem; margin-bottom: 4px; }
   .link-row .input { font-size: .78rem; font-family: ui-monospace, monospace; min-height: 42px; }
 
@@ -203,6 +208,7 @@
     /* รายการงาน / นักเรียน 2 คอลัมน์ */
     #taskList, #stuList { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 28px; }
     #taskList .empty, #stuList .empty { grid-column: 1 / -1; }
+    #setGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-items: start; } #setGrid .set-col > .card + .card { margin-top: 12px; } #setGrid .card { margin-bottom: 0; }
     #taskList .list-item:nth-last-child(2):nth-child(odd), #stuList .list-item:nth-last-child(2):nth-child(odd) { border-bottom: 0; }
     /* สแกน: กล้องซ้าย · คะแนน + รายการล่าสุด ขวา */
     #scanner { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 16px; align-items: start; }
@@ -228,7 +234,6 @@
       <div class="by ellipsis" id="byLine">กำลังเชื่อมต่อ…</div>
     </div>
     <span class="pill hidden" id="syncPill"><span class="dot"></span><span id="syncText"></span></span>
-    <button class="btn ghost sm hidden" id="settingsBtn" aria-label="ตั้งค่า"><svg><use href="#i-gear"/></svg></button>
   </div>
 </header>
 
@@ -346,15 +351,14 @@
   <!-- ===== งาน ===== -->
   <section id="view-tasks" class="hidden">
     <div class="row between" style="margin:4px 2px 10px"><h2 style="margin:0">งานทั้งหมด</h2>
-      <div class="row" style="gap:6px"><button class="btn sm" id="pcLinkBtn"><svg><use href="#i-copy"/></svg>ลิงก์เปิดบนคอม</button>
-      <button class="btn sm primary" data-new-task><svg><use href="#i-plus"/></svg>งานใหม่</button></div></div>
+      <button class="btn sm primary" data-new-task><svg><use href="#i-plus"/></svg>งานใหม่</button></div>
     <div class="card" style="padding:4px 16px"><div id="taskList"></div></div>
   </section>
 
   <!-- ===== นักเรียน ===== -->
   <section id="view-students" class="hidden">
     <div class="row between" style="margin:4px 2px 10px"><h2 style="margin:0">นักเรียน <span class="muted small" id="stuCount"></span></h2>
-      <div class="row" style="gap:6px"><button class="btn sm" id="stuImport">วางจาก Excel</button>
+      <div class="row stu-actions" style="gap:6px"><button class="btn sm" id="stuQr"><svg><use href="#i-qr"/></svg>พิมพ์ QR</button><button class="btn sm" id="stuImport">วางจาก Excel</button>
       <button class="btn sm primary" id="stuAdd"><svg><use href="#i-plus"/></svg>เพิ่ม</button></div></div>
     <div class="card" style="padding:12px 16px 4px">
       <div class="row"><select class="input" style="max-width:42%" id="stuClass"></select><input class="input grow" id="stuSearch" placeholder="ค้นหารหัส / ชื่อ"></div>
@@ -364,6 +368,7 @@
 
   <!-- ===== พิมพ์ QR ===== -->
   <section id="view-qr" class="hidden">
+    <div class="row no-print" style="margin:0 2px 10px"><button class="btn sm" id="qrBack">← นักเรียน</button></div>
     <div class="card no-print">
       <h2>สติกเกอร์ QR ติดสมุด</h2>
       <div class="grid2">
@@ -384,6 +389,43 @@
     </div>
     <div class="card"><div class="sticker-sheet" id="qrSheet"></div></div>
   </section>
+  <!-- ===== ตั้งค่า ===== -->
+  <section id="view-settings" class="hidden">
+    <h2 style="margin:4px 2px 10px">ตั้งค่า</h2>
+    <div id="setGrid">
+      <div class="set-col">
+      <div class="card set-card">
+        <h3><svg><use href="#i-copy"/></svg>ลิงก์เปิดบนคอม / iPad</h3>
+        <p class="small muted" style="margin:-2px 0 12px">คัดลอกลิงก์ แล้วเปิดใน Chrome / Safari บนคอมหรือ iPad → เข้าสู่ระบบด้วย LINE บัญชีเดียวกับมือถือ (บนคอมสแกน QR เข้าสู่ระบบด้วยมือถือได้)</p>
+        <div id="setLinks"></div>
+      </div>
+          <div class="card set-card">
+          <h3><svg><use href="#i-print"/></svg>พิมพ์</h3>
+          <div class="set-actions">
+            <button class="btn" id="setPrintQr"><svg><use href="#i-qr"/></svg>สติกเกอร์ QR ติดสมุด (PDF)</button>
+            <button class="btn" id="setPrintGrade"><svg><use href="#i-chart"/></svg>ตารางคะแนน</button>
+          </div>
+        </div>
+      </div>
+      <div class="set-col">
+        <div class="card set-card">
+          <h3><svg><use href="#i-list"/></svg>Google Sheet / Drive</h3>
+          <p class="small muted" style="margin:-2px 0 12px">ข้อมูลทั้งหมดของบัญชีนี้ (นักเรียน · งาน · การส่งและคะแนน) และไฟล์ PDF QR</p>
+          <div id="setGoogle"></div>
+        </div>
+        <div class="card set-card hidden" id="setAdminCard">
+          <h3><svg><use href="#i-gear"/></svg>ข้อมูลโรงเรียน</h3>
+          <form id="stf">
+            <label class="field"><span>ชื่อโรงเรียน</span><input class="input" name="school"></label>
+            <label class="field"><span>ชื่อครู (แสดงบนหัวหน้าจอ)</span><input class="input" name="admin"></label>
+            <button class="btn primary block" type="submit">บันทึก</button>
+          </form>
+          <button class="btn block hidden" id="openAccounts" style="margin-top:10px"><svg><use href="#i-users"/></svg>จัดการบัญชีผู้ใช้</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
 </main>
 
 <nav class="tabbar hidden no-print" id="tabbar">
@@ -391,7 +433,7 @@
   <a href="#" data-view="summary"><svg><use href="#i-chart"/></svg>สรุป</a>
   <a href="#" data-view="tasks"><svg><use href="#i-list"/></svg>งาน</a>
   <a href="#" data-view="students"><svg><use href="#i-users"/></svg>นักเรียน</a>
-  <a href="#" data-view="qr"><svg><use href="#i-qr"/></svg>พิมพ์ QR</a>
+  <a href="#" data-view="settings"><svg><use href="#i-gear"/></svg>ตั้งค่า</a>
 </nav>
 
 <div id="sheetHost"></div>
@@ -571,7 +613,8 @@ function setData(d) {
   });
   DATA = {
     students: d.students || [], assignments: d.assignments || [], subs: subs,
-    school: d.school || '', adminName: d.adminName || '', user: d.user || {}, studentPrefix: d.studentPrefix || 'STU-'
+    school: d.school || '', adminName: d.adminName || '', user: d.user || {}, studentPrefix: d.studentPrefix || 'STU-',
+    sheetUrl: d.sheetUrl || '', driveUrl: d.driveUrl || ''
   };
   QUEUE.forEach(function (q) { // รายการที่ยังไม่ขึ้น server ต้องยังแสดงว่าส่งแล้ว
     var m = subsOf(q.assignmentId);
@@ -638,7 +681,6 @@ function renderHeader() {
   $('schoolName').textContent = DATA.school || 'เช็คการส่งงาน';
   var who = (DATA.user && DATA.user.teacherName) || DATA.adminName || (DATA.user && DATA.user.displayName) || '';
   $('byLine').textContent = who ? 'โดย ' + who : '';
-  show('settingsBtn', !!(DATA.user && DATA.user.isAdmin));
 }
 function setSync(kind, text) {
   show('syncPill');
@@ -1442,24 +1484,37 @@ function appLink(params) {
   var qs = Object.keys(params || {}).map(function (k) { return k + '=' + encodeURIComponent(params[k]); }).join('&');
   return base + (qs ? '?' + qs : '');
 }
-function linkSheet(a) {
-  var rows = [['ตารางคะแนนทุกงาน', appLink({ mode: 'scores' })]];
-  if (a) rows.unshift(['สรุปงาน "' + a.assignment_name + '"', appLink({ mode: 'summary', task: a.assignment_id })]);
-  rows.push(['สรุปการส่งงาน', appLink({ mode: 'summary' })], ['หน้าหลัก (สแกน / จัดการงาน)', appLink()]);
-  openSheet('<h2>เปิดบนคอม / iPad</h2><p class="small muted" style="margin-top:-4px">คัดลอกลิงก์ แล้วเปิดใน Chrome / Safari บนคอมหรือ iPad → เข้าสู่ระบบด้วย LINE บัญชีเดียวกับมือถือ (บนคอมสแกน QR เข้าสู่ระบบด้วยมือถือได้)</p>' +
-    rows.map(function (r, i) {
-      return '<div class="link-row"><b>' + esc(r[0]) + '</b><div class="row" style="gap:6px"><input class="input grow" readonly value="' + esc(r[1]) + '" data-link="' + i + '">' +
-        '<button class="btn primary" type="button" data-copy="' + i + '">' + icon('copy') + 'คัดลอก</button></div></div>';
-    }).join(''), function (sh) {
-      sh.addEventListener('click', function (ev) {
-        var b = ev.target.closest('[data-copy]'), inp = ev.target.closest('[data-link]');
-        if (inp) inp.select();
-        if (!b) return;
-        copyText(rows[Number(b.dataset.copy)][1]).then(function () { b.innerHTML = icon('check') + 'คัดลอกแล้ว'; toast('คัดลอกลิงก์แล้ว — วางในแชท LINE / อีเมล แล้วเปิดบนคอม'); });
-      });
-    });
+/** แถวลิงก์: [ชื่อ, url, เปิดได้] — ปุ่มคัดลอก (และปุ่มเปิด ถ้า open = true) */
+function linkRowsHtml(rows) {
+  return rows.map(function (r, i) {
+    return '<div class="link-row"><b>' + esc(r[0]) + '</b><div class="row" style="gap:6px"><input class="input grow" readonly value="' + esc(r[1]) + '" data-link="' + i + '">' +
+      (r[2] ? '<button class="btn" type="button" data-open="' + i + '">เปิด</button>' : '') +
+      '<button class="btn primary" type="button" data-copy="' + i + '">' + icon('copy') + 'คัดลอก</button></div></div>';
+  }).join('');
 }
-$('pcLinkBtn').onclick = function () { linkSheet(null); };
+function bindLinkRows(root, rows) {
+  root.onclick = function (ev) {
+    var b = ev.target.closest('[data-copy]'), o = ev.target.closest('[data-open]'), inp = ev.target.closest('[data-link]');
+    if (inp) inp.select();
+    if (o) openUrl(rows[Number(o.dataset.open)][1]);
+    if (!b) return;
+    copyText(rows[Number(b.dataset.copy)][1]).then(function () { b.innerHTML = icon('check') + 'คัดลอกแล้ว'; toast('คัดลอกลิงก์แล้ว — วางในแชท LINE / อีเมล แล้วเปิดบนคอม'); });
+  };
+}
+/** เปิดลิงก์นอกแอป (ในแอป LINE เปิดด้วยเบราว์เซอร์ของเครื่อง) */
+function openUrl(url) {
+  if (window.liff && CFG.LIFF_ID && liff.isInClient()) liff.openWindow({ url: url, external: true });
+  else window.open(url, '_blank', 'noopener');
+}
+function pcLinks() {
+  return [['ตารางคะแนนทุกงาน', appLink({ mode: 'scores' })], ['สรุปการส่งงาน', appLink({ mode: 'summary' })], ['หน้าหลัก (สแกน / จัดการงาน)', appLink()]];
+}
+/** ลิงก์ของงานเดียว (จากเมนูในหน้า "งาน") */
+function linkSheet(a) {
+  var rows = [['สรุปงาน "' + a.assignment_name + '"', appLink({ mode: 'summary', task: a.assignment_id })]].concat(pcLinks());
+  openSheet('<h2>เปิดบนคอม / iPad</h2><p class="small muted" style="margin-top:-4px">คัดลอกลิงก์ แล้วเปิดใน Chrome / Safari บนคอมหรือ iPad → เข้าสู่ระบบด้วย LINE บัญชีเดียวกับมือถือ</p>' +
+    '<div id="lsRows">' + linkRowsHtml(rows) + '</div>', function () { bindLinkRows($('lsRows'), rows); });
+}
 function openSummary(aid) {
   $('sumSel').innerHTML = '<option value="' + esc(aid) + '"></option>';
   $('sumSel').value = aid;
@@ -1715,27 +1770,36 @@ $('qrPdfOpen').onclick = function () {
 /* =====================================================
    ตั้งค่า (ผู้ดูแล)
    ===================================================== */
-$('settingsBtn').onclick = function () {
-  var sup = !!(DATA.user && DATA.user.isSuper);
-  openSheet('<h2>ตั้งค่า</h2><form id="stf">' +
-    '<label class="field"><span>ชื่อโรงเรียน</span><input class="input" name="school" value="' + esc(DATA.school) + '"></label>' +
-    '<label class="field"><span>ชื่อครู (แสดงบนหัวหน้าจอ)</span><input class="input" name="admin" value="' + esc(DATA.adminName) + '"></label>' +
-    '<button class="btn primary block" type="submit">บันทึก</button></form>' +
-    (sup ? '<button class="btn block lg" id="openAccounts" style="margin-top:14px">' + icon('users') + 'จัดการบัญชีผู้ใช้</button>' : ''), function () {
-      $('stf').onsubmit = function (ev) {
-        ev.preventDefault();
-        var f = ev.target, b = f.querySelector('[type=submit]');
-        b.disabled = true; b.textContent = 'กำลังบันทึก…';
-        api('saveSettings', { settings: { SCHOOL_NAME: f.school.value, ADMIN_NAME: f.admin.value } }).then(function (r) {
-          b.disabled = false; b.textContent = 'บันทึก';
-          if (!r.ok) { toast(r.message, 'err'); return; }
-          DATA.school = r.school; DATA.adminName = r.adminName;
-          saveLocal(); renderHeader(); toast('บันทึกแล้ว');
-        }).catch(function (e) { b.disabled = false; b.textContent = 'บันทึก'; netError(e); });
-      };
-      if ($('openAccounts')) $('openAccounts').onclick = function () { accountsSheet({}); };
-    });
+function renderSettings() {
+  var links = pcLinks();
+  $('setLinks').innerHTML = linkRowsHtml(links);
+  bindLinkRows($('setLinks'), links);
+  var g = [];
+  if (DATA.sheetUrl) g.push(['Google Sheet (ข้อมูลทั้งหมด)', DATA.sheetUrl, true]);
+  if (DATA.driveUrl) g.push(['Google Drive (ไฟล์ PDF QR / ไฟล์งาน)', DATA.driveUrl, true]);
+  $('setGoogle').innerHTML = g.length ? linkRowsHtml(g) : '<div class="small muted">กำลังโหลดลิงก์… (กดโหลดใหม่ที่หน้า "สรุป" ถ้ายังไม่ขึ้น)</div>';
+  bindLinkRows($('setGoogle'), g);
+  var admin = !!(DATA.user && DATA.user.isAdmin);
+  show('setAdminCard', admin);
+  show('openAccounts', !!(DATA.user && DATA.user.isSuper));
+  if (admin && !$('stf').contains(document.activeElement)) { $('stf').school.value = DATA.school || ''; $('stf').admin.value = DATA.adminName || ''; }
+}
+$('stf').onsubmit = function (ev) {
+  ev.preventDefault();
+  var f = ev.target, b = f.querySelector('[type=submit]');
+  b.disabled = true; b.textContent = 'กำลังบันทึก…';
+  api('saveSettings', { settings: { SCHOOL_NAME: f.school.value, ADMIN_NAME: f.admin.value } }).then(function (r) {
+    b.disabled = false; b.textContent = 'บันทึก';
+    if (!r.ok) { toast(r.message, 'err'); return; }
+    DATA.school = r.school; DATA.adminName = r.adminName;
+    saveLocal(); renderHeader(); toast('บันทึกแล้ว');
+  }).catch(function (e) { b.disabled = false; b.textContent = 'บันทึก'; netError(e); });
 };
+$('openAccounts').onclick = function () { accountsSheet({}); };
+$('setPrintQr').onclick = function () { go('qr'); };
+$('setPrintGrade').onclick = function () { STATE.seg = 'grade'; go('summary'); };
+$('stuQr').onclick = function () { go('qr'); };
+$('qrBack').onclick = function () { go('students'); };
 
 /* =====================================================
    จัดการบัญชีผู้ใช้ (ผู้ดูแลระบบ)
@@ -1824,13 +1888,14 @@ function confirmSheetInline(text, yes) { if (window.confirm(text)) yes(); }
 /* =====================================================
    นำทาง
    ===================================================== */
-var VIEWS = ['scan', 'summary', 'tasks', 'students', 'qr'];
+var VIEWS = ['scan', 'summary', 'tasks', 'students', 'qr', 'settings'];
+var TAB_OF = { qr: 'students' }; // หน้าพิมพ์ QR อยู่ใต้เมนู "นักเรียน"
 function go(v) {
   if (v !== 'scan' && (camOn || camBusy)) stopCam(true);
   STATE.view = v;
   document.body.classList.toggle('wide', v === 'summary' && STATE.seg === 'grade');
   VIEWS.forEach(function (x) { show('view-' + x, x === v); });
-  document.querySelectorAll('.tabbar a').forEach(function (a) { a.classList.toggle('active', a.dataset.view === v); });
+  document.querySelectorAll('.tabbar a').forEach(function (a) { a.classList.toggle('active', a.dataset.view === (TAB_OF[v] || v)); });
   renderCurrent();
   if (v === 'scan' && STATE.task && STATE.camWanted && !camOn) startCam();
   window.scrollTo(0, 0);
@@ -1845,6 +1910,7 @@ function renderCurrent() {
   if (STATE.view === 'tasks') renderTasks();
   if (STATE.view === 'students') renderStudents();
   if (STATE.view === 'qr') renderQr();
+  if (STATE.view === 'settings') renderSettings();
 }
 $('tabbar').addEventListener('click', function (e) {
   var a = e.target.closest('a[data-view]');
@@ -1873,7 +1939,7 @@ function startApp() {
   show('tabbar');
   var mode = urlParam('mode'), task = urlParam('task');
   if (mode === 'scores') STATE.seg = 'grade';
-  var view = { summary: 'summary', scores: 'summary', new: 'tasks', tasks: 'tasks', students: 'students', manage: 'students', qr: 'qr' }[mode] || 'scan';
+  var view = { summary: 'summary', scores: 'summary', new: 'tasks', tasks: 'tasks', students: 'students', manage: 'students', qr: 'qr', settings: 'settings' }[mode] || 'scan';
   go(view);
   if (mode === 'new') taskForm(null);
   if (mode === 'accounts' && DATA.user && DATA.user.isSuper) {
@@ -1886,7 +1952,7 @@ function showSignup(r) {
   hide('tabbar'); VIEWS.forEach(function (x) { hide('view-' + x); });
   $('schoolName').textContent = 'เช็คการส่งงาน';
   $('byLine').textContent = 'ยังไม่มีบัญชีใช้งาน';
-  hide('syncPill'); hide('settingsBtn');
+  hide('syncPill');
   $('myUserId').value = r.userId || '';
   show('view-signup');
 }

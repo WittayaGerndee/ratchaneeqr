@@ -110,7 +110,12 @@ var API_ACTIONS = {
       return out;
     }
     out.registered = true;
-    return Object.assign(out, loadData_());
+    Object.assign(out, loadData_());
+    // ลิงก์ Google Sheet / Drive ของบัญชีนี้ (หน้า "ตั้งค่า")
+    out.sheetUrl = ss_().getUrl();
+    var folder = getSetting_('GOOGLE_DRIVE_FOLDER_ID', '');
+    out.driveUrl = folder ? 'https://drive.google.com/drive/folders/' + folder : '';
+    return out;
   },
 
   /** ผู้ใช้ที่ยังไม่มีบัญชี: ส่งคำขอพร้อม LINE ID + อีเมล ถึงผู้ดูแลระบบทาง LINE */
