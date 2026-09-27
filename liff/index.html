@@ -66,7 +66,7 @@
   .task-head .name { font-size: 1.15rem; font-weight: 700; line-height: 1.3; }
   .count { font-size: 2rem; font-weight: 700; line-height: 1; letter-spacing: -.5px; }
   .count small { font-size: 1rem; color: var(--muted); font-weight: 500; }
-  .stage { position: relative; background: #0b1220; border-radius: 20px; overflow: hidden; aspect-ratio: 1 / 1; margin-bottom: 12px; }
+  .stage { position: relative; background: #0b1220; border-radius: 20px; overflow: hidden; aspect-ratio: 4 / 3; margin-bottom: 12px; }
   #reader { position: absolute; inset: 0; }
   #reader video { width: 100% !important; height: 100% !important; object-fit: cover; }
   #reader img[alt="Info icon"], #reader__dashboard, #reader__header_message { display: none !important; }
@@ -113,8 +113,28 @@
   .seg button { border: 0; background: transparent; border-radius: 10px; padding: 8px; font-weight: 600; color: var(--muted); cursor: pointer; }
   .seg button.on { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
 
+  .score-setup { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-top: 10px; }
+  .score-setup .btn { min-height: 46px; }
+
+  /* ป๊อปอัพแจ้งสแกนซ้ำ */
+  .pop { position: fixed; left: 50%; top: 42%; transform: translate(-50%, -50%); z-index: 70; width: min(330px, 88vw);
+    background: #fff; border-radius: 22px; box-shadow: 0 24px 64px rgba(15,23,42,.35); padding: 22px 20px 18px; text-align: center; animation: pop .16s ease-out; }
+  @keyframes pop { from { transform: translate(-50%, -50%) scale(.85); opacity: 0; } }
+  .pop .ic { width: 60px; height: 60px; border-radius: 50%; background: #f59e0b; color: #fff; margin: 0 auto 10px; display: flex; align-items: center; justify-content: center; }
+  .pop .ic svg { width: 32px; height: 32px; }
+  .pop .t { font-weight: 700; font-size: 1.25rem; line-height: 1.3; } .pop .n { font-weight: 600; margin-top: 4px; } .pop .s { color: var(--muted); font-size: .88rem; }
+  .pop .btn { margin-top: 12px; }
+  .link-row { margin-bottom: 14px; } .link-row b { display: block; font-size: .92rem; margin-bottom: 4px; }
+  .link-row .input { font-size: .78rem; font-family: ui-monospace, monospace; min-height: 42px; }
+
+  /* สแกน: มือถือเรียงเป็นแถวเดียว */
+  #scanner { display: flex; flex-direction: column; }
+  #scanner.hidden { display: none !important; }
+  .scan-side { display: contents; }
+  #scanner .task-head { order: 1; } #scanner .stage { order: 2; } #scoreCard { order: 3; } #scanner .controls { order: 4; } #typeCard { order: 5; } #logCard { order: 6; }
+
   /* gradebook (ตารางคะแนน) — จอกว้างบนคอม / iPad */
-  body.wide main { max-width: 1280px; }
+  body.wide main, body.wide .appbar > .row { max-width: 1280px; }
   .gb-tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
   .gb-tools select { flex: 1 1 140px; width: auto; }
   .gb-wrap { overflow: auto; max-height: 70vh; margin-top: 12px; border: 1px solid var(--line); border-radius: 12px; }
@@ -165,6 +185,40 @@
     .card { box-shadow: none; padding: 0; margin: 0; }
     @page { size: A4; margin: 8mm; }
   }
+  /* ===== แท็บเล็ต / คอม ===== */
+  @media (min-width: 760px) {
+    body { padding-bottom: 104px; }
+    main { max-width: 980px; padding: 20px 24px 0; }
+    .appbar > .row { max-width: 980px; margin: 0 auto; }
+    .tabbar { left: 50%; right: auto; bottom: 14px; transform: translateX(-50%); width: min(620px, calc(100vw - 32px));
+      border: 1px solid var(--line); border-radius: 20px; box-shadow: 0 10px 30px rgba(15,23,42,.12); padding-bottom: 0; }
+    .tabbar a { font-size: .78rem; padding: 10px 0; }
+    .tap:hover, .btn:hover { filter: brightness(.98); } .tap:hover { background: #fafbfc; }
+    /* หน้าต่าง (sheet) เป็นกล่องกลางจอ */
+    .sheet-bg { align-items: center; padding: 24px; }
+    .sheet { max-width: 560px; border-radius: 20px; max-height: 86vh; padding: 22px 22px; }
+    .sheet .grab { display: none; }
+    /* เลือกงาน: การ์ด 2 คอลัมน์ */
+    #taskCards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    #taskCards .card { margin: 0; } #taskCards .empty { grid-column: 1 / -1; }
+    /* รายการงาน / นักเรียน 2 คอลัมน์ */
+    #taskList, #stuList { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 28px; }
+    #taskList .empty, #stuList .empty { grid-column: 1 / -1; }
+    #taskList .list-item:nth-last-child(2):nth-child(odd), #stuList .list-item:nth-last-child(2):nth-child(odd) { border-bottom: 0; }
+    /* สแกน: กล้องซ้าย · คะแนน + รายการล่าสุด ขวา */
+    #scanner { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 16px; align-items: start; }
+    #scanner > .task-head, #scanner > .stage, #scanner > .controls, #scanner > #typeCard { grid-column: 1; }
+    .scan-side { display: block; grid-column: 2; grid-row: 1 / span 6; position: sticky; top: 76px; }
+    .stage { aspect-ratio: auto; height: min(50vh, 460px); min-height: 300px; }
+    /* สรุป */
+    #sumBox .stats { gap: 12px; } .stat b { font-size: 1.9rem; }
+    .name-line { padding: 8px 0; }
+  }
+  @media (min-width: 1100px) {
+    main, .appbar > .row { max-width: 1100px; }
+    #taskCards { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  }
+
 </style>
 </head>
 <body>
@@ -242,13 +296,6 @@
         <div class="result gone" id="result"><div class="ic" id="rIc"></div><div class="grow"><div class="t ellipsis" id="rT"></div><div class="s ellipsis" id="rS"></div></div></div>
       </div>
 
-      <div class="card hidden" id="scoreCard" style="padding:12px 14px">
-        <div class="row between"><div class="grow"><div class="xs muted">ให้คะแนน · เต็ม <span id="scMax"></span></div>
-          <div class="ellipsis" style="font-weight:600" id="scName"></div></div>
-          <button class="btn sm ghost" id="scSkip">ข้าม</button></div>
-        <div id="scPad"></div>
-      </div>
-
       <div class="controls">
         <button class="btn" id="camToggle"><svg><use href="#i-pause"/></svg><span>หยุดกล้อง</span></button>
         <button class="btn" id="torchBtn" disabled><svg><use href="#i-flash"/></svg><span>ไฟฉาย</span></button>
@@ -259,9 +306,17 @@
           <button class="btn primary" id="typeGo">บันทึก</button></div>
       </div>
 
-      <div class="card log hidden" id="logCard">
-        <div class="row between"><h3 style="margin:0">ล่าสุด</h3><span class="small muted" id="logCount"></span></div>
-        <div id="logList"></div>
+      <div class="scan-side">
+        <div class="card hidden" id="scoreCard" style="padding:12px 14px">
+          <div class="row between"><div class="grow"><div class="xs muted" id="scHead"></div>
+            <div class="ellipsis" style="font-weight:600" id="scName"></div></div>
+            <button class="btn sm ghost" id="scSkip">ข้าม</button></div>
+          <div id="scPad"></div>
+        </div>
+        <div class="card log hidden" id="logCard">
+          <div class="row between"><h3 style="margin:0">ล่าสุด</h3><span class="small muted" id="logCount"></span></div>
+          <div id="logList"></div>
+        </div>
       </div>
     </div>
   </section>
@@ -292,7 +347,8 @@
   <!-- ===== งาน ===== -->
   <section id="view-tasks" class="hidden">
     <div class="row between" style="margin:4px 2px 10px"><h2 style="margin:0">งานทั้งหมด</h2>
-      <button class="btn sm primary" data-new-task><svg><use href="#i-plus"/></svg>งานใหม่</button></div>
+      <div class="row" style="gap:6px"><button class="btn sm" id="pcLinkBtn"><svg><use href="#i-copy"/></svg>ลิงก์เปิดบนคอม</button>
+      <button class="btn sm primary" data-new-task><svg><use href="#i-plus"/></svg>งานใหม่</button></div></div>
     <div class="card" style="padding:4px 16px"><div id="taskList"></div></div>
   </section>
 
@@ -340,6 +396,7 @@
 </nav>
 
 <div id="sheetHost"></div>
+<div id="popHost"></div>
 <div id="toastHost"></div>
 
 <!-- icons -->
@@ -595,24 +652,66 @@ function updateSync() {
   else setSync('ok', 'บันทึกครบแล้ว');
 }
 
-/* ---------------- เสียง / สั่น ---------------- */
-var audioCtx = null;
+/* ---------------- เสียง / สั่น ----------------
+   เสียง "ปี๊บ" แบบเครื่องยิงบาร์โค้ด: สร้างไฟล์ WAV คลื่นสี่เหลี่ยมในเครื่อง แล้วเล่นด้วย <audio>
+   (<audio> ยังดังบน iPhone แม้เปิดโหมดเงียบ ต่างจาก Web Audio) — ใช้ Web Audio เป็นสำรอง */
+var BEEPS = { ok: [[2700, 0, .12]], dup: [[1500, 0, .09], [1500, .16, .09]], err: [[420, 0, .14], [300, .18, .26]] };
+var SND = {}, audioCtx = null, soundUnlocked = false;
+function wavUrl(tones, vol) {
+  var sr = 22050, end = 0;
+  tones.forEach(function (t) { end = Math.max(end, t[1] + t[2]); });
+  var n = Math.ceil(sr * (end + .02)), buf = new ArrayBuffer(44 + n * 2), v = new DataView(buf);
+  function str(o, x) { for (var i = 0; i < x.length; i++) v.setUint8(o + i, x.charCodeAt(i)); }
+  str(0, 'RIFF'); v.setUint32(4, 36 + n * 2, true); str(8, 'WAVE'); str(12, 'fmt '); v.setUint32(16, 16, true);
+  v.setUint16(20, 1, true); v.setUint16(22, 1, true); v.setUint32(24, sr, true); v.setUint32(28, sr * 2, true);
+  v.setUint16(32, 2, true); v.setUint16(34, 16, true); str(36, 'data'); v.setUint32(40, n * 2, true);
+  for (var i = 0; i < n; i++) {
+    var t = i / sr, x = 0;
+    tones.forEach(function (tn) {
+      var dt = t - tn[1];
+      if (dt >= 0 && dt < tn[2]) x += (Math.sin(2 * Math.PI * tn[0] * dt) >= 0 ? 1 : -1) * Math.min(1, dt / .003, (tn[2] - dt) / .008);
+    });
+    v.setInt16(44 + i * 2, Math.max(-1, Math.min(1, x * vol)) * 32767, true);
+  }
+  return URL.createObjectURL(new Blob([buf], { type: 'audio/wav' }));
+}
+try { Object.keys(BEEPS).forEach(function (k) { SND[k] = new Audio(wavUrl(BEEPS[k], .35)); SND[k].preload = 'auto'; }); } catch (e) {}
+/** เบราว์เซอร์มือถือให้เล่นเสียงได้หลังผู้ใช้แตะจอครั้งแรก → เล่นแบบเงียบหนึ่งครั้งเพื่อปลดล็อก */
 function unlockAudio() {
   try { audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)(); if (audioCtx.state === 'suspended') audioCtx.resume(); } catch (e) {}
+  if (soundUnlocked) return;
+  soundUnlocked = true;
+  Object.keys(SND).forEach(function (k) {
+    var a = SND[k];
+    try {
+      a.muted = true;
+      var p = a.play();
+      var done = function () { a.pause(); a.currentTime = 0; a.muted = false; };
+      if (p && p.then) p.then(done, function () { a.muted = false; soundUnlocked = false; }); else done();
+    } catch (e) { a.muted = false; }
+  });
 }
 document.addEventListener('pointerdown', unlockAudio, { passive: true });
+document.addEventListener('touchend', unlockAudio, { passive: true });
+function webBeep(kind) {
+  if (!audioCtx) return;
+  BEEPS[kind].forEach(function (t) {
+    var o = audioCtx.createOscillator(), g = audioCtx.createGain(), at = audioCtx.currentTime + t[1];
+    o.type = 'square'; o.frequency.value = t[0];
+    g.gain.setValueAtTime(.12, at); g.gain.setValueAtTime(.12, at + t[2] - .01); g.gain.linearRampToValueAtTime(0, at + t[2]);
+    o.connect(g); g.connect(audioCtx.destination);
+    o.start(at); o.stop(at + t[2] + .02);
+  });
+}
 function feedback(kind) {
   try { if (navigator.vibrate) navigator.vibrate(kind === 'ok' ? 60 : [70, 50, 70]); } catch (e) {}
-  if (!audioCtx) return;
-  var tones = kind === 'ok' ? [[1400, 0, .09]] : kind === 'dup' ? [[700, 0, .09], [700, .14, .09]] : [[200, 0, .3]];
-  tones.forEach(function (t) {
-    var o = audioCtx.createOscillator(), g = audioCtx.createGain();
-    o.frequency.value = t[0];
-    g.gain.setValueAtTime(.3, audioCtx.currentTime + t[1]);
-    g.gain.exponentialRampToValueAtTime(.001, audioCtx.currentTime + t[1] + t[2]);
-    o.connect(g); g.connect(audioCtx.destination);
-    o.start(audioCtx.currentTime + t[1]); o.stop(audioCtx.currentTime + t[1] + t[2] + .02);
-  });
+  var a = SND[kind];
+  if (!a) { webBeep(kind); return; }
+  try {
+    a.currentTime = 0;
+    var p = a.play();
+    if (p && p.catch) p.catch(function () { webBeep(kind); });
+  } catch (e) { webBeep(kind); }
 }
 
 /* =====================================================
@@ -733,13 +832,18 @@ $('openExternal').onclick = function () {
 function hasLineScanner() {
   return !!(window.liff && CFG.LIFF_ID && liff.isInClient() && liff.isApiAvailable && liff.isApiAvailable('scanCodeV2'));
 }
+/** ตัวสแกนของ LINE เปิดทับหน้าจอ → ถ้ามีแผงให้คะแนน ให้รอครูกดคะแนน/ข้าม ก่อนเปิดตัวสแกนรอบถัดไป */
+var lineResume = false;
 function lineLoop() {
+  lineResume = false;
   liff.scanCodeV2().then(function (r) {
     if (!r || !r.value) return;
     handleCode(r.value);
-    setTimeout(lineLoop, 250);
+    if (scoreFor || $('popHost').innerHTML) lineResume = true;
+    else setTimeout(lineLoop, 250);
   }).catch(function () {});
 }
+function resumeLineScan() { if (lineResume) setTimeout(lineLoop, 350); }
 $('lineScanBtn').onclick = lineLoop;
 // ปิดกล้องเมื่อออกจากแอป เปิดใหม่เมื่อกลับมา
 document.addEventListener('visibilitychange', function () {
@@ -768,7 +872,8 @@ function record(raw) {
   if (!a || !DATA) return;
   var sid = parseStudent(raw), s = BY_ID[norm(sid)];
   var e = { id: uid(), aid: a.assignment_id, time: hhmmss(new Date()), code: sid || String(raw).slice(0, 30) };
-  closeScorePad();
+  closeScorePad(true);
+  closePop();
   if (!s) {
     e.state = 'err'; e.msg = 'ไม่พบรหัสนี้ในรายชื่อ';
     showResult('err', 'ไม่พบรหัส ' + e.code, 'เพิ่มนักเรียนได้ที่เมนู "นักเรียน"');
@@ -776,10 +881,13 @@ function record(raw) {
     Object.assign(e, { state: 'err', name: s.name, sid: s.id, cls: s.className, msg: 'ไม่ใช่ห้องที่สั่งงานนี้' });
     showResult('err', s.name, 'ห้อง ' + s.className + ' ไม่ได้รับงานนี้');
   } else if (subsOf(a.assignment_id)[norm(s.id)]) {
+    // ซ้ำ: แจ้งเป็นป๊อปอัพอย่างเดียว ไม่เพิ่มในรายการล่าสุด (กันสับสน)
     var prev = subsOf(a.assignment_id)[norm(s.id)];
-    Object.assign(e, { state: 'dup', name: s.name, sid: s.id, cls: s.className, msg: 'ส่งแล้ว ' + thDate(prev[0]), score: prev[3] });
-    showResult('dup', s.name + ' · ส่งแล้ว', 'บันทึกไว้เมื่อ ' + thDate(prev[0]) + (hasVal(prev[3]) ? ' · คะแนน ' + fmtScore(prev[3]) : ''));
-    if (hasScore(a)) openScorePad(a, s);
+    hideResult();
+    flashStage('dup');
+    feedback('dup');
+    dupPop(a, s, prev);
+    return;
   } else {
     var ts = new Date().toISOString();
     var late = !!(a.due_date && Date.now() > new Date(a.due_date).getTime());
@@ -789,8 +897,8 @@ function record(raw) {
     lsSet(LS_QUEUE, QUEUE); saveLocal();
     showResult('ok', s.name, s.id + ' · ' + s.className + (late ? ' · ส่งช้า' : ''));
     renderProgress();
-    if (hasScore(a)) openScorePad(a, s);
-    scheduleFlush(hasScore(a) ? 2500 : 500); // รอครูกดคะแนนก่อน จะได้ส่งขึ้นพร้อมกัน
+    var asking = openScorePad(a, s);
+    scheduleFlush(asking ? 2500 : 500); // รอครูกดคะแนนก่อน จะได้ส่งขึ้นพร้อมกัน
   }
   feedback(e.state);
   STATE.log.unshift(e);
@@ -804,12 +912,32 @@ function showResult(kind, title, sub) {
   r.className = 'result ' + kind;
   $('rIc').innerHTML = icon(kind === 'ok' ? 'check' : kind === 'dup' ? 'alert' : 'x');
   $('rT').textContent = title; $('rS').textContent = sub || '';
+  flashStage(kind);
+}
+function flashStage(kind) {
   var st = $('stage');
   st.classList.remove('flash-ok', 'flash-dup', 'flash-err');
   st.classList.add('flash-' + kind);
   clearTimeout(resultTimer);
   resultTimer = setTimeout(function () { st.classList.remove('flash-' + kind); }, 900);
 }
+
+/* ---- ป๊อปอัพแจ้งสแกนซ้ำ (ปิดเองใน 2.5 วินาที) ---- */
+var popTimer;
+function dupPop(a, s, prev) {
+  var scored = hasScore(a), v = prev[3];
+  $('popHost').innerHTML = '<div class="pop" role="alert"><div class="ic">' + icon('alert') + '</div>' +
+    '<div class="t">ส่งแล้ว (สแกนซ้ำ)</div><div class="n">' + esc(s.name) + '</div>' +
+    '<div class="s">' + esc(s.id) + ' · ' + esc(s.className) + ' · บันทึกไว้ ' + esc(thDate(prev[0])) + '</div>' +
+    (scored ? '<div class="s" style="margin-top:4px">คะแนน: <b style="color:var(--text)">' + (hasVal(v) ? esc(fmtScore(v)) + '/' + esc(a.max_score) : 'ยังไม่ให้') + '</b></div>' : '') +
+    '<div class="row" style="gap:8px">' + (scored ? '<button class="btn grow" id="popScore">' + (hasVal(v) ? 'แก้คะแนน' : 'ให้คะแนน') + '</button>' : '') +
+    '<button class="btn primary grow" id="popOk">ตกลง</button></div></div>';
+  $('popOk').onclick = function () { closePop(); resumeLineScan(); };
+  if ($('popScore')) $('popScore').onclick = function () { closePop(); openScorePad(a, s); };
+  clearTimeout(popTimer);
+  popTimer = setTimeout(function () { closePop(); resumeLineScan(); }, 2500);
+}
+function closePop() { clearTimeout(popTimer); $('popHost').innerHTML = ''; }
 function hideResult() { $('result').className = 'result gone'; }
 
 function renderLog() {
@@ -823,7 +951,7 @@ function renderLog() {
       '<div class="grow"><div class="ellipsis" style="font-weight:600">' + esc(e.name || e.code) + '</div>' +
       '<div class="xs muted ellipsis">' + esc(e.time) + (e.sid ? ' · ' + esc(e.sid) + ' · ' + esc(e.cls) : '') + (e.late ? ' · ส่งช้า' : '') +
       (e.msg ? ' · ' + esc(e.msg) : '') + (e.state === 'ok' && e.pending ? ' · <span style="color:var(--warn)">รอบันทึก</span>' : '') + '</div></div>' +
-      (hasScore(findTask(e.aid)) && (e.state === 'ok' || e.state === 'dup') ? scoreChip(e.aid, e.sid) : '') +
+      (e.state === 'ok' && hasScore(findTask(e.aid)) ? scoreChip(e.aid, e.sid) : '') +
       (e.state === 'ok' ? '<button class="btn sm ghost" data-undo="' + e.id + '" aria-label="ยกเลิก">' + icon('undo') + '</button>' : '') + '</div>';
   }).join('');
 }
@@ -868,11 +996,44 @@ function bindScorePad(root, max, onPick) {
   return inp;
 }
 var scoreFor = null; // { aid, sid } ที่แผงคะแนนหน้าสแกนกำลังแสดง
+var LS_NOSCORE = 'rq_noscore';
+function noScoreTasks() { return lsGet(LS_NOSCORE) || {}; }
+/**
+ * แผงให้คะแนนใต้กล้อง — งานที่ยังไม่ตั้งคะแนนเต็ม จะถามคะแนนเต็มก่อน (เลือก "ไม่ให้คะแนนงานนี้" ได้)
+ * @return {boolean} true = เปิดแผงอยู่
+ */
 function openScorePad(a, s) {
+  if (!hasScore(a)) {
+    if (noScoreTasks()[a.assignment_id]) return false;
+    scoreFor = { aid: a.assignment_id, sid: s.id };
+    $('scHead').textContent = 'ให้คะแนนงานนี้ไหม? เลือกคะแนนเต็มก่อน (ตั้งครั้งเดียว)';
+    $('scName').textContent = s.name + ' · ' + s.id;
+    $('scPad').innerHTML = '<div class="score-setup">' + [5, 10, 20, 50, 100].map(function (n) { return '<button class="btn" type="button" data-max="' + n + '">' + n + '</button>'; }).join('') + '</div>' +
+      '<div class="row" style="margin-top:8px"><input class="input grow" id="maxInput" type="number" inputmode="decimal" min="1" max="1000" placeholder="คะแนนเต็มอื่น ๆ"><button class="btn primary" type="button" data-max-ok>ตั้งค่า</button></div>' +
+      '<button class="btn ghost sm block" type="button" data-no-score style="margin-top:6px">ไม่ให้คะแนนงานนี้ (บันทึกแค่การส่ง)</button>';
+    $('scPad').onclick = function (ev) {
+      var b = ev.target.closest('[data-max]');
+      if (b) { setMaxScore(a, Number(b.dataset.max), s); return; }
+      if (ev.target.closest('[data-max-ok]')) {
+        var n = Number($('maxInput').value);
+        if (!(n > 0 && n <= 1000)) { toast('คะแนนเต็มต้องเป็นตัวเลข 1–1000', 'err'); return; }
+        setMaxScore(a, n, s);
+        return;
+      }
+      if (ev.target.closest('[data-no-score]')) {
+        var ns = noScoreTasks(); ns[a.assignment_id] = true; lsSet(LS_NOSCORE, ns);
+        toast('งานนี้บันทึกแค่การส่ง — ตั้งคะแนนเต็มภายหลังได้ที่เมนู "งาน" → แก้ไข', '', 3500);
+        closeScorePad();
+      }
+    };
+    show('scoreCard');
+    revealScorePad();
+    return true;
+  }
   var max = Number(a.max_score), cur = (subsOf(a.assignment_id)[norm(s.id)] || [])[3];
   scoreFor = { aid: a.assignment_id, sid: s.id };
+  $('scHead').textContent = 'ให้คะแนน · เต็ม ' + max;
   $('scName').textContent = s.name + ' · ' + s.id;
-  $('scMax').textContent = max;
   $('scPad').innerHTML = scorePadHtml(max, cur);
   bindScorePad($('scPad'), max, function (v) {
     setScore(a.assignment_id, s.id, v);
@@ -881,9 +1042,35 @@ function openScorePad(a, s) {
     closeScorePad();
   });
   show('scoreCard');
+  revealScorePad();
+  return true;
 }
-function closeScorePad() { scoreFor = null; hide('scoreCard'); }
-$('scSkip').onclick = closeScorePad;
+/** มือถือ: เลื่อนให้เห็นแผงคะแนน (อยู่ใต้กล้อง) */
+function revealScorePad() {
+  if (window.innerWidth >= 760) return;
+  var r = $('scoreCard').getBoundingClientRect(), bottom = window.innerHeight - 84;
+  if (r.bottom > bottom) window.scrollBy({ top: Math.min(r.bottom - bottom, r.top - 70), behavior: 'smooth' });
+}
+/** ตั้งคะแนนเต็มให้งาน แล้วเปิดปุ่มคะแนนของนักเรียนที่เพิ่งสแกน */
+function setMaxScore(a, max, s) {
+  $('scPad').innerHTML = '<div class="small muted" style="padding:14px 0">กำลังตั้งคะแนนเต็ม ' + max + '…</div>';
+  api('saveAssignment', { assignment: { assignment_id: a.assignment_id, subject: a.subject, assignment_name: a.assignment_name, class_target: a.class_target, due_date: localInput(a.due_date), status: a.status, max_score: max } }).then(function (r) {
+    if (!r.ok) { toast(r.message, 'err'); closeScorePad(); return; }
+    var i = DATA.assignments.findIndex(function (x) { return norm(x.assignment_id) === norm(r.assignment.assignment_id); });
+    if (i >= 0) DATA.assignments[i] = r.assignment;
+    if (STATE.task && norm(STATE.task.assignment_id) === norm(r.assignment.assignment_id)) STATE.task = r.assignment;
+    saveLocal();
+    toast('ตั้งคะแนนเต็ม ' + max + ' แล้ว');
+    if (scoreFor && norm(scoreFor.aid) === norm(a.assignment_id) && norm(scoreFor.sid) === norm(s.id)) openScorePad(r.assignment, s);
+    renderLog();
+  }).catch(function (e) { closeScorePad(); netError(e); });
+}
+/** keepLine = true: ปิดเพราะมีการสแกนใหม่ (ไม่ต้องเปิดตัวสแกน LINE ต่อ) */
+function closeScorePad(keepLine) {
+  scoreFor = null; hide('scoreCard');
+  if (!keepLine) resumeLineScan();
+}
+$('scSkip').onclick = function () { closeScorePad(); };
 
 /** ให้คะแนน: แสดงผลทันที แล้วเข้าคิวบันทึก (แนบไปกับรายการส่งงานที่ยังไม่ขึ้น server ถ้ามี) */
 var inflight = {};
@@ -999,7 +1186,7 @@ function flush() {
       }
       if (x.ok || x.code === 'DUPLICATE') {
         if (m[k]) { m[k][1] = x.submission_id; if (x.ok) m[k][2] = !!x.isLate; if (x.score !== undefined && !QUEUE.some(function (o) { return o.scoreOnly && norm(o.assignmentId) === norm(q.assignmentId) && norm(o.studentId) === k; })) m[k][3] = x.score; }
-        if (e) { e.pending = false; e.subId = x.submission_id; if (!x.ok) { e.state = 'dup'; e.msg = 'มีคนบันทึกไว้แล้ว'; } }
+        if (e) { e.pending = false; e.subId = x.submission_id; if (!x.ok) { STATE.log = STATE.log.filter(function (l) { return l !== e; }); toast(e.name + ' ส่งแล้ว (มีคนบันทึกไว้ก่อน)', 'warn'); } }
       } else {
         delete m[k];
         if (e) { e.state = 'err'; e.pending = false; e.msg = x.message; }
@@ -1149,7 +1336,11 @@ function renderGradebook() {
   if (!GB) { loadGradebook(); return; }
   var cls = classNames(), cur = $('gbClass').value;
   $('gbClass').innerHTML = '<option value="">ทุกห้อง</option>' + cls.map(function (c) { return '<option>' + esc(c) + '</option>'; }).join('');
-  $('gbClass').value = cls.indexOf(cur) >= 0 ? cur : (cur === '' && $('gbClass').dataset.touched ? '' : (cls[0] || ''));
+  // ค่าเริ่มต้น: ห้องแรกที่มีงาน (ห้องที่ยังไม่มีงานจะได้ตารางว่าง)
+  var withWork = cls.filter(function (c) {
+    return students().some(function (s) { return s.className === c && GB.assignments.some(function (a) { return isTarget(findTask(a.assignment_id) || a, s); }); });
+  });
+  $('gbClass').value = cls.indexOf(cur) >= 0 ? cur : (cur === '' && $('gbClass').dataset.touched ? '' : (withWork[0] || ''));
   var subjects = {};
   GB.assignments.forEach(function (a) { if (a.subject) subjects[a.subject] = true; });
   var sj = $('gbSubject').value;
@@ -1233,6 +1424,39 @@ $('gbCsv').onclick = function () {
 $('gbPrint').onclick = function () { show('gbTitle'); window.print(); hide('gbTitle'); };
 
 /* =====================================================
+   ลิงก์เปิดบนคอม / iPad
+   ===================================================== */
+function appLink(params) {
+  var base = CFG.LIFF_ID ? 'https://liff.line.me/' + CFG.LIFF_ID : location.origin + location.pathname;
+  var qs = Object.keys(params || {}).map(function (k) { return k + '=' + encodeURIComponent(params[k]); }).join('&');
+  return base + (qs ? '?' + qs : '');
+}
+function linkSheet(a) {
+  var rows = [['ตารางคะแนนทุกงาน', appLink({ mode: 'scores' })]];
+  if (a) rows.unshift(['สรุปงาน "' + a.assignment_name + '"', appLink({ mode: 'summary', task: a.assignment_id })]);
+  rows.push(['สรุปการส่งงาน', appLink({ mode: 'summary' })], ['หน้าหลัก (สแกน / จัดการงาน)', appLink()]);
+  openSheet('<h2>เปิดบนคอม / iPad</h2><p class="small muted" style="margin-top:-4px">คัดลอกลิงก์ แล้วเปิดใน Chrome / Safari บนคอมหรือ iPad → เข้าสู่ระบบด้วย LINE บัญชีเดียวกับมือถือ (บนคอมสแกน QR เข้าสู่ระบบด้วยมือถือได้)</p>' +
+    rows.map(function (r, i) {
+      return '<div class="link-row"><b>' + esc(r[0]) + '</b><div class="row" style="gap:6px"><input class="input grow" readonly value="' + esc(r[1]) + '" data-link="' + i + '">' +
+        '<button class="btn primary" type="button" data-copy="' + i + '">' + icon('copy') + 'คัดลอก</button></div></div>';
+    }).join(''), function (sh) {
+      sh.addEventListener('click', function (ev) {
+        var b = ev.target.closest('[data-copy]'), inp = ev.target.closest('[data-link]');
+        if (inp) inp.select();
+        if (!b) return;
+        copyText(rows[Number(b.dataset.copy)][1]).then(function () { b.innerHTML = icon('check') + 'คัดลอกแล้ว'; toast('คัดลอกลิงก์แล้ว — วางในแชท LINE / อีเมล แล้วเปิดบนคอม'); });
+      });
+    });
+}
+$('pcLinkBtn').onclick = function () { linkSheet(null); };
+function openSummary(aid) {
+  $('sumSel').innerHTML = '<option value="' + esc(aid) + '"></option>';
+  $('sumSel').value = aid;
+  STATE.seg = 'task';
+  go('summary');
+}
+
+/* =====================================================
    งาน
    ===================================================== */
 function renderTasks() {
@@ -1255,7 +1479,8 @@ $('taskList').addEventListener('click', function (e) {
     '<div style="display:grid;gap:8px">' +
     (open ? '<button class="btn primary lg" data-a="scan">' + icon('scan') + 'สแกนงานนี้</button>' : '') +
     '<button class="btn lg" data-a="summary">' + icon('chart') + 'ดูสรุป / คนที่ยังไม่ส่ง</button>' +
-    '<button class="btn lg" data-a="edit">แก้ไข</button>' +
+    '<button class="btn lg" data-a="edit">แก้ไข' + (hasScore(a) ? ' (คะแนนเต็ม ' + esc(a.max_score) + ')' : ' / ตั้งคะแนนเต็ม') + '</button>' +
+    '<button class="btn lg" data-a="link">' + icon('copy') + 'คัดลอกลิงก์เปิดบนคอม</button>' +
     '<button class="btn lg" data-a="toggle">' + (open ? 'ปิดรับงาน' : 'เปิดรับอีกครั้ง') + '</button>' +
     (p.done ? '' : '<button class="btn lg danger" data-a="del">ลบงาน</button>') + '</div>', function (sh) {
       sh.addEventListener('click', function (ev) {
@@ -1264,7 +1489,8 @@ $('taskList').addEventListener('click', function (e) {
         var act = x.dataset.a;
         closeSheet();
         if (act === 'scan') selectTask(a.assignment_id, true);
-        else if (act === 'summary') { $('sumSel').innerHTML = '<option value="' + esc(a.assignment_id) + '"></option>'; $('sumSel').value = a.assignment_id; STATE.seg = 'task'; go('summary'); }
+        else if (act === 'summary') openSummary(a.assignment_id);
+        else if (act === 'link') linkSheet(a);
         else if (act === 'edit') taskForm(a);
         else if (act === 'toggle') saveTask({ assignment_id: a.assignment_id, subject: a.subject, assignment_name: a.assignment_name, class_target: a.class_target, due_date: localInput(a.due_date), status: open ? 'CLOSED' : 'OPEN' });
         else if (act === 'del') confirmSheet('ลบงานนี้?', a.assignment_name, 'ลบ', true).then(function (y) {
@@ -1642,7 +1868,7 @@ function startApp() {
   if (mode === 'accounts' && DATA.user && DATA.user.isSuper) {
     accountsSheet({ lid: urlParam('lid'), email: urlParam('email'), name: urlParam('name'), school: urlParam('school') });
   }
-  if (task && findTask(task)) selectTask(task, false);
+  if (task && findTask(task)) { if (view === 'summary') openSummary(task); else selectTask(task, false); }
 }
 function showSignup(r) {
   DATA = null;
