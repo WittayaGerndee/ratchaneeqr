@@ -12,6 +12,7 @@ function makeSheet(name){ const data=[]; return {
     getValues(){ const out=[]; for(let i=0;i<nr;i++){const row=[];for(let j=0;j<nc;j++){const v=(data[r-1+i]||[])[col-1+j];row.push(v===undefined?'':v);}out.push(row);}return out;},
     setValues(v){ for(let i=0;i<v.length;i++){ data[r-1+i]=data[r-1+i]||[]; for(let j=0;j<v[i].length;j++) data[r-1+i][col-1+j]=v[i][j]; } return this;},
     setValue(v){ data[r-1]=data[r-1]||[]; data[r-1][col-1]=v; return this;},
+    clearContent(){ for(let i=0;i<nr;i++){ if(data[r-1+i]) for(let j=0;j<nc;j++) data[r-1+i][col-1+j]=''; } return this;},
     setFontWeight(){return this}, setBackground(){return this}, setNumberFormat(){return this}};},
   getDataRange(){ return this.getRange(1,1,Math.max(data.length,1),Math.max(this.getLastColumn(),1)); },
   appendRow(row){ data.push(row.slice()); }, deleteRow(n){ data.splice(n-1,1); }, setFrozenRows(){}, getMaxRows(){ return Math.max(data.length, 1000); }
@@ -168,6 +169,13 @@ assert(call('bootstrap').subjects.some(x=>x.name==='วิชาใหม่จ�
 call('saveAssignment', {assignment:{assignment_id:SC, subject:'ไทย', assignment_name:'ใบงานมีคะแนน', class_target:'ป.4/5', status:'CLOSED'}});
 r = call('submitBatch', {items:[{cid:'s8', studentId:'0001', assignmentId:SC, scoreOnly:true, score:6}]});
 assert(r.results[0].ok && subRow('0001').score===6, 'can score after assignment closed');
+// delete assignment with submissions: needs force, removes its submissions only
+const beforeSubs = R("readTable_('Submissions').length");
+const scCount = R(`readTable_('Submissions').filter(function(x){return x.assignment_id==='${SC}'}).length`);
+r = call('deleteAssignment', {assignmentId:SC});
+assert(!r.ok && r.code==='HAS_SUBMISSIONS' && r.count===scCount, 'delete used assignment needs confirmation (count '+scCount+')');
+r = call('deleteAssignment', {assignmentId:SC, force:true});
+assert(r.ok && r.removedSubmissions===scCount && !R(`getAssignment_('${SC}')`) && R("readTable_('Submissions').length")===beforeSubs-scCount, 'forced delete removes assignment + its submissions only');
 r = call('saveSettings', {settings:{SCHOOL_NAME:'โรงเรียนอนุบาลศรีสุทโธ', ADMIN_NAME:'ครูรัชนี', EVIL:'x'}});
 assert(r.ok && r.school==='โรงเรียนอนุบาลศรีสุทโธ' && r.adminName==='ครูรัชนี' && !R("findOne_('Settings','key','EVIL')"), 'admin saves settings (whitelisted keys)');
 r = call('bootstrap');

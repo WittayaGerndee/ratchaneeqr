@@ -243,15 +243,45 @@ var API_ACTIONS = {
     return { ok: true, school: getSetting_('SCHOOL_NAME', ''), adminName: getSetting_('ADMIN_NAME', '') };
   },
 
+  /**
+   * ลบใบงาน — ถ้ามีการส่งแล้ว ต้องยืนยัน (force) และรายการส่ง/คะแนนของใบงานนี้จะถูกลบด้วย
+   */
   deleteAssignment: function (b, actor) {
     var aid = normId_(b.assignmentId);
-    var used = readTable_('Submissions').some(function (r) { return normId_(r.assignment_id) === aid; });
-    if (used) return { ok: false, message: 'งานนี้มีการส่งแล้ว ลบไม่ได้ — ใช้ "ปิดรับ" แทน' };
+    var used = readTable_('Submissions').filter(function (r) { return normId_(r.assignment_id) === aid; }).length;
+    if (used && !b.force) {
+      return { ok: false, code: 'HAS_SUBMISSIONS', count: used, message: 'ใบงานนี้มีการส่งแล้ว ' + used + ' คน — ยืนยันการลบเพื่อลบรายการส่งและคะแนนด้วย' };
+    }
+    var lock = LockService.getScriptLock();
+    lock.waitLock(20000);
+    var removed = 0;
+    try {
+      removed = deleteSubmissionsOf_(aid);
+    } finally {
+      lock.releaseLock();
+    }
     deleteRecord_('Assignments', b.assignmentId);
-    log_('DELETE_ASSIGNMENT', { line_user_id: actor.userId, result: b.assignmentId });
-    return { ok: true };
+    log_('DELETE_ASSIGNMENT', { line_user_id: actor.userId, result: b.assignmentId + (removed ? ' +' + removed + ' submissions' : '') });
+    return { ok: true, removedSubmissions: removed };
   }
 };
+
+/** ลบรายการส่งงานทั้งหมดของใบงาน (อ่าน/เขียนทั้งแผ่นครั้งเดียว) — ผู้เรียกถือ lock */
+function deleteSubmissionsOf_(aid) {
+  var sh = sheet_('Submissions'), last = sh.getLastRow();
+  if (last < 2) return 0;
+  var hs = headers_('Submissions'), col = hs.indexOf('assignment_id');
+  var range = sh.getRange(2, 1, last - 1, hs.length), vals = range.getValues();
+  var keep = vals.filter(function (r) { return normId_(r[col]) !== normId_(aid); });
+  var removed = vals.length - keep.length;
+  if (!removed) return 0;
+  range.clearContent();
+  if (keep.length) {
+    setTextFormat_(sh, hs, 2, keep.length);
+    sh.getRange(2, 1, keep.length, hs.length).setValues(keep);
+  }
+  return removed;
+}
 
 /** ข้อมูลทั้งหมดสำหรับหน้า LIFF (ส่งแบบกระชับเพื่อให้โหลดเร็ว) */
 function loadData_() {
