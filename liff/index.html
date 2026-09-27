@@ -108,6 +108,14 @@
   .zebra > .list-item:nth-child(even), .zebra > .name-line:nth-child(even) { background: var(--zebra); }
   .zebra > .list-item.tap:hover { background: var(--accent-weak); }
   .zebra > .room-title { padding: 0 10px; }
+  /* แบ่งหน้า */
+  .pager { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); font-size: .85rem; color: var(--muted); }
+  .pager select { width: auto; min-height: 34px; padding: 4px 8px; border-radius: 10px; }
+  .pager .pg-btns { display: flex; gap: 4px; flex-wrap: wrap; }
+  .pager .pg-btns .btn { min-width: 36px; min-height: 36px; padding: 4px 8px; border-radius: 10px; font-size: .85rem; }
+  .pager .pg-btns .btn.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .pager .gap { padding: 0 2px; align-self: center; }
+  .id-badge { font-family: ui-monospace, monospace; font-size: .72rem; padding: 2px 7px; border-radius: 6px; background: #eef2f7; color: #475569; white-space: nowrap; }
   .task-prog { width: 110px; flex: none; text-align: right; font-size: .82rem; color: var(--muted); }
   .task-prog b { color: var(--text); font-size: .95rem; } .task-prog .bar { height: 6px; margin-top: 4px; }
   .name-line:last-child { border-bottom: 0; }
@@ -358,6 +366,7 @@
       </div>
       <h3 class="hidden" id="gbTitle" style="margin:0"></h3>
       <div class="gb-wrap"><table class="gb" id="gbTable"></table></div>
+      <div id="gbPager" class="no-print"></div>
       <p class="xs muted" style="margin:8px 0 0">ตัวเลข = คะแนน · ✓ = ส่งแล้ว (ยังไม่ให้คะแนน) · – = ยังไม่ส่ง · <span style="color:var(--warn)">•</span> = ส่งช้า · <span style="color:#94a3b8">·</span> = ไม่ได้สั่งงานนี้ให้ห้องนี้ · แตะช่องที่ส่งแล้วเพื่อให้/แก้คะแนน</p>
     </div>
   </section>
@@ -366,7 +375,12 @@
   <section id="view-tasks" class="hidden">
     <div class="row between" style="margin:4px 2px 10px"><h2 style="margin:0">งานทั้งหมด</h2>
       <button class="btn sm primary" data-new-task><svg><use href="#i-plus"/></svg>งานใหม่</button></div>
-    <div class="card" style="padding:8px 16px"><div id="taskList" class="zebra"></div></div>
+    <div class="card" style="padding:12px 16px">
+      <div class="row"><input class="input grow" id="taskSearch" type="search" placeholder="ค้นหา ชื่องาน / วิชา / รหัสงาน (เช่น HW003)" autocomplete="off">
+        <select class="input" id="taskStatus" style="width:auto"><option value="">ทั้งหมด</option><option value="OPEN">เปิดรับ</option><option value="CLOSED">ปิดรับ</option></select></div>
+      <div id="taskList" class="zebra" style="margin-top:8px"></div>
+      <div id="taskPager"></div>
+    </div>
   </section>
 
   <!-- ===== นักเรียน ===== -->
@@ -377,6 +391,7 @@
     <div class="card" style="padding:12px 16px 4px">
       <div class="row"><select class="input" style="max-width:42%" id="stuClass"></select><input class="input grow" id="stuSearch" placeholder="ค้นหารหัส / ชื่อ"></div>
       <div id="stuList" class="zebra" style="margin-top:8px"></div>
+      <div id="stuPager" style="padding-bottom:8px"></div>
     </div>
   </section>
 
@@ -676,6 +691,50 @@ function progressOf(a) {
   var m = subsOf(a.assignment_id), t = targetsOf(a);
   return { target: t.length, done: t.filter(function (s) { return m[norm(s.id)]; }).length };
 }
+/* ---------- แบ่งหน้า (ใช้ร่วมกันทุกตาราง/รายการ) ---------- */
+var PAGE_SIZES = [15, 25, 35, 50, 100];
+var PAGER = lsGet('rq_pager') || {}; // { key: { size } } จำขนาดหน้าไว้ในเครื่อง
+var PAGE = {};                         // { key: หน้าปัจจุบัน }
+function pageSize(key) { var n = Number((PAGER[key] || {}).size); return PAGE_SIZES.indexOf(n) >= 0 ? n : PAGE_SIZES[0]; }
+function resetPage(key) { PAGE[key] = 1; }
+/** ตัดรายการเฉพาะหน้าปัจจุบัน แล้ววาดปุ่มแบ่งหน้าลงใน hostId (ซ่อนเมื่อมีไม่เกินหน้าเดียวของขนาดเล็กสุด) */
+function paginate(key, list, hostId) {
+  var size = pageSize(key), total = list.length, pages = Math.max(1, Math.ceil(total / size));
+  var page = Math.min(Math.max(1, PAGE[key] || 1), pages);
+  PAGE[key] = page;
+  var start = (page - 1) * size, end = Math.min(start + size, total);
+  var host = $(hostId);
+  if (total <= PAGE_SIZES[0]) host.innerHTML = '';
+  else {
+    var nums = [], last = 0;
+    for (var i = 1; i <= pages; i++) if (i === 1 || i === pages || Math.abs(i - page) <= 1) nums.push(i);
+    host.innerHTML = '<div class="pager" data-pager="' + key + '">' +
+      '<label class="row" style="gap:6px">แสดง <select data-psize>' + PAGE_SIZES.map(function (n) { return '<option' + (n === size ? ' selected' : '') + '>' + n + '</option>'; }).join('') + '</select> ต่อหน้า</label>' +
+      '<span>' + (start + 1) + '–' + end + ' จาก ' + total + '</span>' +
+      '<div class="pg-btns"><button class="btn" data-pg="' + (page - 1) + '"' + (page === 1 ? ' disabled' : '') + ' aria-label="ก่อนหน้า">‹</button>' +
+      nums.map(function (n) { var gap = n - last > 1 ? '<span class="gap">…</span>' : ''; last = n; return gap + '<button class="btn' + (n === page ? ' on' : '') + '" data-pg="' + n + '">' + n + '</button>'; }).join('') +
+      '<button class="btn" data-pg="' + (page + 1) + '"' + (page === pages ? ' disabled' : '') + ' aria-label="ถัดไป">›</button></div></div>';
+  }
+  return list.slice(start, end);
+}
+document.addEventListener('click', function (e) {
+  var b = e.target.closest('[data-pager] [data-pg]');
+  if (!b || b.disabled) return;
+  var key = b.closest('[data-pager]').dataset.pager;
+  PAGE[key] = Number(b.dataset.pg);
+  renderCurrent();
+  var top = b.closest('.card');
+  if (top && top.getBoundingClientRect().top < 0) top.scrollIntoView({ block: 'start' });
+});
+document.addEventListener('change', function (e) {
+  var sel = e.target.closest('[data-pager] [data-psize]');
+  if (!sel) return;
+  var key = sel.closest('[data-pager]').dataset.pager;
+  PAGER[key] = { size: Number(sel.value) }; lsSet('rq_pager', PAGER);
+  resetPage(key);
+  renderCurrent();
+});
+
 /** งานที่ให้คะแนน = ตั้งคะแนนเต็มไว้ */
 function hasScore(a) { return !!(a && Number(a.max_score) > 0); }
 function hasVal(v) { return v !== '' && v != null; }
@@ -777,7 +836,7 @@ function renderTaskCards() {
   $('taskCards').innerHTML = list.length ? list.map(function (a) {
     var p = progressOf(a), pct = p.target ? Math.round(p.done / p.target * 100) : 0;
     return '<div class="card tap" data-pick="' + esc(a.assignment_id) + '" style="padding:14px 16px">' +
-      '<div class="row between"><div class="grow"><div style="font-weight:600" class="ellipsis">' + esc(a.assignment_name) + '</div>' +
+      '<div class="row between"><div class="grow"><div class="row" style="gap:6px"><span class="id-badge">' + esc(a.assignment_id) + '</span><b class="ellipsis">' + esc(a.assignment_name) + '</b></div>' +
       '<div class="small muted ellipsis">' + esc(a.subject) + ' · ' + esc(targetLabel(a)) + (a.due_date ? ' · ส่ง ' + esc(thDate(a.due_date)) : '') + '</div></div>' +
       '<div style="text-align:right"><b>' + p.done + '</b><span class="muted">/' + p.target + '</span>' + (a.is_overdue ? '<div><span class="badge warn">เลยกำหนด</span></div>' : '') + '</div></div>' +
       '<div class="bar" style="margin-top:10px"><i style="width:' + pct + '%"></i></div></div>';
@@ -1288,7 +1347,7 @@ function renderSummary() {
   var cur = $('sumSel').value || (STATE.task && STATE.task.assignment_id) || (openTasks()[0] || list[0]).assignment_id;
   $('sumSel').innerHTML = list.map(function (a) {
     var p = progressOf(a);
-    return '<option value="' + esc(a.assignment_id) + '">' + esc(a.assignment_name + ' · ' + a.subject + ' (' + p.done + '/' + p.target + ')' + (a.status !== 'OPEN' ? ' · ปิดรับ' : '')) + '</option>';
+    return '<option value="' + esc(a.assignment_id) + '">' + esc(a.assignment_id + ' · ' + a.assignment_name + ' · ' + a.subject + ' (' + p.done + '/' + p.target + ')' + (a.status !== 'OPEN' ? ' · ปิดรับ' : '')) + '</option>';
   }).join('');
   var a = findTask(cur) || list[0];
   $('sumSel').value = a.assignment_id;
@@ -1416,11 +1475,12 @@ function renderGradebook() {
 
   var md = gbModel();
   $('gbTitle').textContent = 'ตารางคะแนน' + (md.subj ? ' · ' + md.subj : '') + (md.cls ? ' · ' + md.cls : '') + ' · ' + (DATA.school || '');
-  if (!md.rows.length || !md.cols.length) { $('gbTable').innerHTML = '<tbody><tr><td class="empty" style="border:0">' + (md.rows.length ? 'ยังไม่มีงานของห้องนี้' : 'ยังไม่มีนักเรียน') + '</td></tr></tbody>'; return; }
+  if (!md.rows.length || !md.cols.length) { $('gbPager').innerHTML = ''; $('gbTable').innerHTML = '<tbody><tr><td class="empty" style="border:0">' + (md.rows.length ? 'ยังไม่มีงานของห้องนี้' : 'ยังไม่มีนักเรียน') + '</td></tr></tbody>'; return; }
   var head = '<thead><tr><th class="c-id">รหัส</th><th class="c-name">ชื่อ</th>' + (md.cls ? '' : '<th>ห้อง</th>') + md.cols.map(function (a) {
-    return '<th title="' + esc(a.subject + ' · ' + a.assignment_name) + '">' + esc(a.assignment_name) + '<div class="xs muted">' + (md.subj ? '' : esc(a.subject) + ' · ') + (hasScore(a) ? 'เต็ม ' + esc(a.max_score) : 'ไม่มีคะแนน') + '</div></th>';
+    return '<th title="' + esc(a.assignment_id + ' · ' + a.subject + ' · ' + a.assignment_name) + '"><div class="xs muted">' + esc(a.assignment_id) + '</div>' + esc(a.assignment_name) + '<div class="xs muted">' + (md.subj ? '' : esc(a.subject) + ' · ') + (hasScore(a) ? 'เต็ม ' + esc(a.max_score) : 'ไม่มีคะแนน') + '</div></th>';
   }).join('') + '<th>ส่งแล้ว</th><th>คะแนนรวม</th><th>%</th></tr></thead>';
-  var body = md.rows.map(function (s) {
+  var pageRows = STATE.gbPrintAll ? md.rows : paginate('grade', md.rows, 'gbPager');
+  var body = pageRows.map(function (s) {
     var sent = 0, target = 0, sum = 0, full = 0;
     var tds = md.cols.map(function (a) {
       if (!isTarget(a, s)) return '<td class="na" title="ไม่ได้สั่งงานนี้ให้ห้องนี้">·</td>';
@@ -1438,8 +1498,8 @@ function renderGradebook() {
   }).join('');
   $('gbTable').innerHTML = head + '<tbody>' + body + '</tbody>';
 }
-$('gbClass').onchange = function () { this.dataset.touched = '1'; renderGradebook(); };
-$('gbSubject').onchange = renderGradebook;
+$('gbClass').onchange = function () { this.dataset.touched = '1'; resetPage('grade'); renderGradebook(); };
+$('gbSubject').onchange = function () { resetPage('grade'); renderGradebook(); };
 $('gbRefresh').onclick = function () {
   var b = this; b.disabled = true;
   Promise.all([refresh(), loadGradebook()]).then(function () { b.disabled = false; toast('อัปเดตแล้ว'); }, function (e) { b.disabled = false; toast(e.message, 'err'); });
@@ -1488,7 +1548,12 @@ $('gbCsv').onclick = function () {
   setTimeout(function () { URL.revokeObjectURL(a.href); }, 5000);
   if (window.liff && CFG.LIFF_ID && liff.isInClient()) toast('ถ้าดาวน์โหลดในแอป LINE ไม่ได้ ใช้ "คัดลอกไป Excel" แทน', 'warn', 4000);
 };
-$('gbPrint').onclick = function () { show('gbTitle'); window.print(); hide('gbTitle'); };
+/** พิมพ์ทุกแถว (ไม่ใช่แค่หน้าที่แสดงอยู่) */
+$('gbPrint').onclick = function () {
+  STATE.gbPrintAll = true; renderGradebook(); show('gbTitle');
+  window.print();
+  STATE.gbPrintAll = false; hide('gbTitle'); renderGradebook();
+};
 
 /* =====================================================
    ลิงก์เปิดบนคอม / iPad
@@ -1540,23 +1605,31 @@ function openSummary(aid) {
    งาน
    ===================================================== */
 function renderTasks() {
-  var list = DATA.assignments.slice().sort(function (x, y) { return (x.status === 'OPEN' ? 0 : 1) - (y.status === 'OPEN' ? 0 : 1); });
-  $('taskList').innerHTML = list.length ? list.map(function (a) {
+  var q = $('taskSearch').value.trim().toLowerCase(), st = $('taskStatus').value;
+  var all = DATA.assignments.slice().sort(function (x, y) { return (x.status === 'OPEN' ? 0 : 1) - (y.status === 'OPEN' ? 0 : 1) || natCmp(y.assignment_id, x.assignment_id); });
+  var list = all.filter(function (a) {
+    return (!st || (st === 'OPEN' ? a.status === 'OPEN' : a.status !== 'OPEN')) &&
+      (!q || [a.assignment_id, a.assignment_name, a.subject, targetLabel(a)].join(' ').toLowerCase().indexOf(q) >= 0);
+  });
+  var rows = paginate('tasks', list, 'taskPager');
+  $('taskList').innerHTML = rows.length ? rows.map(function (a) {
     var p = progressOf(a);
-    return '<div class="list-item tap" data-task-menu="' + esc(a.assignment_id) + '"><div class="grow"><div class="row" style="gap:6px"><b class="ellipsis">' + esc(a.assignment_name) + '</b>' +
+    return '<div class="list-item tap" data-task-menu="' + esc(a.assignment_id) + '"><div class="grow"><div class="row" style="gap:6px"><span class="id-badge">' + esc(a.assignment_id) + '</span><b class="ellipsis">' + esc(a.assignment_name) + '</b>' +
       (a.status === 'OPEN' ? '' : '<span class="badge off">ปิดรับ</span>') + (hasScore(a) ? '<span class="badge">เต็ม ' + esc(a.max_score) + '</span>' : '') + '</div>' +
       '<div class="small muted ellipsis">' + esc(a.subject) + ' · ' + esc(targetLabel(a)) + (a.due_date ? ' · ส่ง ' + esc(thDate(a.due_date)) : '') + '</div></div>' +
       '<div class="task-prog">ส่ง <b>' + p.done + '</b>/' + p.target + '<div class="bar"><i style="width:' + (p.target ? Math.round(p.done / p.target * 100) : 0) + '%"></i></div></div>' +
       '<span class="faint"><svg style="width:20px;height:20px"><use href="#i-more"/></svg></span></div>';
-  }).join('') : '<div class="empty">ยังไม่มีงาน</div>';
+  }).join('') : '<div class="empty">' + (all.length ? 'ไม่พบงานที่ค้นหา' : 'ยังไม่มีงาน') + '</div>';
 }
+$('taskSearch').oninput = function () { resetPage('tasks'); renderTasks(); };
+$('taskStatus').onchange = function () { resetPage('tasks'); renderTasks(); };
 $('taskList').addEventListener('click', function (e) {
   var b = e.target.closest('[data-task-menu]');
   if (!b) return;
   var a = findTask(b.dataset.taskMenu);
   if (!a) return;
   var p = progressOf(a), open = a.status === 'OPEN';
-  openSheet('<h2>' + esc(a.assignment_name) + '</h2><p class="muted small" style="margin-top:-6px">' + esc(a.subject) + ' · ' + esc(targetLabel(a)) + ' · ส่ง ' + p.done + '/' + p.target + '</p>' +
+  openSheet('<h2>' + esc(a.assignment_name) + '</h2><p class="muted small" style="margin-top:-6px"><span class="id-badge">' + esc(a.assignment_id) + '</span> ' + esc(a.subject) + ' · ' + esc(targetLabel(a)) + ' · ส่ง ' + p.done + '/' + p.target + '</p>' +
     '<div style="display:grid;gap:8px">' +
     (open ? '<button class="btn primary lg" data-a="scan">' + icon('scan') + 'สแกนงานนี้</button>' : '') +
     '<button class="btn lg" data-a="summary">' + icon('chart') + 'ดูสรุป / คนที่ยังไม่ส่ง</button>' +
@@ -1644,13 +1717,14 @@ function renderStudents() {
   var list = students().filter(function (s) { return (!c || s.className === c) && (!q || (s.id + ' ' + s.name).toLowerCase().indexOf(q) >= 0); })
     .sort(function (x, y) { return natCmp(x.className, y.className) || natCmp(x.id, y.id); });
   $('stuCount').textContent = list.length + ' คน';
-  $('stuList').innerHTML = list.length ? list.slice(0, 600).map(function (s) {
+  var rows = paginate('students', list, 'stuPager');
+  $('stuList').innerHTML = rows.length ? rows.map(function (s) {
     return '<div class="list-item tap" data-stu="' + esc(s.id) + '"><div class="grow"><div class="ellipsis" style="font-weight:600">' + esc(s.name) + '</div>' +
       '<div class="small muted">' + esc(s.id) + ' · ' + esc(s.className) + '</div></div><span class="faint"><svg style="width:20px;height:20px"><use href="#i-more"/></svg></span></div>';
   }).join('') : '<div class="empty">' + (students().length ? 'ไม่พบนักเรียนที่ค้นหา' : 'ยังไม่มีนักเรียน<br>กด "เพิ่ม" หรือ "วางจาก Excel"') + '</div>';
 }
-$('stuClass').onchange = renderStudents;
-$('stuSearch').oninput = renderStudents;
+$('stuClass').onchange = function () { resetPage('students'); renderStudents(); };
+$('stuSearch').oninput = function () { resetPage('students'); renderStudents(); };
 $('stuAdd').onclick = function () { studentForm(null); };
 $('stuList').addEventListener('click', function (e) {
   var r = e.target.closest('[data-stu]');
