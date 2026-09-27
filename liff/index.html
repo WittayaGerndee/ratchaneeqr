@@ -223,7 +223,14 @@
   .toast.err { background: var(--bad); } .toast.warn { background: #92400e; }
 
   /* QR stickers */
-  .sticker-sheet { display: grid; gap: 4mm; }
+  /* สติกเกอร์ QR: แยกตามห้อง — จอ: grid ตามความกว้าง · พิมพ์: ตาราง (หัวห้องซ้ำทุกหน้า) */
+  .qr-room { display: block; margin-bottom: 18px; }
+  .qr-room thead, .qr-room thead tr, .qr-room thead th { display: block; }
+  .qr-room tbody { display: grid; gap: 4mm; }
+  .qr-room tbody tr { display: contents; }
+  .qr-room tbody td { display: block; padding: 0; }
+  .qr-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 10px; border-bottom: 2px solid var(--text); padding-bottom: 4px; margin-bottom: 8px; text-align: left; }
+  .qr-head b { font-size: 1.25rem; } .qr-head span { font-size: .8rem; color: var(--muted); font-weight: 400; text-align: right; }
   .sticker { border: 1px dashed #cbd5e1; border-radius: 6px; padding: 2mm; text-align: center; background: #fff; break-inside: avoid; overflow: hidden; }
   .sticker .q img, .sticker .q canvas { width: 100% !important; height: auto !important; display: block; }
   .sticker .sid { font-weight: 700; line-height: 1.1; margin-top: 1mm; }
@@ -234,6 +241,14 @@
     .appbar, .tabbar, .no-print, .toast { display: none !important; }
     main { max-width: none; padding: 0; }
     section { display: none !important; } #view-qr { display: block !important; }
+    .qr-room { display: table !important; border-collapse: separate; border-spacing: 0 2mm; margin: 0; }
+    .qr-room + .qr-room { break-before: page; page-break-before: always; }
+    .qr-room thead { display: table-header-group !important; }
+    .qr-room thead tr { display: table-row !important; } .qr-room thead th { display: table-cell !important; padding: 0 0 1mm; }
+    .qr-room tbody { display: table-row-group !important; }
+    .qr-room tbody tr { display: table-row !important; break-inside: avoid; page-break-inside: avoid; }
+    .qr-room tbody td { display: table-cell !important; vertical-align: top; padding: 0 3mm 0 0; }
+    .qr-head { border-bottom-color: #000; margin-bottom: 1mm; } .qr-head b { font-size: 16pt; } .qr-head span { font-size: 9pt; color: #444; }
     body.wide section { display: none !important; } body.wide #view-summary { display: block !important; } body.wide #view-qr { display: none !important; }
     body.wide .gb-wrap { max-height: none; overflow: visible; border: 0; } body.wide .gb th, body.wide .gb td { position: static; }
     .card { box-shadow: none; padding: 0; margin: 0; }
@@ -454,7 +469,7 @@
       <button class="btn block lg hidden print-btn" id="qrPrint" style="margin-top:10px"><svg><use href="#i-print"/></svg>พิมพ์จากหน้านี้ (คอมพิวเตอร์)</button>
       <p class="small muted" style="margin:10px 0 0">ตัวอย่างด้านล่าง · ไฟล์ PDF ขนาด A4 พิมพ์แบบ Scale 100% · ใช้กระดาษสติกเกอร์ หรือกระดาษธรรมดาแล้วติดเทปใส</p>
     </div>
-    <div class="card"><div class="sticker-sheet" id="qrSheet"></div></div>
+    <div class="card"><div id="qrSheet"></div></div>
   </section>
   <!-- ===== ตั้งค่า ===== -->
   <section id="view-settings" class="hidden">
@@ -2075,12 +2090,25 @@ function renderQr() {
   $('qrClass').value = cls.indexOf(cur) >= 0 ? cur : (cur === '' && $('qrClass').dataset.touched ? '' : (cls[0] || ''));
   var c = $('qrClass').value, size = Number($('qrSize').value);
   var list = students().filter(function (s) { return !c || s.className === c; }).sort(function (x, y) { return natCmp(x.className, y.className) || natCmp(x.id, y.id); });
-  var sheet = $('qrSheet');
-  sheet.style.gridTemplateColumns = 'repeat(auto-fill, ' + size + 'mm)';
   var fs = size <= 30 ? 7 : size <= 38 ? 8.5 : 10;
-  sheet.innerHTML = list.length ? list.map(function (s, i) {
-    return '<div class="sticker" style="width:' + size + 'mm;font-size:' + fs + 'pt"><div class="q" id="qr' + i + '"></div>' +
-      '<div class="sid">' + esc(s.id) + '</div><div class="nm">' + esc(s.name) + '</div><div class="cl">' + esc(s.className) + '</div></div>';
+  var cols = Math.floor(198 / (size + 4)); // กว้างที่พิมพ์ได้บน A4 ≈ 194 มม. (ตรงกับตัวเลือก 5 / 4 / 3 ดวงต่อแถว)
+  var sticker = function (s, i) {
+    return '<td><div class="sticker" style="width:' + size + 'mm;font-size:' + fs + 'pt"><div class="q" id="qr' + i + '"></div>' +
+      '<div class="sid">' + esc(s.id) + '</div><div class="nm">' + esc(s.name) + '</div><div class="cl">' + esc(s.className) + '</div></div></td>';
+  };
+  // แยกตามห้อง: แต่ละห้องเป็นตาราง มีหัว "ห้อง …" (ตอนพิมพ์ หัวตารางซ้ำทุกหน้า และห้องใหม่ขึ้นหน้าใหม่)
+  var rooms = [];
+  list.forEach(function (s, i) {
+    var last = rooms[rooms.length - 1];
+    if (!last || last.name !== s.className) rooms.push(last = { name: s.className, items: [] });
+    last.items.push({ s: s, i: i });
+  });
+  $('qrSheet').innerHTML = rooms.length ? rooms.map(function (r) {
+    var rows = [];
+    for (var k = 0; k < r.items.length; k += cols) rows.push('<tr>' + r.items.slice(k, k + cols).map(function (x) { return sticker(x.s, x.i); }).join('') + '</tr>');
+    return '<table class="qr-room"><thead><tr><th colspan="' + cols + '"><div class="qr-head"><b>ห้อง ' + esc(r.name || '-') + '</b>' +
+      '<span>' + esc(DATA.school || '') + ' · ' + r.items.length + ' คน</span></div></th></tr></thead>' +
+      '<tbody style="grid-template-columns:repeat(auto-fill, ' + size + 'mm)">' + rows.join('') + '</tbody></table>';
   }).join('') : '<div class="empty">ยังไม่มีนักเรียน</div>';
   list.forEach(function (s, i) {
     new QRCode($('qr' + i), { text: (DATA.studentPrefix || 'STU-') + s.id, width: 256, height: 256, correctLevel: QRCode.CorrectLevel.M });
