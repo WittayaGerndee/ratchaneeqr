@@ -134,7 +134,6 @@
   #scanner .task-head { order: 1; } #scanner .stage { order: 2; } #scoreCard { order: 3; } #scanner .controls { order: 4; } #typeCard { order: 5; } #logCard { order: 6; }
 
   /* gradebook (ตารางคะแนน) — จอกว้างบนคอม / iPad */
-  body.wide main, body.wide .appbar > .row { max-width: 1280px; }
   .gb-tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
   .gb-tools select { flex: 1 1 140px; width: auto; }
   .gb-wrap { overflow: auto; max-height: 70vh; margin-top: 12px; border: 1px solid var(--line); border-radius: 12px; }
@@ -738,6 +737,7 @@ function selectTask(aid, userGesture) {
   if (!a) { toast('ไม่พบงานนี้', 'err'); return; }
   if (a.status !== 'OPEN') { toast('งานนี้ปิดรับแล้ว', 'warn'); return; }
   STATE.task = a;
+  closeScorePad(true); closePop();
   STATE.log = STATE.log.filter(function (e) { return norm(e.aid) === norm(a.assignment_id); });
   hide('pickTask'); show('scanner');
   $('tSub').textContent = a.subject + ' · ' + targetLabel(a) + (a.due_date ? ' · กำหนดส่ง ' + thDate(a.due_date) : '');
@@ -872,8 +872,15 @@ function record(raw) {
   if (!a || !DATA) return;
   var sid = parseStudent(raw), s = BY_ID[norm(sid)];
   var e = { id: uid(), aid: a.assignment_id, time: hhmmss(new Date()), code: sid || String(raw).slice(0, 30) };
-  closeScorePad(true);
-  closePop();
+  // แผงให้คะแนน / ป๊อปอัพซ้ำ ค้างไว้จนครูกดเอง — สมุดเล่มเดิมที่ยังอยู่หน้ากล้องไม่นับซ้ำ
+  if (scoreFor) {
+    if (norm(sid) !== norm(scoreFor.sid)) toast('ให้คะแนน ' + ((BY_ID[norm(scoreFor.sid)] || {}).name || scoreFor.sid) + ' ก่อน หรือกด "ข้าม" แล้วสแกนเล่มถัดไป', 'warn', 3000);
+    return;
+  }
+  if (popFor) {
+    if (norm(sid) === norm(popFor)) return;
+    closePop();
+  }
   if (!s) {
     e.state = 'err'; e.msg = 'ไม่พบรหัสนี้ในรายชื่อ';
     showResult('err', 'ไม่พบรหัส ' + e.code, 'เพิ่มนักเรียนได้ที่เมนู "นักเรียน"');
@@ -923,8 +930,9 @@ function flashStage(kind) {
 }
 
 /* ---- ป๊อปอัพแจ้งสแกนซ้ำ (ปิดเองใน 2.5 วินาที) ---- */
-var popTimer;
+var popFor = null; // รหัสนักเรียนที่ป๊อปอัพซ้ำกำลังแสดง
 function dupPop(a, s, prev) {
+  popFor = s.id;
   var scored = hasScore(a), v = prev[3];
   $('popHost').innerHTML = '<div class="pop" role="alert"><div class="ic">' + icon('alert') + '</div>' +
     '<div class="t">ส่งแล้ว (สแกนซ้ำ)</div><div class="n">' + esc(s.name) + '</div>' +
@@ -934,10 +942,11 @@ function dupPop(a, s, prev) {
     '<button class="btn primary grow" id="popOk">ตกลง</button></div></div>';
   $('popOk').onclick = function () { closePop(); resumeLineScan(); };
   if ($('popScore')) $('popScore').onclick = function () { closePop(); openScorePad(a, s); };
-  clearTimeout(popTimer);
-  popTimer = setTimeout(function () { closePop(); resumeLineScan(); }, 2500);
+  setChip('กด "ตกลง" แล้วสแกนเล่มถัดไป');
 }
-function closePop() { clearTimeout(popTimer); $('popHost').innerHTML = ''; }
+function closePop() { popFor = null; $('popHost').innerHTML = ''; setChip(); }
+/** ข้อความบนกล้อง: บอกครูว่ารออะไรอยู่ */
+function setChip(text) { $('chip').textContent = text || 'ส่องกล้องไปที่ QR บนสมุด'; }
 function hideResult() { $('result').className = 'result gone'; }
 
 function renderLog() {
@@ -1027,6 +1036,7 @@ function openScorePad(a, s) {
       }
     };
     show('scoreCard');
+    setChip('ให้คะแนนก่อน แล้วสแกนเล่มถัดไป');
     revealScorePad();
     return true;
   }
@@ -1042,6 +1052,7 @@ function openScorePad(a, s) {
     closeScorePad();
   });
   show('scoreCard');
+  setChip('ให้คะแนนก่อน แล้วสแกนเล่มถัดไป');
   revealScorePad();
   return true;
 }
@@ -1067,7 +1078,7 @@ function setMaxScore(a, max, s) {
 }
 /** keepLine = true: ปิดเพราะมีการสแกนใหม่ (ไม่ต้องเปิดตัวสแกน LINE ต่อ) */
 function closeScorePad(keepLine) {
-  scoreFor = null; hide('scoreCard');
+  scoreFor = null; hide('scoreCard'); setChip();
   if (!keepLine) resumeLineScan();
 }
 $('scSkip').onclick = function () { closeScorePad(); };
