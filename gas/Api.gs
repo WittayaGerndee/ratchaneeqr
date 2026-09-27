@@ -85,7 +85,7 @@ function applyMember_(user, m) {
 /** คำสั่งที่เปลี่ยนข้อมูล (ต้องกันการทำซ้ำเมื่อหน้า LIFF ส่งซ้ำ) */
 var WRITE_ACTIONS = {
   submitBatch: true, undo: true, saveStudent: true, deleteStudent: true,
-  importStudents: true, saveAssignment: true, deleteAssignment: true, saveSettings: true,
+  importStudents: true, saveAssignment: true, deleteAssignment: true, saveSettings: true, saveSubject: true, deleteSubject: true,
   requestAccess: true, createAccount: true, setAccountStatus: true, removeAccountMember: true, qrPdf: true
 };
 
@@ -199,6 +199,14 @@ var API_ACTIONS = {
     return r;
   },
 
+  // ---------- วิชา ----------
+  saveSubject: function (b) {
+    return saveSubject_(b.subject || {});
+  },
+  deleteSubject: function (b) {
+    return deleteSubject_(b.subjectId);
+  },
+
   // ---------- งาน ----------
   saveAssignment: function (b, actor) {
     var a = b.assignment || {};
@@ -219,6 +227,8 @@ var API_ACTIONS = {
     }
     if (isNew) rec.teacher = actor.teacherName || actor.displayName || '';
     if (a.status) rec.status = a.status;
+    rec.subject = String(a.subject).trim();
+    ensureSubjectNamed_(rec.subject);
     var row = saveRecord_('Assignments', rec, isNew);
     log_('SAVE_ASSIGNMENT', { line_user_id: actor.userId, result: rec.assignment_id });
     return { ok: true, assignment: publicAssignment_(row) };
@@ -246,7 +256,9 @@ var API_ACTIONS = {
 /** ข้อมูลทั้งหมดสำหรับหน้า LIFF (ส่งแบบกระชับเพื่อให้โหลดเร็ว) */
 function loadData_() {
   var students = readTable_('Students').filter(isStudentActive_).map(studentRow_);
-  var assignments = readTable_('Assignments').map(publicAssignment_);
+  var rawAssignments = readTable_('Assignments');
+  var subjects = listSubjects_(rawAssignments);
+  var assignments = rawAssignments.map(publicAssignment_);
   // งานที่เปิดอยู่ + งานที่ปิดล่าสุด 10 งาน
   var open = assignments.filter(function (a) { return a.status === ASSIGNMENT_STATUS.OPEN; });
   var closed = assignments.filter(function (a) { return a.status !== ASSIGNMENT_STATUS.OPEN; }).slice(-10);
@@ -262,7 +274,7 @@ function loadData_() {
     var d = toDate_(r.timestamp);
     (subs[aid] = subs[aid] || {})[String(r.student_id)] = [d ? d.toISOString() : '', r.submission_id, isTrue_(r.is_late), scoreOf_(r)];
   });
-  return { students: students, assignments: list, subs: subs };
+  return { students: students, subjects: subjects, assignments: list, subs: subs };
 }
 
 function scoreOf_(r) {

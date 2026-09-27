@@ -40,6 +40,9 @@ var SCHEMA = {
     'line_user_id', 'submitted_by', 'file_url', 'checked_by', 'checked_at',
     'score', 'note', 'updated_at'
   ],
+  Subjects: [
+    'subject_id', 'name', 'class_target', 'status', 'created_at'
+  ],
   Teachers: [
     'teacher_id', 'name', 'email', 'line_user_id', 'role', 'status'
   ],
@@ -56,6 +59,7 @@ var SHEET_KEYS = {
   Students: 'student_id',
   Classes: 'class_id',
   Assignments: 'assignment_id',
+  Subjects: 'subject_id',
   Submissions: 'submission_id',
   Teachers: 'teacher_id',
   Settings: 'key'
