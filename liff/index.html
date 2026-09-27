@@ -103,6 +103,33 @@
   .name-line:last-child { border-bottom: 0; }
   details summary { cursor: pointer; font-weight: 600; padding: 8px 0; }
 
+  /* score */
+  .score-pad { display: grid; grid-template-columns: repeat(auto-fill, minmax(48px, 1fr)); gap: 6px; margin-top: 10px; }
+  .score-pad .btn { min-height: 46px; padding: 6px 4px; font-size: 1.05rem; }
+  .score-pad .btn.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .score-chip { font-weight: 600; font-size: .8rem; padding: 3px 10px; border-radius: 99px; background: var(--accent-weak); color: var(--accent); border: 0; cursor: pointer; white-space: nowrap; }
+  .score-chip.none { background: var(--warn-weak); color: var(--warn); }
+  .seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; background: #e9edf2; border-radius: 12px; padding: 3px; margin-bottom: 12px; }
+  .seg button { border: 0; background: transparent; border-radius: 10px; padding: 8px; font-weight: 600; color: var(--muted); cursor: pointer; }
+  .seg button.on { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
+
+  /* gradebook (ตารางคะแนน) — จอกว้างบนคอม / iPad */
+  body.wide main { max-width: 1280px; }
+  .gb-tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .gb-tools select { flex: 1 1 140px; width: auto; }
+  .gb-wrap { overflow: auto; max-height: 70vh; margin-top: 12px; border: 1px solid var(--line); border-radius: 12px; }
+  table.gb { border-collapse: separate; border-spacing: 0; font-size: .85rem; min-width: 100%; }
+  .gb th, .gb td { padding: 6px 8px; border-bottom: 1px solid var(--line); border-right: 1px solid var(--line); text-align: center; white-space: nowrap; background: var(--surface); }
+  .gb thead th { position: sticky; top: 0; z-index: 2; background: #f8fafc; font-weight: 600; vertical-align: bottom; white-space: normal; min-width: 64px; max-width: 120px; line-height: 1.25; }
+  .gb thead th .xs { font-weight: 400; }
+  .gb .c-id, .gb .c-name { position: sticky; z-index: 1; text-align: left; }
+  .gb .c-id { left: 0; min-width: 64px; } .gb .c-name { left: 64px; min-width: 150px; max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
+  .gb thead .c-id, .gb thead .c-name { z-index: 3; }
+  .gb td.miss { color: var(--bad); } .gb td.na { background: #f8fafc; color: var(--faint); }
+  .gb td.done { color: var(--accent); } .gb td.edit { cursor: pointer; } .gb td.edit:hover { background: var(--accent-weak); }
+  .gb td.late::after { content: '•'; color: var(--warn); margin-left: 2px; }
+  .gb .tot { font-weight: 600; background: #f8fafc; }
+
   /* bottom nav */
   .tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; background: rgba(255,255,255,.96); backdrop-filter: blur(10px);
     border-top: 1px solid var(--line); display: flex; padding-bottom: env(safe-area-inset-bottom); }
@@ -133,6 +160,8 @@
     .appbar, .tabbar, .no-print, .toast { display: none !important; }
     main { max-width: none; padding: 0; }
     section { display: none !important; } #view-qr { display: block !important; }
+    body.wide section { display: none !important; } body.wide #view-summary { display: block !important; } body.wide #view-qr { display: none !important; }
+    body.wide .gb-wrap { max-height: none; overflow: visible; border: 0; } body.wide .gb th, body.wide .gb td { position: static; }
     .card { box-shadow: none; padding: 0; margin: 0; }
     @page { size: A4; margin: 8mm; }
   }
@@ -213,6 +242,13 @@
         <div class="result gone" id="result"><div class="ic" id="rIc"></div><div class="grow"><div class="t ellipsis" id="rT"></div><div class="s ellipsis" id="rS"></div></div></div>
       </div>
 
+      <div class="card hidden" id="scoreCard" style="padding:12px 14px">
+        <div class="row between"><div class="grow"><div class="xs muted">ให้คะแนน · เต็ม <span id="scMax"></span></div>
+          <div class="ellipsis" style="font-weight:600" id="scName"></div></div>
+          <button class="btn sm ghost" id="scSkip">ข้าม</button></div>
+        <div id="scPad"></div>
+      </div>
+
       <div class="controls">
         <button class="btn" id="camToggle"><svg><use href="#i-pause"/></svg><span>หยุดกล้อง</span></button>
         <button class="btn" id="torchBtn" disabled><svg><use href="#i-flash"/></svg><span>ไฟฉาย</span></button>
@@ -232,10 +268,24 @@
 
   <!-- ===== สรุป ===== -->
   <section id="view-summary" class="hidden">
-    <div class="card">
+    <div class="seg no-print" id="sumSeg"><button data-seg="task" class="on">สรุปรายงาน</button><button data-seg="grade">ตารางคะแนน</button></div>
+    <div class="card" id="sumTask">
       <div class="row"><select class="input grow" id="sumSel"></select>
         <button class="btn" id="sumRefresh" aria-label="โหลดใหม่"><svg><use href="#i-refresh"/></svg></button></div>
       <div id="sumBox"></div>
+    </div>
+    <div class="card hidden" id="gradeBox">
+      <div class="gb-tools no-print">
+        <select class="input" id="gbClass"></select>
+        <select class="input" id="gbSubject"></select>
+        <button class="btn" id="gbRefresh" aria-label="โหลดใหม่"><svg><use href="#i-refresh"/></svg></button>
+        <button class="btn" id="gbCopy"><svg><use href="#i-copy"/></svg>คัดลอกไป Excel</button>
+        <button class="btn" id="gbCsv">ดาวน์โหลด CSV</button>
+        <button class="btn" id="gbPrint"><svg><use href="#i-print"/></svg>พิมพ์</button>
+      </div>
+      <h3 class="hidden" id="gbTitle" style="margin:0"></h3>
+      <div class="gb-wrap"><table class="gb" id="gbTable"></table></div>
+      <p class="xs muted" style="margin:8px 0 0">ตัวเลข = คะแนน · ✓ = ส่งแล้ว (ยังไม่ให้คะแนน) · – = ยังไม่ส่ง · <span style="color:var(--warn)">•</span> = ส่งช้า · แตะช่องที่ส่งแล้วเพื่อให้/แก้คะแนน</p>
     </div>
   </section>
 
@@ -331,8 +381,8 @@
    ============================================================ */
 var CFG = window.APP_CONFIG || {};
 var LS_DATA = 'rq_data_v4', LS_QUEUE = 'rq_queue_v4';
-var STATE = { idToken: '', uid: '', view: 'scan', task: null, log: [], camWanted: false };
-var DATA = null, BY_ID = {}, QUEUE = [];
+var STATE = { idToken: '', uid: '', view: 'scan', seg: 'task', task: null, log: [], camWanted: false };
+var DATA = null, BY_ID = {}, QUEUE = [], GB = null;
 
 /* ---------------- helpers ---------------- */
 function $(id) { return document.getElementById(id); }
@@ -395,7 +445,7 @@ function confirmSheet(title, text, okLabel, danger) {
    - ถ้า 3 วินาทียังไม่ตอบ ยิงคำขอเดิม (reqId เดิม) คู่ขนาน (สูงสุด 3 ชุด) ใช้คำตอบแรกที่ได้
    - server ทำงานจริงครั้งเดียวต่อ reqId (คำขอที่ซ้ำจะได้ผลเดิม) จึงไม่บันทึกซ้ำ */
 var MAX_TRIES = 6, TIMEOUT_MS = 15000, HEDGE_MS = 3000, MAX_PARALLEL = 3;
-var HEDGE = { bootstrap: true, submitBatch: true, undo: true, saveStudent: true, deleteStudent: true, importStudents: true, saveAssignment: true, deleteAssignment: true, saveSettings: true };
+var HEDGE = { bootstrap: true, gradebook: true, submitBatch: true, undo: true, saveStudent: true, deleteStudent: true, importStudents: true, saveAssignment: true, deleteAssignment: true, saveSettings: true };
 function fetchOnce(payload) {
   var ctrl = window.AbortController ? new AbortController() : null;
   var timer = ctrl ? setTimeout(function () { ctrl.abort(); }, TIMEOUT_MS) : null;
@@ -513,6 +563,10 @@ function progressOf(a) {
   var m = subsOf(a.assignment_id), t = targetsOf(a);
   return { target: t.length, done: t.filter(function (s) { return m[norm(s.id)]; }).length };
 }
+/** งานที่ให้คะแนน = ตั้งคะแนนเต็มไว้ */
+function hasScore(a) { return !!(a && Number(a.max_score) > 0); }
+function hasVal(v) { return v !== '' && v != null; }
+function fmtScore(v) { return hasVal(v) ? String(Math.round(Number(v) * 100) / 100) : ''; }
 function targetLabel(a) { var t = a.class_target || 'ALL'; return t === 'ALL' ? 'ทุกห้อง' : t; }
 function parseStudent(raw) {
   var s = String(raw || '').trim();
@@ -714,6 +768,7 @@ function record(raw) {
   if (!a || !DATA) return;
   var sid = parseStudent(raw), s = BY_ID[norm(sid)];
   var e = { id: uid(), aid: a.assignment_id, time: hhmmss(new Date()), code: sid || String(raw).slice(0, 30) };
+  closeScorePad();
   if (!s) {
     e.state = 'err'; e.msg = 'ไม่พบรหัสนี้ในรายชื่อ';
     showResult('err', 'ไม่พบรหัส ' + e.code, 'เพิ่มนักเรียนได้ที่เมนู "นักเรียน"');
@@ -722,8 +777,9 @@ function record(raw) {
     showResult('err', s.name, 'ห้อง ' + s.className + ' ไม่ได้รับงานนี้');
   } else if (subsOf(a.assignment_id)[norm(s.id)]) {
     var prev = subsOf(a.assignment_id)[norm(s.id)];
-    Object.assign(e, { state: 'dup', name: s.name, sid: s.id, cls: s.className, msg: 'ส่งแล้ว ' + thDate(prev[0]) });
-    showResult('dup', s.name + ' · ส่งแล้ว', 'บันทึกไว้เมื่อ ' + thDate(prev[0]));
+    Object.assign(e, { state: 'dup', name: s.name, sid: s.id, cls: s.className, msg: 'ส่งแล้ว ' + thDate(prev[0]), score: prev[3] });
+    showResult('dup', s.name + ' · ส่งแล้ว', 'บันทึกไว้เมื่อ ' + thDate(prev[0]) + (hasVal(prev[3]) ? ' · คะแนน ' + fmtScore(prev[3]) : ''));
+    if (hasScore(a)) openScorePad(a, s);
   } else {
     var ts = new Date().toISOString();
     var late = !!(a.due_date && Date.now() > new Date(a.due_date).getTime());
@@ -733,7 +789,8 @@ function record(raw) {
     lsSet(LS_QUEUE, QUEUE); saveLocal();
     showResult('ok', s.name, s.id + ' · ' + s.className + (late ? ' · ส่งช้า' : ''));
     renderProgress();
-    scheduleFlush();
+    if (hasScore(a)) openScorePad(a, s);
+    scheduleFlush(hasScore(a) ? 2500 : 500); // รอครูกดคะแนนก่อน จะได้ส่งขึ้นพร้อมกัน
   }
   feedback(e.state);
   STATE.log.unshift(e);
@@ -766,9 +823,102 @@ function renderLog() {
       '<div class="grow"><div class="ellipsis" style="font-weight:600">' + esc(e.name || e.code) + '</div>' +
       '<div class="xs muted ellipsis">' + esc(e.time) + (e.sid ? ' · ' + esc(e.sid) + ' · ' + esc(e.cls) : '') + (e.late ? ' · ส่งช้า' : '') +
       (e.msg ? ' · ' + esc(e.msg) : '') + (e.state === 'ok' && e.pending ? ' · <span style="color:var(--warn)">รอบันทึก</span>' : '') + '</div></div>' +
+      (hasScore(findTask(e.aid)) && (e.state === 'ok' || e.state === 'dup') ? scoreChip(e.aid, e.sid) : '') +
       (e.state === 'ok' ? '<button class="btn sm ghost" data-undo="' + e.id + '" aria-label="ยกเลิก">' + icon('undo') + '</button>' : '') + '</div>';
   }).join('');
 }
+
+/* ---- ให้คะแนน ---- */
+/** ปุ่มแสดงคะแนนของนักเรียน (แตะเพื่อให้/แก้คะแนน) */
+function scoreChip(aid, sid) {
+  var x = subsOf(aid)[norm(sid)], v = x ? x[3] : '';
+  return '<button class="score-chip' + (hasVal(v) ? '' : ' none') + '" data-sc-aid="' + esc(aid) + '" data-sc-sid="' + esc(sid) + '">' +
+    (hasVal(v) ? fmtScore(v) + '/' + fmtScore(findTask(aid).max_score) : 'ให้คะแนน') + '</button>';
+}
+/** ปุ่มคะแนน 0..เต็ม (คะแนนเต็มไม่เกิน 20) หรือช่องพิมพ์คะแนน */
+function scorePadHtml(max, cur) {
+  var html = '<div class="score-pad">';
+  if (max <= 20 && max === Math.floor(max)) {
+    for (var i = 0; i <= max; i++) html += '<button class="btn' + (hasVal(cur) && Number(cur) === i ? ' on' : '') + '" type="button" data-score="' + i + '">' + i + '</button>';
+    html += '</div><div class="row" style="margin-top:8px"><input class="input grow" data-score-input type="number" inputmode="decimal" min="0" max="' + max + '" step="any" placeholder="หรือพิมพ์คะแนน (เช่น 7.5)">';
+  } else {
+    html += '</div><div class="row" style="margin-top:8px"><input class="input grow" data-score-input type="number" inputmode="decimal" min="0" max="' + max + '" step="any" placeholder="คะแนน 0–' + max + '" value="' + esc(fmtScore(cur)) + '">' +
+      '<button class="btn" type="button" data-score="' + max + '">เต็ม ' + max + '</button>';
+  }
+  html += '<button class="btn primary" type="button" data-score-ok>บันทึก</button></div>';
+  if (hasVal(cur)) html += '<button class="btn ghost sm block" type="button" data-score="" style="margin-top:6px">ล้างคะแนน</button>';
+  return html;
+}
+/** ต่อ event ให้แผงคะแนน: onPick(ค่า) เมื่อกดปุ่มหรือพิมพ์แล้วบันทึก */
+function bindScorePad(root, max, onPick) {
+  var inp = root.querySelector('[data-score-input]');
+  function pickTyped() {
+    var v = inp.value.trim();
+    if (v === '') return;
+    var n = Number(v);
+    if (isNaN(n) || n < 0 || n > max) { toast('คะแนนต้องอยู่ระหว่าง 0–' + max, 'err'); return; }
+    onPick(n);
+  }
+  root.onclick = function (ev) {
+    var b = ev.target.closest('[data-score]');
+    if (b) { onPick(b.dataset.score === '' ? '' : Number(b.dataset.score)); return; }
+    if (ev.target.closest('[data-score-ok]')) pickTyped();
+  };
+  inp.onkeydown = function (ev) { if (ev.key === 'Enter') { ev.preventDefault(); pickTyped(); } };
+  return inp;
+}
+var scoreFor = null; // { aid, sid } ที่แผงคะแนนหน้าสแกนกำลังแสดง
+function openScorePad(a, s) {
+  var max = Number(a.max_score), cur = (subsOf(a.assignment_id)[norm(s.id)] || [])[3];
+  scoreFor = { aid: a.assignment_id, sid: s.id };
+  $('scName').textContent = s.name + ' · ' + s.id;
+  $('scMax').textContent = max;
+  $('scPad').innerHTML = scorePadHtml(max, cur);
+  bindScorePad($('scPad'), max, function (v) {
+    setScore(a.assignment_id, s.id, v);
+    showResult('ok', s.name, hasVal(v) ? 'คะแนน ' + fmtScore(v) + '/' + max : 'ล้างคะแนนแล้ว');
+    try { if (navigator.vibrate) navigator.vibrate(30); } catch (e) {}
+    closeScorePad();
+  });
+  show('scoreCard');
+}
+function closeScorePad() { scoreFor = null; hide('scoreCard'); }
+$('scSkip').onclick = closeScorePad;
+
+/** ให้คะแนน: แสดงผลทันที แล้วเข้าคิวบันทึก (แนบไปกับรายการส่งงานที่ยังไม่ขึ้น server ถ้ามี) */
+var inflight = {};
+function setScore(aid, sid, v) {
+  var k = norm(sid), m = subsOf(aid);
+  if (m[k]) m[k][3] = v;
+  if (GB && GB.scores) { var g = GB.scores[aid] = GB.scores[aid] || {}; g[sid] = [v, g[sid] ? g[sid][1] : false]; }
+  var same = function (q) { return norm(q.assignmentId) === norm(aid) && norm(q.studentId) === k; };
+  var sub = QUEUE.filter(function (q) { return same(q) && !q.scoreOnly && !inflight[q.cid]; })[0];
+  if (sub) sub.score = v;
+  else {
+    QUEUE = QUEUE.filter(function (q) { return !(same(q) && q.scoreOnly && !inflight[q.cid]); });
+    QUEUE.push({ cid: uid(), studentId: sid, assignmentId: aid, scoreOnly: true, score: v });
+  }
+  lsSet(LS_QUEUE, QUEUE); saveLocal();
+  renderLog();
+  if (STATE.view === 'summary') renderCurrent();
+  scheduleFlush(300);
+}
+/** แผงคะแนนแบบ bottom sheet (หน้าสรุป / ตารางคะแนน) */
+function scoreSheet(a, sid, name, cur) {
+  var max = Number(a.max_score);
+  openSheet('<h2 style="margin-bottom:2px">' + esc(name) + '</h2><p class="muted small" style="margin:0 0 4px">' + esc(sid) + ' · ' + esc(a.assignment_name) + ' · เต็ม ' + max + '</p>' +
+    '<div id="ssPad">' + scorePadHtml(max, cur) + '</div>', function () {
+      bindScorePad($('ssPad'), max, function (v) { closeSheet(); setScore(a.assignment_id, sid, v); toast(hasVal(v) ? name + ' · ' + fmtScore(v) + '/' + max : 'ล้างคะแนนแล้ว'); });
+    });
+}
+document.addEventListener('click', function (e) {
+  var c = e.target.closest('[data-sc-aid]');
+  if (!c) return;
+  var a = findTask(c.dataset.scAid), s = BY_ID[norm(c.dataset.scSid)];
+  if (!a) return;
+  var cur = (subsOf(a.assignment_id)[norm(c.dataset.scSid)] || [])[3];
+  scoreSheet(a, c.dataset.scSid, s ? s.name : c.dataset.scSid, cur);
+});
 
 $('logList').addEventListener('click', function (ev) {
   var b = ev.target.closest('[data-undo]');
@@ -777,7 +927,11 @@ $('logList').addEventListener('click', function (ev) {
   if (!e) return;
   confirmSheet('ยกเลิกการบันทึก?', e.name + ' (' + e.sid + ') จะกลับเป็น "ยังไม่ส่ง"', 'ยกเลิกการบันทึก', true).then(function (yes) {
     if (!yes) return;
+    var same = function (q) { return norm(q.assignmentId) === norm(e.aid) && norm(q.studentId) === norm(e.sid); };
     var done = function () {
+      QUEUE = QUEUE.filter(function (q) { return !(same(q) && q.scoreOnly && !inflight[q.cid]); });
+      lsSet(LS_QUEUE, QUEUE);
+      if (scoreFor && same({ assignmentId: scoreFor.aid, studentId: scoreFor.sid })) closeScorePad();
       delete subsOf(e.aid)[norm(e.sid)];
       e.state = 'undone'; e.msg = 'ยกเลิกแล้ว';
       saveLocal(); renderLog(); if (STATE.task) renderProgress();
@@ -813,17 +967,21 @@ $('typeGo').onclick = function () {
 $('typeInput').addEventListener('keydown', function (e) { if (e.key === 'Enter') $('typeGo').click(); });
 
 /* ---- คิวบันทึก: ส่งเป็นชุด ---- */
-var flushing = false, flushTimer = null;
+var flushing = false, flushTimer = null, flushAt = 0;
 function scheduleFlush(delay) {
   updateSync();
+  var at = Date.now() + (delay == null ? 500 : delay);
+  if (flushTimer && flushAt <= at) return; // มีรอบที่เร็วกว่านี้อยู่แล้ว (สแกนรัว ๆ ก็ยังส่งขึ้นตามรอบ)
   clearTimeout(flushTimer);
-  flushTimer = setTimeout(flush, delay == null ? 500 : delay);
+  flushAt = at;
+  flushTimer = setTimeout(function () { flushTimer = null; flush(); }, at - Date.now());
 }
 function flush() {
   if (flushing || !QUEUE.length || !DATA) { updateSync(); return; }
   if (CFG.LIFF_ID && !STATE.idToken) { scheduleFlush(1500); return; } // ยังไม่ได้ล็อกอิน LINE
   flushing = true;
   var batch = QUEUE.slice(0, 80);
+  batch.forEach(function (q) { inflight[q.cid] = true; });
   api('submitBatch', { items: batch }).then(function (r) {
     if (!r.ok) throw new Error(r.message || 'บันทึกไม่สำเร็จ');
     var byCid = {};
@@ -835,8 +993,12 @@ function flush() {
       if (!x) return;
       var e = STATE.log.filter(function (l) { return l.id === q.cid; })[0];
       var m = subsOf(q.assignmentId), k = norm(q.studentId);
+      if (q.scoreOnly) { // ให้คะแนนอย่างเดียว — ไม่แตะสถานะการส่ง
+        if (!x.ok) { toast('บันทึกคะแนนไม่สำเร็จ: ' + (BY_ID[k] ? BY_ID[k].name + ' — ' : '') + x.message, 'err', 4500); feedback('err'); }
+        return;
+      }
       if (x.ok || x.code === 'DUPLICATE') {
-        if (m[k]) { m[k][1] = x.submission_id; if (x.ok) m[k][2] = !!x.isLate; }
+        if (m[k]) { m[k][1] = x.submission_id; if (x.ok) m[k][2] = !!x.isLate; if (x.score !== undefined && !QUEUE.some(function (o) { return o.scoreOnly && norm(o.assignmentId) === norm(q.assignmentId) && norm(o.studentId) === k; })) m[k][3] = x.score; }
         if (e) { e.pending = false; e.subId = x.submission_id; if (!x.ok) { e.state = 'dup'; e.msg = 'มีคนบันทึกไว้แล้ว'; } }
       } else {
         delete m[k];
@@ -849,9 +1011,11 @@ function flush() {
     if (STATE.task) renderProgress();
   }).catch(function () {
     flushing = false;
+    batch.forEach(function (q) { delete inflight[q.cid]; });
     scheduleFlush(5000); // ออฟไลน์ / Google ขัดข้อง → ลองใหม่
     return 'retry';
   }).then(function (x) {
+    batch.forEach(function (q) { delete inflight[q.cid]; });
     if (x === 'retry') return;
     flushing = false;
     if (QUEUE.length) scheduleFlush(300); else updateSync();
@@ -863,6 +1027,8 @@ window.addEventListener('online', function () { scheduleFlush(0); });
    สรุป
    ===================================================== */
 function renderSummary() {
+  show('sumTask'); hide('gradeBox');
+  document.querySelectorAll('#sumSeg [data-seg]').forEach(function (b) { b.classList.toggle('on', b.dataset.seg === 'task'); });
   var list = DATA.assignments;
   if (!list.length) { $('sumSel').innerHTML = ''; $('sumBox').innerHTML = '<div class="empty">ยังไม่มีงาน</div>'; return; }
   var cur = $('sumSel').value || (STATE.task && STATE.task.assignment_id) || (openTasks()[0] || list[0]).assignment_id;
@@ -884,6 +1050,15 @@ function renderSummary() {
   var miss = total - done;
 
   var html = '<div class="stats"><div class="stat"><b>' + total + '</b><span>ทั้งหมด</span></div><div class="stat ok"><b>' + done + '</b><span>ส่งแล้ว</span></div><div class="stat bad"><b>' + miss + '</b><span>ยังไม่ส่ง</span></div></div>';
+  var scored = hasScore(a);
+  if (scored) {
+    var vals = [];
+    keys.forEach(function (k) { rooms[k].done.forEach(function (s) { var v = m[norm(s.id)][3]; if (hasVal(v)) vals.push(Number(v)); }); });
+    var avg = vals.length ? vals.reduce(function (x, y) { return x + y; }, 0) / vals.length : 0;
+    html += '<div class="stats" style="margin-top:-4px"><div class="stat"><b>' + a.max_score + '</b><span>คะแนนเต็ม</span></div>' +
+      '<div class="stat ok"><b>' + (vals.length ? fmtScore(avg) : '-') + '</b><span>คะแนนเฉลี่ย</span></div>' +
+      '<div class="stat"><b style="color:var(--warn)">' + (done - vals.length) + '</b><span>ยังไม่ให้คะแนน</span></div></div>';
+  }
   if (keys.length > 1) {
     html += keys.map(function (k) {
       var r = rooms[k], t = r.miss.length + r.done.length, pct = t ? Math.round(r.done.length / t * 100) : 0;
@@ -896,10 +1071,11 @@ function renderSummary() {
     return '<div class="room-title"><span>' + esc(k) + '</span><span class="muted small">' + rooms[k].miss.length + ' คน</span></div>' +
       rooms[k].miss.map(function (s) { return '<div class="name-line"><span class="muted" style="min-width:52px">' + esc(s.id) + '</span><span>' + esc(s.name) + '</span></div>'; }).join('');
   }).join('') : (total ? '<div class="empty" style="color:var(--accent)">ส่งครบทุกคนแล้ว 🎉</div>' : '<div class="empty">ยังไม่มีนักเรียนในห้องที่สั่งงานนี้</div>');
-  html += '<details style="margin-top:12px"><summary>ส่งแล้ว ' + done + ' คน</summary>' + keys.map(function (k) {
+  html += '<details style="margin-top:12px"' + (scored ? ' open' : '') + '><summary>ส่งแล้ว ' + done + ' คน' + (scored ? ' · แตะคะแนนเพื่อให้/แก้' : '') + '</summary>' + keys.map(function (k) {
     return rooms[k].done.map(function (s) {
       var x = m[norm(s.id)];
-      return '<div class="name-line"><span class="muted" style="min-width:52px">' + esc(s.id) + '</span><span class="grow">' + esc(s.name) + '</span><span class="xs muted">' + esc(thDate(x[0])) + (x[2] ? ' · ช้า' : '') + '</span></div>';
+      return '<div class="name-line" style="align-items:center"><span class="muted" style="min-width:52px">' + esc(s.id) + '</span><span class="grow">' + esc(s.name) + '</span><span class="xs muted">' + esc(thDate(x[0])) + (x[2] ? ' · ช้า' : '') + '</span>' +
+        (scored ? scoreChip(a.assignment_id, s.id) : '') + '</div>';
     }).join('');
   }).join('') + '</details>';
   if (a.status === 'OPEN') html += '<button class="btn primary block lg" style="margin-top:14px" data-scan-task="' + esc(a.assignment_id) + '">' + icon('scan') + 'สแกนงานนี้</button>';
@@ -930,6 +1106,133 @@ function copyText(t) {
 }
 
 /* =====================================================
+   ตารางคะแนน (เหมาะกับคอม / iPad) — โหลดทุกงานจาก server เมื่อเปิดหน้านี้
+   ===================================================== */
+$('sumSeg').addEventListener('click', function (e) {
+  var b = e.target.closest('[data-seg]');
+  if (!b || b.dataset.seg === STATE.seg) return;
+  STATE.seg = b.dataset.seg;
+  go('summary');
+});
+var gbLoading = false;
+function loadGradebook() {
+  if (gbLoading) return Promise.resolve();
+  gbLoading = true;
+  if (!GB) $('gbTable').innerHTML = '<tbody><tr><td class="empty" style="border:0">กำลังโหลดคะแนน…</td></tr></tbody>';
+  return api('gradebook').then(function (r) {
+    gbLoading = false;
+    if (!r.ok) { toast(r.message, 'err'); return; }
+    GB = { assignments: r.assignments || [], scores: r.scores || {} };
+    if (STATE.view === 'summary' && STATE.seg === 'grade') renderGradebook();
+  }, function (e) { gbLoading = false; toast((e && e.message) || 'โหลดไม่สำเร็จ', 'err'); });
+}
+/** คะแนนในเครื่อง (รวมที่ยังรอบันทึก) ใหม่กว่าที่โหลดมา สำหรับงานที่อยู่ในเครื่อง */
+function gbCell(aid, sid) {
+  var local = findTask(aid);
+  if (local) { var x = subsOf(aid)[norm(sid)]; return x ? [x[3], x[2]] : null; }
+  var g = GB.scores[aid] || {};
+  if (g[sid]) return g[sid];
+  for (var k in g) if (norm(k) === norm(sid)) return g[k];
+  return null;
+}
+function gbModel() {
+  var cls = $('gbClass').value, subj = $('gbSubject').value;
+  var list = GB.assignments.map(function (a) { return findTask(a.assignment_id) || a; });
+  var rows = students().filter(function (s) { return !cls || s.className === cls; })
+    .sort(function (x, y) { return natCmp(x.className, y.className) || natCmp(x.id, y.id); });
+  var cols = list.filter(function (a) { return (!subj || a.subject === subj) && rows.some(function (s) { return isTarget(a, s); }); });
+  return { rows: rows, cols: cols, cls: cls, subj: subj };
+}
+function renderGradebook() {
+  ['sumTask'].forEach(function (id) { hide(id); }); show('gradeBox');
+  document.querySelectorAll('#sumSeg [data-seg]').forEach(function (b) { b.classList.toggle('on', b.dataset.seg === 'grade'); });
+  if (!GB) { loadGradebook(); return; }
+  var cls = classNames(), cur = $('gbClass').value;
+  $('gbClass').innerHTML = '<option value="">ทุกห้อง</option>' + cls.map(function (c) { return '<option>' + esc(c) + '</option>'; }).join('');
+  $('gbClass').value = cls.indexOf(cur) >= 0 ? cur : (cur === '' && $('gbClass').dataset.touched ? '' : (cls[0] || ''));
+  var subjects = {};
+  GB.assignments.forEach(function (a) { if (a.subject) subjects[a.subject] = true; });
+  var sj = $('gbSubject').value;
+  $('gbSubject').innerHTML = '<option value="">ทุกวิชา</option>' + Object.keys(subjects).sort(natCmp).map(function (x) { return '<option>' + esc(x) + '</option>'; }).join('');
+  $('gbSubject').value = subjects[sj] ? sj : '';
+
+  var md = gbModel();
+  $('gbTitle').textContent = 'ตารางคะแนน' + (md.subj ? ' · ' + md.subj : '') + (md.cls ? ' · ' + md.cls : '') + ' · ' + (DATA.school || '');
+  if (!md.rows.length || !md.cols.length) { $('gbTable').innerHTML = '<tbody><tr><td class="empty" style="border:0">' + (md.rows.length ? 'ยังไม่มีงานของห้องนี้' : 'ยังไม่มีนักเรียน') + '</td></tr></tbody>'; return; }
+  var head = '<thead><tr><th class="c-id">รหัส</th><th class="c-name">ชื่อ</th>' + (md.cls ? '' : '<th>ห้อง</th>') + md.cols.map(function (a) {
+    return '<th title="' + esc(a.subject + ' · ' + a.assignment_name) + '">' + esc(a.assignment_name) + '<div class="xs muted">' + (md.subj ? '' : esc(a.subject) + ' · ') + (hasScore(a) ? 'เต็ม ' + esc(a.max_score) : 'ไม่มีคะแนน') + '</div></th>';
+  }).join('') + '<th>ส่งแล้ว</th><th>คะแนนรวม</th><th>%</th></tr></thead>';
+  var body = md.rows.map(function (s) {
+    var sent = 0, target = 0, sum = 0, full = 0;
+    var tds = md.cols.map(function (a) {
+      if (!isTarget(a, s)) return '<td class="na"></td>';
+      target++;
+      var c = gbCell(a.assignment_id, s.id);
+      if (hasScore(a)) full += Number(a.max_score);
+      if (!c) return '<td class="miss">–</td>';
+      sent++;
+      var v = c[0], edit = hasScore(a) ? ' edit" data-gb-aid="' + esc(a.assignment_id) + '" data-gb-sid="' + esc(s.id) : '';
+      if (hasScore(a) && hasVal(v)) sum += Number(v);
+      return '<td class="done' + (c[1] ? ' late' : '') + edit + '">' + (hasScore(a) && hasVal(v) ? fmtScore(v) : '✓') + '</td>';
+    }).join('');
+    return '<tr><td class="c-id">' + esc(s.id) + '</td><td class="c-name" title="' + esc(s.name) + '">' + esc(s.name) + '</td>' + (md.cls ? '' : '<td>' + esc(s.className) + '</td>') + tds +
+      '<td class="tot">' + sent + '/' + target + '</td><td class="tot">' + (full ? fmtScore(sum) + '/' + fmtScore(full) : '-') + '</td><td class="tot">' + (full ? Math.round(sum / full * 100) : '-') + '</td></tr>';
+  }).join('');
+  $('gbTable').innerHTML = head + '<tbody>' + body + '</tbody>';
+}
+$('gbClass').onchange = function () { this.dataset.touched = '1'; renderGradebook(); };
+$('gbSubject').onchange = renderGradebook;
+$('gbRefresh').onclick = function () {
+  var b = this; b.disabled = true;
+  Promise.all([refresh(), loadGradebook()]).then(function () { b.disabled = false; toast('อัปเดตแล้ว'); }, function (e) { b.disabled = false; toast(e.message, 'err'); });
+};
+$('gbTable').addEventListener('click', function (e) {
+  var c = e.target.closest('[data-gb-aid]');
+  if (!c) return;
+  var aid = c.dataset.gbAid, sid = c.dataset.gbSid;
+  var a = findTask(aid) || GB.assignments.filter(function (x) { return x.assignment_id === aid; })[0];
+  var s = BY_ID[norm(sid)], cell = gbCell(aid, sid);
+  scoreSheet(a, sid, s ? s.name : sid, cell ? cell[0] : '');
+});
+/** ตารางเป็นแถว ๆ สำหรับ Excel */
+function gbMatrix() {
+  var md = gbModel();
+  var out = [['รหัส', 'ชื่อ-สกุล', 'ห้อง'].concat(md.cols.map(function (a) { return a.subject + ' - ' + a.assignment_name + (hasScore(a) ? ' (' + a.max_score + ')' : ''); }), ['ส่งแล้ว', 'งานทั้งหมด', 'คะแนนรวม', 'คะแนนเต็ม'])];
+  md.rows.forEach(function (s) {
+    var sent = 0, target = 0, sum = 0, full = 0;
+    var cells = md.cols.map(function (a) {
+      if (!isTarget(a, s)) return '';
+      target++;
+      if (hasScore(a)) full += Number(a.max_score);
+      var c = gbCell(a.assignment_id, s.id);
+      if (!c) return 'ไม่ส่ง';
+      sent++;
+      if (hasScore(a) && hasVal(c[0])) { sum += Number(c[0]); return fmtScore(c[0]); }
+      return 'ส่ง';
+    });
+    out.push([s.id, s.name, s.className].concat(cells, [sent, target, full ? fmtScore(sum) : '', full || '']));
+  });
+  return out;
+}
+$('gbCopy').onclick = function () {
+  if (!GB) return;
+  var tsv = gbMatrix().map(function (r) { return r.map(function (v) { return String(v).replace(/[\t\n]/g, ' '); }).join('\t'); }).join('\n');
+  copyText(tsv).then(function () { toast('คัดลอกแล้ว — วางใน Excel / Google Sheets ได้เลย'); });
+};
+$('gbCsv').onclick = function () {
+  if (!GB) return;
+  var csv = gbMatrix().map(function (r) { return r.map(function (v) { v = String(v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; }).join(','); }).join('\r\n');
+  var blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' }); // BOM ให้ Excel อ่านภาษาไทยได้
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'คะแนน' + ($('gbClass').value ? '-' + $('gbClass').value.replace(/\//g, '-') : '') + ($('gbSubject').value ? '-' + $('gbSubject').value : '') + '.csv';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(function () { URL.revokeObjectURL(a.href); }, 5000);
+  if (window.liff && CFG.LIFF_ID && liff.isInClient()) toast('ถ้าดาวน์โหลดในแอป LINE ไม่ได้ ใช้ "คัดลอกไป Excel" แทน', 'warn', 4000);
+};
+$('gbPrint').onclick = function () { show('gbTitle'); window.print(); hide('gbTitle'); };
+
+/* =====================================================
    งาน
    ===================================================== */
 function renderTasks() {
@@ -937,7 +1240,7 @@ function renderTasks() {
   $('taskList').innerHTML = list.length ? list.map(function (a) {
     var p = progressOf(a);
     return '<div class="list-item tap" data-task-menu="' + esc(a.assignment_id) + '"><div class="grow"><div class="row" style="gap:6px"><b class="ellipsis">' + esc(a.assignment_name) + '</b>' +
-      (a.status === 'OPEN' ? '' : '<span class="badge off">ปิดรับ</span>') + '</div>' +
+      (a.status === 'OPEN' ? '' : '<span class="badge off">ปิดรับ</span>') + (hasScore(a) ? '<span class="badge">เต็ม ' + esc(a.max_score) + '</span>' : '') + '</div>' +
       '<div class="small muted ellipsis">' + esc(a.subject) + ' · ' + esc(targetLabel(a)) + ' · ส่ง ' + p.done + '/' + p.target + (a.due_date ? ' · ' + esc(thDate(a.due_date)) : '') + '</div></div>' +
       '<span class="faint"><svg style="width:20px;height:20px"><use href="#i-more"/></svg></span></div>';
   }).join('') : '<div class="empty">ยังไม่มีงาน</div>';
@@ -961,7 +1264,7 @@ $('taskList').addEventListener('click', function (e) {
         var act = x.dataset.a;
         closeSheet();
         if (act === 'scan') selectTask(a.assignment_id, true);
-        else if (act === 'summary') { $('sumSel').innerHTML = '<option value="' + esc(a.assignment_id) + '"></option>'; $('sumSel').value = a.assignment_id; go('summary'); }
+        else if (act === 'summary') { $('sumSel').innerHTML = '<option value="' + esc(a.assignment_id) + '"></option>'; $('sumSel').value = a.assignment_id; STATE.seg = 'task'; go('summary'); }
         else if (act === 'edit') taskForm(a);
         else if (act === 'toggle') saveTask({ assignment_id: a.assignment_id, subject: a.subject, assignment_name: a.assignment_name, class_target: a.class_target, due_date: localInput(a.due_date), status: open ? 'CLOSED' : 'OPEN' });
         else if (act === 'del') confirmSheet('ลบงานนี้?', a.assignment_name, 'ลบ', true).then(function (y) {
@@ -992,6 +1295,7 @@ function taskForm(a) {
     '<datalist id="subjList">' + Object.keys(subjects).map(function (s) { return '<option value="' + esc(s) + '">'; }).join('') + '</datalist></label>' +
     '<div class="grid2"><label class="field"><span>ห้อง</span><select class="input" name="class_target">' + opts + '</select></label>' +
     '<label class="field"><span>กำหนดส่ง (ถ้ามี)</span><input class="input" type="datetime-local" name="due_date" value="' + esc(a ? localInput(a.due_date) : '') + '"></label></div>' +
+    '<label class="field"><span>คะแนนเต็ม (ถ้ามี — ใส่แล้วจะให้คะแนนทันทีหลังสแกน)</span><input class="input" type="number" name="max_score" min="1" max="1000" step="any" inputmode="decimal" placeholder="เว้นว่าง = ไม่ให้คะแนน" value="' + esc(a ? a.max_score : '') + '"></label>' +
     '<button class="btn primary block lg" type="submit">' + (a ? 'บันทึก' : 'สร้างงานและเริ่มสแกน') + '</button></form>', function () {
       var f = $('tf');
       if (a) {
@@ -1003,7 +1307,7 @@ function taskForm(a) {
         ev.preventDefault();
         var btn = f.querySelector('[type=submit]'), label = btn.textContent;
         btn.disabled = true; btn.textContent = 'กำลังบันทึก…';
-        saveTask({ assignment_id: a ? a.assignment_id : '', assignment_name: f.assignment_name.value, subject: f.subject.value, class_target: f.class_target.value, due_date: f.due_date.value, status: a ? a.status : 'OPEN' }, !a)
+        saveTask({ assignment_id: a ? a.assignment_id : '', assignment_name: f.assignment_name.value, subject: f.subject.value, class_target: f.class_target.value, due_date: f.due_date.value, max_score: f.max_score.value.trim(), status: a ? a.status : 'OPEN' }, !a)
           .then(function (ok) { if (ok) closeSheet(); else { btn.disabled = false; btn.textContent = label; } });
       };
     });
@@ -1287,6 +1591,7 @@ var VIEWS = ['scan', 'summary', 'tasks', 'students', 'qr'];
 function go(v) {
   if (v !== 'scan' && (camOn || camBusy)) stopCam(true);
   STATE.view = v;
+  document.body.classList.toggle('wide', v === 'summary' && STATE.seg === 'grade');
   VIEWS.forEach(function (x) { show('view-' + x, x === v); });
   document.querySelectorAll('.tabbar a').forEach(function (a) { a.classList.toggle('active', a.dataset.view === v); });
   renderCurrent();
@@ -1299,7 +1604,7 @@ function renderCurrent() {
     show('pickTask', !STATE.task); show('scanner', !!STATE.task);
     if (STATE.task) { renderProgress(); renderLog(); } else renderTaskCards();
   }
-  if (STATE.view === 'summary') renderSummary();
+  if (STATE.view === 'summary') { if (STATE.seg === 'grade') renderGradebook(); else renderSummary(); }
   if (STATE.view === 'tasks') renderTasks();
   if (STATE.view === 'students') renderStudents();
   if (STATE.view === 'qr') renderQr();
@@ -1330,7 +1635,8 @@ function startApp() {
   started = true;
   show('tabbar');
   var mode = urlParam('mode'), task = urlParam('task');
-  var view = { summary: 'summary', new: 'tasks', tasks: 'tasks', students: 'students', manage: 'students', qr: 'qr' }[mode] || 'scan';
+  if (mode === 'scores') STATE.seg = 'grade';
+  var view = { summary: 'summary', scores: 'summary', new: 'tasks', tasks: 'tasks', students: 'students', manage: 'students', qr: 'qr' }[mode] || 'scan';
   go(view);
   if (mode === 'new') taskForm(null);
   if (mode === 'accounts' && DATA.user && DATA.user.isSuper) {

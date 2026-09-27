@@ -156,6 +156,10 @@ var API_ACTIONS = {
     return r;
   },
 
+  gradebook: function () {
+    return gradebook_();
+  },
+
   submitBatch: function (b, actor) {
     return { ok: true, results: submitBatch_(b.items, actor) };
   },
@@ -202,6 +206,12 @@ var API_ACTIONS = {
       assignment_id: a.assignment_id, subject: a.subject, assignment_name: a.assignment_name,
       class_target: String(a.class_target || 'ALL').trim() || 'ALL', due_date: a.due_date || ''
     };
+    if (a.max_score !== undefined) {
+      var max = a.max_score === '' || a.max_score === null ? '' : Number(a.max_score);
+      if (max !== '' && (isNaN(max) || max <= 0 || max > 1000)) return { ok: false, message: 'คะแนนเต็มต้องเป็นตัวเลข 1–1000' };
+      rec.max_score = max;
+      ensureColumns_('Assignments'); // Sheet ของบัญชีเดิมยังไม่มีคอลัมน์ max_score
+    }
     if (isNew) rec.teacher = actor.teacherName || actor.displayName || '';
     if (a.status) rec.status = a.status;
     var row = saveRecord_('Assignments', rec, isNew);
@@ -239,15 +249,32 @@ function loadData_() {
   var wanted = {};
   list.forEach(function (a) { wanted[normId_(a.assignment_id)] = true; });
 
-  // subs[assignment_id][student_id] = [timestampISO, submission_id, isLate]
+  // subs[assignment_id][student_id] = [timestampISO, submission_id, isLate, score]
   var subs = {};
   readTable_('Submissions').forEach(function (r) {
     var aid = String(r.assignment_id);
     if (!wanted[normId_(aid)]) return;
     var d = toDate_(r.timestamp);
-    (subs[aid] = subs[aid] || {})[String(r.student_id)] = [d ? d.toISOString() : '', r.submission_id, isTrue_(r.is_late)];
+    (subs[aid] = subs[aid] || {})[String(r.student_id)] = [d ? d.toISOString() : '', r.submission_id, isTrue_(r.is_late), scoreOf_(r)];
   });
   return { students: students, assignments: list, subs: subs };
+}
+
+function scoreOf_(r) {
+  return r.score === '' || r.score === null || r.score === undefined || isNaN(Number(r.score)) ? '' : Number(r.score);
+}
+
+/**
+ * ตารางคะแนน (ทุกงาน ทุกคน) — โหลดเมื่อเปิดหน้าตารางคะแนนเท่านั้น
+ * scores[assignment_id][student_id] = [score, isLate]  (ไม่มี = ยังไม่ส่ง, score '' = ส่งแล้วแต่ยังไม่ให้คะแนน)
+ */
+function gradebook_() {
+  var scores = {};
+  readTable_('Submissions').forEach(function (r) {
+    var aid = String(r.assignment_id);
+    (scores[aid] = scores[aid] || {})[String(r.student_id)] = [scoreOf_(r), isTrue_(r.is_late)];
+  });
+  return { ok: true, assignments: readTable_('Assignments').map(publicAssignment_), scores: scores };
 }
 
 /** นักเรียนแบบ array: [student_id, name, class, room] */

@@ -32,7 +32,7 @@ var SCHEMA = {
   Assignments: [
     'assignment_id', 'subject', 'assignment_name', 'description', 'class_target',
     'due_date', 'teacher', 'status', 'allow_resubmit', 'require_file',
-    'created_at', 'reminded_at'
+    'created_at', 'reminded_at', 'max_score'
   ],
   Submissions: [
     'submission_id', 'timestamp', 'student_id', 'name', 'class', 'room',

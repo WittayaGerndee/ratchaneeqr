@@ -117,6 +117,36 @@ r = call('submitBatch', {items:[{cid:'z1', studentId:'STU-0001', assignmentId:p4
 assert(r.results.every(x=>x.ok), 'scan STU-0001 and "2" both match (leading zeros)');
 r = call('bootstrap');
 assert(r.students.some(x=>x[0]==='0001'), 'bootstrap keeps "0001" text');
+
+// scores: sheet made before max_score column existed → column added on save
+const aHs = sheets.Assignments.data[0]; const msIdx = aHs.indexOf('max_score'); aHs.splice(msIdx, 1); R("_headersMemo = {}");
+r = call('saveAssignment', {assignment:{subject:'ไทย', assignment_name:'ใบงานมีคะแนน', class_target:'ป.4/5', max_score:'10'}});
+const SC = r.assignment.assignment_id;
+assert(r.ok && r.assignment.max_score===10 && sheets.Assignments.data[0].includes('max_score'), 'assignment with max_score (column auto-added)');
+r = call('saveAssignment', {assignment:{subject:'ไทย', assignment_name:'x', max_score:'-1'}});
+assert(!r.ok, 'max_score must be positive');
+r = call('submitBatch', {items:[
+  {cid:'s1', studentId:'0001', assignmentId:SC, score:8},
+  {cid:'s2', studentId:'0002', assignmentId:SC},
+  {cid:'s3', studentId:'0002', assignmentId:SC, scoreOnly:true, score:'9.5'},
+  {cid:'s4', studentId:'0003', assignmentId:SC, scoreOnly:true, score:5},
+  {cid:'s5', studentId:'0001', assignmentId:SC, scoreOnly:true, score:11}
+]});
+const sb = Object.fromEntries(r.results.map(x=>[x.cid,x]));
+assert(sb.s1.ok && sb.s1.score===8 && sb.s2.ok && sb.s3.ok && sb.s3.code==='SCORED' && sb.s3.score===9.5, 'submit with score + score new row in same batch');
+assert(sb.s4.code==='NOT_SUBMITTED' && sb.s5.code==='BAD_SCORE', 'scoreOnly needs submission; score over max rejected');
+r = call('submitBatch', {items:[{cid:'s6', studentId:'0001', assignmentId:SC, scoreOnly:true, score:7}, {cid:'s7', studentId:'0002', assignmentId:SC, score:''}]});
+assert(r.results[0].ok && r.results[1].code==='DUPLICATE', 'rescore existing row / duplicate with cleared score');
+const subRow = id => R(`readTable_('Submissions').filter(function(x){return x.student_id==='${id}' && x.assignment_id==='${SC}'})[0]`);
+assert(subRow('0001').score===7 && subRow('0001').status==='ครูตรวจแล้ว' && subRow('0001').checked_by, 'score saved to sheet, status ครูตรวจแล้ว');
+assert(subRow('0002').score==='', 'score cleared');
+r = call('bootstrap');
+assert(r.subs[SC]['0001'][3]===7 && r.subs[SC]['0002'][3]==='', 'bootstrap subs include score');
+r = call('gradebook');
+assert(r.ok && r.assignments.some(a=>a.assignment_id===SC && a.max_score===10) && r.scores[SC]['0001'][0]===7, 'gradebook returns scores');
+call('saveAssignment', {assignment:{assignment_id:SC, subject:'ไทย', assignment_name:'ใบงานมีคะแนน', class_target:'ป.4/5', status:'CLOSED'}});
+r = call('submitBatch', {items:[{cid:'s8', studentId:'0001', assignmentId:SC, scoreOnly:true, score:6}]});
+assert(r.results[0].ok && subRow('0001').score===6, 'can score after assignment closed');
 r = call('saveSettings', {settings:{SCHOOL_NAME:'โรงเรียนอนุบาลศรีสุทโธ', ADMIN_NAME:'ครูรัชนี', EVIL:'x'}});
 assert(r.ok && r.school==='โรงเรียนอนุบาลศรีสุทโธ' && r.adminName==='ครูรัชนี' && !R("findOne_('Settings','key','EVIL')"), 'admin saves settings (whitelisted keys)');
 r = call('bootstrap');

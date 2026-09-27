@@ -60,6 +60,15 @@ function invalidateTableCache_(name) {
   CacheService.getScriptCache().remove('tbl_' + currentTenantId_() + '_' + name);
 }
 
+/** เพิ่มคอลัมน์ใหม่ใน SCHEMA ที่ Sheet เดิมยังไม่มี (บัญชีที่สร้างก่อนอัปเดตเวอร์ชัน) */
+function ensureColumns_(name) {
+  var hs = headers_(name);
+  var missing = SCHEMA[name].some(function (c) { return hs.indexOf(c) < 0; });
+  if (!missing) return;
+  ensureSheet_(ss_(), name, SCHEMA[name]);
+  delete _headersMemo[name];
+}
+
 function appendRow_(name, obj) {
   var sh = sheet_(name);
   var hs = headers_(name);

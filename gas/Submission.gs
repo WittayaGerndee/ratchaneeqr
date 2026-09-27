@@ -58,6 +58,7 @@ function publicAssignment_(a) {
     assignment_id: String(a.assignment_id), subject: a.subject, assignment_name: a.assignment_name,
     description: a.description, class_target: a.class_target || 'ALL', teacher: a.teacher,
     status: String(a.status || '').toUpperCase(), allow_resubmit: isTrue_(a.allow_resubmit), require_file: isTrue_(a.require_file),
+    max_score: Number(a.max_score) > 0 ? Number(a.max_score) : '',
     due_date: due ? due.toISOString() : '', due_text: due ? fmtDateTimeTH_(due) : 'ไม่กำหนด',
     is_overdue: !!(due && due.getTime() < Date.now())
   };
@@ -208,10 +209,36 @@ function undoSubmission_(submissionId, actor) {
 }
 
 /**
+ * ตรวจคะแนน: '' = ล้างคะแนน, ต้องเป็นตัวเลข 0 ถึงคะแนนเต็มของงาน
+ * @return {{ok:boolean, value:(number|string), message:string}}
+ */
+function parseScore_(v, a) {
+  if (v === '' || v === null) return { ok: true, value: '' };
+  var n = Number(v);
+  if (isNaN(n) || n < 0) return { ok: false, message: 'คะแนนไม่ถูกต้อง' };
+  var max = Number(a.max_score) || 0;
+  if (max && n > max) return { ok: false, message: 'คะแนนเกินคะแนนเต็ม (' + max + ')' };
+  return { ok: true, value: Math.round(n * 100) / 100 };
+}
+
+/** ค่าที่บันทึกพร้อมคะแนน (มีคะแนน = ครูตรวจแล้ว) */
+function scoreFields_(score, actor, now) {
+  var f = { score: score, updated_at: now };
+  if (score !== '') {
+    f.status = SUBMISSION_STATUS.CHECKED;
+    f.checked_by = actor.teacherName || actor.displayName || '';
+    f.checked_at = now;
+  }
+  return f;
+}
+
+/**
  * บันทึกหลายรายการในครั้งเดียว (หน้า LIFF ส่งมาเป็นชุดหลังครูสแกน)
  * อ่าน Sheet ครั้งเดียว และเขียนแถวใหม่ทั้งหมดด้วย setValues ครั้งเดียว
- * @param {Array} items [{ cid, studentId, assignmentId, ts }]  ts = เวลาที่สแกนบนมือถือ (ISO)
- * @return {Array} [{ cid, ok, code, message, submission_id, timestamp, isLate, submittedText }]
+ * @param {Array} items [{ cid, studentId, assignmentId, ts, score?, scoreOnly? }]
+ *   ts = เวลาที่สแกนบนมือถือ (ISO) · score = คะแนน (ไม่ส่งมา = ไม่เปลี่ยน)
+ *   scoreOnly = ให้/แก้คะแนนของงานที่ส่งแล้วเท่านั้น (ไม่สร้างการส่งใหม่ ใช้กับงานที่ปิดรับแล้วได้)
+ * @return {Array} [{ cid, ok, code, message, submission_id, timestamp, isLate, submittedText, score }]
  */
 function submitBatch_(items, actor) {
   items = (items || []).slice(0, 200);
@@ -229,25 +256,43 @@ function submitBatch_(items, actor) {
     var allowLate = getBoolSetting_('ALLOW_LATE_SUBMISSION', true);
     var now = new Date();
     var hs = headers_('Submissions');
-    var newRows = [];
+    var newRecs = [];
+    var scoreUpdates = {}; // _row → ค่าที่ต้องแก้ของแถวเดิม
     var results = items.map(function (it) {
       var sid = parseStudentCode_(it.studentId);
       var aid = parseTaskCode_(it.assignmentId);
       var s = students[normId_(sid)];
       var a = assignments[normId_(aid)];
       var res = { cid: it.cid };
+      var hasScore = it.score !== undefined;
       if (!s) return Object.assign(res, { ok: false, code: 'STUDENT_NOT_FOUND', message: 'ไม่พบรหัสนักเรียน ' + sid });
-      if (!isStudentActive_(s)) return Object.assign(res, { ok: false, code: 'STUDENT_INACTIVE', message: 'นักเรียนไม่อยู่ในสถานะใช้งาน' });
       if (!a) return Object.assign(res, { ok: false, code: 'ASSIGNMENT_NOT_FOUND', message: 'ไม่พบงาน ' + aid });
-      if (!isAssignmentOpen_(a)) return Object.assign(res, { ok: false, code: 'ASSIGNMENT_CLOSED', message: 'งานนี้ปิดรับแล้ว' });
-      if (!isStudentTarget_(a, s)) return Object.assign(res, { ok: false, code: 'NOT_TARGET', message: 'ไม่ใช่ห้องที่สั่งงาน (' + className_(s) + ')' });
+      var sc = hasScore ? parseScore_(it.score, a) : null;
+      if (sc && !sc.ok) return Object.assign(res, { ok: false, code: 'BAD_SCORE', message: sc.message });
 
       var key = normId_(s.student_id) + '|' + normId_(a.assignment_id);
       var ex = existing[key];
+      /** ให้คะแนนรายการที่มีอยู่แล้ว (แถวเดิมใน Sheet หรือแถวใหม่ในชุดนี้) */
+      var applyScore = function () {
+        var f = scoreFields_(sc.value, actor, now);
+        if (ex._row) scoreUpdates[ex._row] = Object.assign(scoreUpdates[ex._row] || {}, f);
+        Object.assign(ex, f);
+      };
+      if (it.scoreOnly) {
+        if (!ex) return Object.assign(res, { ok: false, code: 'NOT_SUBMITTED', message: 'ยังไม่ได้บันทึกการส่งงาน' });
+        if (sc) applyScore();
+        return Object.assign(res, { ok: true, code: 'SCORED', submission_id: ex.submission_id, score: ex.score });
+      }
+
+      if (!isStudentActive_(s)) return Object.assign(res, { ok: false, code: 'STUDENT_INACTIVE', message: 'นักเรียนไม่อยู่ในสถานะใช้งาน' });
+      if (!isAssignmentOpen_(a)) return Object.assign(res, { ok: false, code: 'ASSIGNMENT_CLOSED', message: 'งานนี้ปิดรับแล้ว' });
+      if (!isStudentTarget_(a, s)) return Object.assign(res, { ok: false, code: 'NOT_TARGET', message: 'ไม่ใช่ห้องที่สั่งงาน (' + className_(s) + ')' });
+
       if (ex) {
+        if (sc) applyScore();
         return Object.assign(res, {
           ok: false, code: 'DUPLICATE', message: 'ส่งแล้ว', submission_id: ex.submission_id,
-          submittedText: fmtDateTimeTH_(ex.timestamp)
+          submittedText: fmtDateTimeTH_(ex.timestamp), score: ex.score
         });
       }
       // ใช้เวลาที่สแกนบนมือถือ (ถ้าสมเหตุสมผล) เพื่อให้เวลาถูกต้องแม้ส่งขึ้นช้า
@@ -258,18 +303,21 @@ function submitBatch_(items, actor) {
       if (isLate && !allowLate) return Object.assign(res, { ok: false, code: 'OVERDUE', message: 'เลยกำหนดส่งแล้ว' });
 
       var rec = {
-        submission_id: newId_('SUB') + newRows.length, timestamp: ts,
+        submission_id: newId_('SUB') + newRecs.length, timestamp: ts,
         student_id: String(s.student_id), name: s.name, class: s.class, room: s.room,
         assignment_id: String(a.assignment_id), assignment: a.assignment_name, subject: a.subject,
         status: SUBMISSION_STATUS.SUBMITTED, attempt: 1, is_late: isLate ? 'TRUE' : 'FALSE',
         line_user_id: actor.userId || '', submitted_by: actor.teacherName || actor.displayName || '', updated_at: now
       };
+      if (sc) Object.assign(rec, scoreFields_(sc.value, actor, now));
       existing[key] = rec;
-      newRows.push(hs.map(function (h) { return rec[h] !== undefined ? rec[h] : ''; }));
-      return Object.assign(res, { ok: true, code: 'SUBMITTED', submission_id: rec.submission_id, timestamp: ts.toISOString(), isLate: isLate });
+      newRecs.push(rec);
+      return Object.assign(res, { ok: true, code: 'SUBMITTED', submission_id: rec.submission_id, timestamp: ts.toISOString(), isLate: isLate, score: rec.score });
     });
 
-    if (newRows.length) {
+    Object.keys(scoreUpdates).forEach(function (row) { updateRow_('Submissions', Number(row), scoreUpdates[row]); });
+    if (newRecs.length) {
+      var newRows = newRecs.map(function (rec) { return hs.map(function (h) { return rec[h] !== undefined ? rec[h] : ''; }); });
       var sh = sheet_('Submissions');
       var start = sh.getLastRow() + 1;
       setTextFormat_(sh, hs, start, newRows.length);
