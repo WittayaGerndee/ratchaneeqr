@@ -188,6 +188,12 @@ r = call('importStudents', {format:'number', text:'เลขที่\tชื่
 assert(r.ok && r.added===3 && r.updated===1 && r.skipped===1, 'import by number: 3 added, 1 updated (room+number), header skipped');
 const pStu2 = R("readTable_('Students').filter(function(x){return x.class==='ป.2'}).map(function(x){return [x.student_id,x.name,x.room,String(x.number)]})");
 assert(pStu2.some(x=>x[0]===auto1 && x[1]==='อัตโนมัติ หนึ่ง ชื่อใหม่') && new Set(pStu2.map(x=>x[0])).size===pStu2.length, 'import updates by room+number, all ids unique');
+// ตรวจบัค: แก้ใบงานที่ถูกลบไปแล้ว ต้องไม่สร้างใบงานใหม่แทน
+r = call('saveAssignment', {assignment:{assignment_id:'HW999', subject:'ไทย', assignment_name:'ผี'}});
+assert(!r.ok && !R("getAssignment_('HW999')"), 'editing a deleted assignment is rejected (not re-created)');
+// ตรวจบัค: ค่าส่วนกลางของบัญชีย่อยจำไว้ต่อการทำงาน และไม่ทำให้ header ของบัญชีสลับกัน
+R("_globalMemo = {}"); const hmBefore = R("JSON.stringify(_headersMemo)"); R("mainSetting_('QR_STUDENT_PREFIX','STU-')");
+assert(R("_globalMemo.QR_STUDENT_PREFIX")==='STU-' && R("JSON.stringify(_headersMemo)")===hmBefore, 'mainSetting_ memoizes and restores header memo');
 // Array Batch: ให้คะแนนย้อนหลังหลายคน อ่าน/เขียน Sheets ไม่กี่ครั้ง และค่าถูกต้อง
 assert(R("colLetter_(1)")==='A' && R("colLetter_(26)")==='Z' && R("colLetter_(27)")==='AA' && R("colLetter_(52)")==='AZ', 'colLetter_');
 r = call('saveAssignment', {assignment:{subject:'คณิต', assignment_name:'batch', class_target:'ALL', max_score:'10'}});

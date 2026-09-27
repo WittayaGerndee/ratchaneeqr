@@ -209,6 +209,7 @@ var API_ACTIONS = {
       return { ok: false, message: 'กรุณากรอกวิชาและชื่องาน' };
     }
     var isNew = !a.assignment_id;
+    if (!isNew && !getAssignment_(a.assignment_id)) return { ok: false, message: 'ไม่พบใบงานนี้ (อาจถูกลบไปแล้ว) — ดึงข้อมูลใหม่แล้วลองอีกครั้ง' };
     if (isNew) a.assignment_id = nextAssignmentId_();
     var rec = {
       assignment_id: a.assignment_id, subject: a.subject, assignment_name: a.assignment_name,
@@ -224,7 +225,16 @@ var API_ACTIONS = {
     if (a.status) rec.status = a.status;
     rec.subject = String(a.subject).trim();
     ensureSubjectNamed_(rec.subject);
-    var row = saveRecord_('Assignments', rec, isNew);
+    var row;
+    for (var attempt = 0; ; attempt++) {
+      try {
+        row = saveRecord_('Assignments', rec, isNew);
+        break;
+      } catch (e) { // สร้างใบงานพร้อมกันจากสองเครื่อง → รหัสชนกัน ใช้รหัสถัดไป
+        if (!isNew || attempt >= 3 || String(e.message).indexOf('มีอยู่แล้ว') < 0) throw e;
+        rec.assignment_id = nextAssignmentId_();
+      }
+    }
     log_('SAVE_ASSIGNMENT', { line_user_id: actor.userId, result: rec.assignment_id });
     return { ok: true, assignment: publicAssignment_(row) };
   },

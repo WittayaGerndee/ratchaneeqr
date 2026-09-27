@@ -133,16 +133,25 @@ function getSetting_(key, fallback) {
   return v;
 }
 
+/** ค่าส่วนกลางที่อ่านแล้วในการทำงานครั้งนี้ (บัญชีย่อยอ่านซ้ำทุกเล่มที่สแกน → ไม่ต้องไปอ่าน Properties/Cache ซ้ำ) */
+var _globalMemo = {};
+
 /** อ่านค่าจาก Settings ของบัญชีหลัก (MAIN) ไม่ว่าจะใช้งานบัญชีไหนอยู่ */
 function mainSetting_(key, fallback) {
+  if (Object.prototype.hasOwnProperty.call(_globalMemo, key)) {
+    var hit = _globalMemo[key];
+    return hit === '' && fallback !== undefined ? fallback : hit;
+  }
   var saved = _tenant;
   _tenant = null;
-  var memo = _settingsMemo, ssm = _ssMemo;
-  _settingsMemo = null; _ssMemo = null;
+  var memo = _settingsMemo, ssm = _ssMemo, hm = _headersMemo;
+  _settingsMemo = null; _ssMemo = null; _headersMemo = {};
   try {
-    return getSetting_(key, fallback);
+    var v = getSetting_(key, '');
+    _globalMemo[key] = v;
+    return v === '' && fallback !== undefined ? fallback : v;
   } finally {
-    _tenant = saved; _settingsMemo = memo; _ssMemo = ssm;
+    _tenant = saved; _settingsMemo = memo; _ssMemo = ssm; _headersMemo = hm;
   }
 }
 

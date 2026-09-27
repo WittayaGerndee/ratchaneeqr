@@ -118,6 +118,7 @@ function setSettingValue_(key, value) {
   if (row) updateRow_('Settings', row._row, { value: value });
   else appendRow_('Settings', { key: key, value: value, description: '' });
   _settingsMemo = null;
+  _globalMemo = {};
   invalidateTableCache_('Settings');
 }
 

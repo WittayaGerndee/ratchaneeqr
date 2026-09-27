@@ -42,10 +42,21 @@ function sendDueRemindersForTenant_() {
     });
     var target = students.filter(function (s) { return isStudentTarget_(a, s); });
     var pending = target.filter(function (s) { return !done[normId_(s.student_id)]; });
-    updateRow_('Assignments', a._row, { reminded_at: new Date() });
+    var lock = LockService.getScriptLock();
+    if (!lock.tryLock(20000)) return; // ระบบไม่ว่าง → เตือนรอบถัดไป
+    try {
+      var cur = findOne_('Assignments', 'assignment_id', a.assignment_id); // อ่านใหม่ใต้ lock (แถวอาจเลื่อน)
+      if (!cur || cur.reminded_at) return;
+      updateRow_('Assignments', cur._row, { reminded_at: new Date() });
+    } finally {
+      lock.releaseLock();
+    }
     if (!pending.length) return;
 
-    var names = pending.slice(0, 40).map(function (s) { return '• ' + s.student_id + ' ' + s.name + ' (' + className_(s) + ')'; });
+    pending.sort(function (x, y) {
+      return String(className_(x)).localeCompare(String(className_(y)), 'th', { numeric: true }) || byNumber_(x, y);
+    });
+    var names = pending.slice(0, 40).map(function (s) { return '• ' + (s.number !== '' && s.number != null ? 'เลขที่ ' + s.number + ' ' : '') + s.name + ' (' + className_(s) + ')'; });
     if (pending.length > 40) names.push('… และอีก ' + (pending.length - 40) + ' คน');
     lineMulticast_(teachers, textMsg_('🔔 ใกล้ครบกำหนดส่ง\n\n' + a.subject + ' — ' + a.assignment_name +
       '\nกำหนดส่ง: ' + fmtDateTimeTH_(due) + '\nส่งแล้ว ' + (target.length - pending.length) + '/' + target.length +

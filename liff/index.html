@@ -710,9 +710,10 @@ function setData(d) {
     school: d.school || '', adminName: d.adminName || '', user: d.user || {}, studentPrefix: d.studentPrefix || 'STU-',
     sheetUrl: d.sheetUrl || '', driveUrl: d.driveUrl || ''
   };
-  QUEUE.forEach(function (q) { // รายการที่ยังไม่ขึ้น server ต้องยังแสดงว่าส่งแล้ว
-    var m = subsOf(q.assignmentId);
-    if (!m[norm(q.studentId)]) m[norm(q.studentId)] = [q.ts, null, false];
+  QUEUE.forEach(function (q) { // รายการที่ยังไม่ขึ้น server: การส่งยังแสดงว่าส่งแล้ว · คะแนนที่รอบันทึกทับค่าจาก server
+    var m = subsOf(q.assignmentId), k = norm(q.studentId);
+    if (!q.scoreOnly && !m[k]) m[k] = [q.ts, null, false, ''];
+    if (q.score !== undefined && m[k]) m[k][3] = q.score;
   });
   BY_ID = {};
   DATA.students.forEach(function (s) {
@@ -1064,6 +1065,10 @@ function record(raw) {
   if (!s) {
     e.state = 'err'; e.msg = 'ไม่พบรหัสนี้ในรายชื่อ';
     showResult('err', 'ไม่พบรหัส ' + e.code, 'เพิ่มนักเรียนได้ที่เมนู "นักเรียน"');
+    if (Date.now() - (STATE.lastMissRefresh || 0) > 30000) { // อาจเพิ่งเพิ่มนักเรียนจากอีกเครื่อง
+      STATE.lastMissRefresh = Date.now();
+      refresh().catch(function () {});
+    }
   } else if (!isTarget(a, s)) {
     Object.assign(e, { state: 'err', name: s.name, sid: s.id, cls: s.className, msg: 'ไม่ใช่ห้องที่สั่งงานนี้' });
     showResult('err', s.name, 'ห้อง ' + s.className + ' ไม่ได้รับงานนี้');
@@ -1082,7 +1087,7 @@ function record(raw) {
     Object.assign(e, { state: 'ok', name: s.name, sid: s.id, cls: s.className, late: late, pending: true });
     QUEUE.push({ cid: e.id, studentId: s.id, assignmentId: a.assignment_id, ts: ts });
     lsSet(LS_QUEUE, QUEUE); saveLocal();
-    showResult('ok', s.name, s.id + ' · ' + s.className + (late ? ' · ส่งช้า' : ''));
+    showResult('ok', s.name, (s.num ? 'เลขที่ ' + s.num + ' · ' : '') + s.className + (late ? ' · ส่งช้า' : ''));
     renderProgress();
     var asking = openScorePad(a, s);
     scheduleFlush(asking ? 2500 : 500); // รอครูกดคะแนนก่อน จะได้ส่งขึ้นพร้อมกัน
@@ -1315,6 +1320,7 @@ $('logList').addEventListener('click', function (ev) {
       saveLocal(); renderLog(); if (STATE.task) renderProgress();
       toast('ยกเลิกแล้ว');
     };
+    if (inflight[e.id]) { toast('กำลังบันทึกรายการนี้ขึ้น Google — รอสักครู่แล้วกดยกเลิกอีกครั้ง', 'warn', 3500); return; }
     if (QUEUE.some(function (q) { return q.cid === e.id; })) {
       QUEUE = QUEUE.filter(function (q) { return q.cid !== e.id; });
       lsSet(LS_QUEUE, QUEUE); updateSync(); done();
@@ -1345,7 +1351,7 @@ $('typeGo').onclick = function () {
 $('typeInput').addEventListener('keydown', function (e) { if (e.key === 'Enter') $('typeGo').click(); });
 
 /* ---- คิวบันทึก: ส่งเป็นชุด ---- */
-var flushing = false, flushTimer = null, flushAt = 0;
+var flushing = false, flushTimer = null, flushAt = 0, flushFails = 0;
 function scheduleFlush(delay) {
   updateSync();
   var at = Date.now() + (delay == null ? 500 : delay);
@@ -1362,6 +1368,7 @@ function flush() {
   batch.forEach(function (q) { inflight[q.cid] = true; });
   api('submitBatch', { items: batch }).then(function (r) {
     if (!r.ok) throw new Error(r.message || 'บันทึกไม่สำเร็จ');
+    flushFails = 0;
     var byCid = {};
     r.results.forEach(function (x) { byCid[x.cid] = x; });
     QUEUE = QUEUE.filter(function (q) { return !byCid[q.cid]; });
@@ -1387,10 +1394,14 @@ function flush() {
     });
     saveLocal(); renderLog();
     if (STATE.task) renderProgress();
-  }).catch(function () {
+  }).catch(function (err) {
     flushing = false;
     batch.forEach(function (q) { delete inflight[q.cid]; });
-    scheduleFlush(5000); // ออฟไลน์ / Google ขัดข้อง → ลองใหม่
+    flushFails++;
+    if (flushFails === 3 || flushFails % 12 === 0) { // ไม่เตือนถี่ แต่ไม่เงียบถ้าบันทึกไม่ได้นาน
+      toast('ยังบันทึกขึ้น Google ไม่ได้ (' + QUEUE.length + ' รายการ): ' + (err && err.message || 'เชื่อมต่อไม่ได้') + ' — ข้อมูลเก็บไว้ในเครื่อง จะลองใหม่อัตโนมัติ', 'warn', 6000);
+    }
+    scheduleFlush(Math.min(5000 * flushFails, 30000)); // ออฟไลน์ / Google ขัดข้อง → ลองใหม่ (ห่างขึ้นเรื่อย ๆ)
     return 'retry';
   }).then(function (x) {
     batch.forEach(function (q) { delete inflight[q.cid]; });

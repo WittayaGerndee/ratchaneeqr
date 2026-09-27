@@ -5,7 +5,14 @@
 
 /** บัญชีที่สร้างก่อนมีเมนูวิชา ยังไม่มีแผ่น Subjects */
 function ensureSubjectsSheet_() {
-  if (!ss_().getSheetByName('Subjects')) ensureSheet_(ss_(), 'Subjects', SCHEMA.Subjects);
+  if (ss_().getSheetByName('Subjects')) return;
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    if (!ss_().getSheetByName('Subjects')) ensureSheet_(ss_(), 'Subjects', SCHEMA.Subjects);
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 function sameName_(a, b) {
