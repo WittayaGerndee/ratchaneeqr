@@ -24,7 +24,7 @@ var PRESET_SETTINGS = {
 /** โครงสร้างคอลัมน์ของทุก Sheet (ลำดับคอลัมน์ = ลำดับใน array) */
 var SCHEMA = {
   Students: [
-    'student_id', 'citizen_code', 'name', 'class', 'room', 'status', 'note'
+    'student_id', 'citizen_code', 'name', 'class', 'room', 'status', 'note', 'number'
   ],
   Classes: [
     'class_id', 'class_name', 'level', 'room', 'teacher', 'status'

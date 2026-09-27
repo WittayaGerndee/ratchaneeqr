@@ -174,17 +174,12 @@ var API_ACTIONS = {
   },
 
   // ---------- นักเรียน ----------
+  /** เพิ่ม/แก้นักเรียน — ไม่ส่ง student_id มา = ระบบรันรหัสให้อัตโนมัติ · เลขที่ห้ามซ้ำในห้องเดียวกัน */
   saveStudent: function (b, actor) {
-    var s = b.student || {};
-    var id = String(s.student_id || '').trim(), name = String(s.name || '').trim();
-    if (!id || !name) return { ok: false, message: 'กรุณากรอกรหัสและชื่อนักเรียน' };
-    var cr = splitClassRoom_(s.class, s.room);
-    if (!cr.cls) return { ok: false, message: 'กรุณากรอกชั้น' };
-    var row = saveRecord_('Students', {
-      student_id: id, name: name, class: cr.cls, room: cr.room, status: 'active'
-    }, !b.oldId, b.oldId);
-    log_('SAVE_STUDENT', { student_id: s.student_id, line_user_id: actor.userId, result: b.oldId ? 'edit' : 'new' });
-    return { ok: true, student: studentRow_(row) };
+    var r = saveStudent_(b.student || {}, b.oldId);
+    if (!r.ok) return r;
+    log_('SAVE_STUDENT', { student_id: r.row.student_id, line_user_id: actor.userId, result: b.oldId ? 'edit' : 'new' });
+    return { ok: true, student: studentRow_(r.row) };
   },
 
   deleteStudent: function (b, actor) {
@@ -194,7 +189,7 @@ var API_ACTIONS = {
   },
 
   importStudents: function (b) {
-    var r = importStudents_(b.text);
+    var r = b.format === 'number' ? importStudentsByNumber_(b.text) : importStudents_(b.text);
     r.students = loadData_().students;
     return r;
   },
@@ -324,9 +319,9 @@ function gradebook_() {
   return { ok: true, assignments: readTable_('Assignments').map(publicAssignment_), scores: scores };
 }
 
-/** นักเรียนแบบ array: [student_id, name, class, room] */
+/** นักเรียนแบบ array: [student_id, name, class, room, number] */
 function studentRow_(s) {
-  return [String(s.student_id), s.name, String(s.class), String(s.room)];
+  return [String(s.student_id), s.name, String(s.class), String(s.room), String(s.number === undefined || s.number === null ? '' : s.number)];
 }
 
 function nextAssignmentId_() {

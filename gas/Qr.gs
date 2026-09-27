@@ -71,7 +71,7 @@ function buildQrPdf_(classFilter, sizeMm) {
     return isStudentActive_(s) && (!classFilter || className_(s) === classFilter);
   }).sort(function (a, b) {
     return String(className_(a)).localeCompare(String(className_(b)), 'th', { numeric: true }) ||
-      String(a.student_id).localeCompare(String(b.student_id), 'th', { numeric: true });
+      byNumber_(a, b) || String(a.student_id).localeCompare(String(b.student_id), 'th', { numeric: true });
   });
   if (!students.length) throw new Error('ไม่มีนักเรียนในห้องที่เลือก');
   if (students.length > 400) throw new Error('นักเรียนเยอะเกินไป (' + students.length + ' คน) กรุณาเลือกทีละห้อง');
@@ -89,6 +89,13 @@ function buildQrPdf_(classFilter, sizeMm) {
     url: 'https://drive.google.com/file/d/' + file.getId() + '/view',
     download: 'https://drive.google.com/uc?export=download&id=' + file.getId()
   };
+}
+
+/** เรียงตามเลขที่ (คนที่ยังไม่มีเลขที่อยู่ท้าย) */
+function byNumber_(a, b) {
+  var x = a.number === '' || a.number === undefined || a.number === null ? Infinity : Number(a.number);
+  var y = b.number === '' || b.number === undefined || b.number === null ? Infinity : Number(b.number);
+  return x === y ? 0 : x < y ? -1 : 1;
 }
 
 /** แถวสติกเกอร์ต่อหน้า A4 ตามขนาด (เผื่อหัวห้องด้านบน) */
@@ -111,7 +118,7 @@ function renderQrPdf_(students, sizeMm) {
     return '<td style="width:' + sizeMm + 'mm;padding:1.5mm;border:0.3mm dashed #999;text-align:center;vertical-align:top;font-size:' + font + 'pt">' +
       '<img src="data:image/png;base64,' + images[i] + '" style="width:' + imgMm + 'mm;height:' + imgMm + 'mm"><br>' +
       '<b>' + htmlEsc_(s.student_id) + '</b><br><div style="white-space:nowrap;overflow:hidden;width:' + sizeMm + 'mm">' + htmlEsc_(s.name) + '</div>' +
-      '<span style="color:#555">' + htmlEsc_(className_(s)) + '</span></td>';
+      '<span style="color:#555">' + htmlEsc_(className_(s)) + (s.number !== '' && s.number !== undefined && s.number !== null ? ' · เลขที่ ' + htmlEsc_(s.number) : '') + '</span></td>';
   };
 
   // จัดกลุ่มตามห้อง (รายชื่อเรียงตามห้องมาแล้ว)

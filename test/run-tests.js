@@ -171,6 +171,23 @@ assert(call('bootstrap').subjects.some(x=>x.name==='วิชาใหม่จ�
 call('saveAssignment', {assignment:{assignment_id:SC, subject:'ไทย', assignment_name:'ใบงานมีคะแนน', class_target:'ป.4/5', status:'CLOSED'}});
 r = call('submitBatch', {items:[{cid:'s8', studentId:'0001', assignmentId:SC, scoreOnly:true, score:6}]});
 assert(r.results[0].ok && subRow('0001').score===6, 'can score after assignment closed');
+// รหัสนักเรียนอัตโนมัติ + เลขที่ (ห้องเดียวกันห้ามซ้ำ, ต่างห้องซ้ำได้)
+assert(R("nextStudentId_([{student_id:'0009'},{student_id:'65001'},{student_id:'abc'}])")==='65002' && R("nextStudentId_([{student_id:'0009'}])")==='0010' && R("nextStudentId_([])")==='1001', 'nextStudentId_');
+r = call('saveStudent', {student:{name:'อัตโนมัติ หนึ่ง', class:'ป.2', room:'1', number:'1'}});
+const auto1 = r.student[0];
+assert(r.ok && /^\d+$/.test(auto1) && r.student[4]==='1', 'new student gets auto id '+auto1+' + number');
+r = call('saveStudent', {student:{name:'อัตโนมัติ สอง', class:'ป.2', room:'1', number:'01'}});
+assert(!r.ok && /เลขที่ 1 ห้อง ป.2\/1/.test(r.message), 'same number in same room rejected');
+r = call('saveStudent', {student:{name:'อัตโนมัติ สอง', class:'ป.2', room:'2', number:'1'}});
+assert(r.ok && Number(r.student[0])===Number(auto1)+1, 'same number in another room ok, next id');
+r = call('saveStudent', {student:{name:'อัตโนมัติ หนึ่ง (แก้)', class:'ป.2', room:'1', number:'1'}, oldId:auto1});
+assert(r.ok && r.student[0]===auto1, 'edit keeps own number and id');
+r = call('saveStudent', {student:{name:'x', class:'ป.2', room:'1', number:'a'}});
+assert(!r.ok, 'number must be digits');
+r = call('importStudents', {format:'number', text:'เลขที่\tชื่อ\tชั้น\tห้อง\n2\tนำเข้า ก\tป.2\t1\n1\tอัตโนมัติ หนึ่ง ชื่อใหม่\tป.2\t1\n3\tนำเข้า ข\tป.2/2\n\tไม่มีเลขที่\tป.2\t1'});
+assert(r.ok && r.added===3 && r.updated===1 && r.skipped===1, 'import by number: 3 added, 1 updated (room+number), header skipped');
+const pStu2 = R("readTable_('Students').filter(function(x){return x.class==='ป.2'}).map(function(x){return [x.student_id,x.name,x.room,String(x.number)]})");
+assert(pStu2.some(x=>x[0]===auto1 && x[1]==='อัตโนมัติ หนึ่ง ชื่อใหม่') && new Set(pStu2.map(x=>x[0])).size===pStu2.length, 'import updates by room+number, all ids unique');
 // Array Batch: ให้คะแนนย้อนหลังหลายคน อ่าน/เขียน Sheets ไม่กี่ครั้ง และค่าถูกต้อง
 assert(R("colLetter_(1)")==='A' && R("colLetter_(26)")==='Z' && R("colLetter_(27)")==='AA' && R("colLetter_(52)")==='AZ', 'colLetter_');
 r = call('saveAssignment', {assignment:{subject:'คณิต', assignment_name:'batch', class_target:'ALL', max_score:'10'}});

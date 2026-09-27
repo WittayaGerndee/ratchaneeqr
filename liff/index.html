@@ -144,6 +144,7 @@
   .danger-box.info { background: var(--warn-weak); color: #78350f; }
   .danger-box ul { margin: 6px 0 0; padding-left: 20px; }
   .btn.red { background: var(--bad); border-color: var(--bad); color: #fff; }
+  .stu-no { min-width: 34px; height: 34px; border-radius: 10px; background: var(--accent-weak); color: var(--accent); font-weight: 700; display: flex; align-items: center; justify-content: center; flex: none; font-size: .9rem; }
   .id-badge { font-family: ui-monospace, monospace; font-size: .72rem; padding: 2px 7px; border-radius: 6px; background: #eef2f7; color: #475569; white-space: nowrap; }
   .task-prog { width: 110px; flex: none; text-align: right; font-size: .82rem; color: var(--muted); }
   .task-prog b { color: var(--text); font-size: .95rem; } .task-prog .bar { height: 6px; margin-top: 4px; }
@@ -595,6 +596,13 @@ function localInput(iso) {
   var d = new Date(iso);
   return isNaN(d) ? '' : d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
 }
+/** เรียงนักเรียน: ห้อง → เลขที่ (ยังไม่มีเลขที่อยู่ท้าย) → รหัส */
+function stuCmp(x, y) {
+  var a = x.num === '' || x.num == null ? Infinity : Number(x.num), b = y.num === '' || y.num == null ? Infinity : Number(y.num);
+  return natCmp(x.className, y.className) || (a === b ? 0 : a < b ? -1 : 1) || natCmp(x.id, y.id);
+}
+/** เลขที่สำหรับแสดง (ยังไม่มี = ขีด) */
+function numLabel(s) { return s.num !== '' && s.num != null ? s.num : '–'; }
 function natCmp(a, b) { return String(a).localeCompare(String(b), 'th', { numeric: true }); }
 function icon(id) { return '<svg><use href="#i-' + id + '"/></svg>'; }
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
@@ -709,7 +717,7 @@ function setData(d) {
   BY_ID = {};
   DATA.students.forEach(function (s) {
     var room = s[3] == null ? '' : String(s[3]);
-    BY_ID[norm(s[0])] = { id: String(s[0]), name: s[1], cls: String(s[2] || ''), room: room, className: room !== '' ? s[2] + '/' + room : String(s[2] || '') };
+    BY_ID[norm(s[0])] = { id: String(s[0]), name: s[1], cls: String(s[2] || ''), room: room, className: room !== '' ? s[2] + '/' + room : String(s[2] || ''), num: s[4] == null ? '' : String(s[4]) };
   });
   lsSet(LS_DATA, DATA);
   if (STATE.task) STATE.task = findTask(STATE.task.assignment_id) || STATE.task;
@@ -1410,7 +1418,7 @@ function renderSummary() {
   $('sumSel').value = a.assignment_id;
   var m = subsOf(a.assignment_id);
   var rooms = {};
-  targetsOf(a).sort(function (x, y) { return natCmp(x.className, y.className) || natCmp(x.id, y.id); }).forEach(function (s) {
+  targetsOf(a).sort(stuCmp).forEach(function (s) {
     var r = rooms[s.className] = rooms[s.className] || { miss: [], done: [] };
     (m[norm(s.id)] ? r.done : r.miss).push(s);
   });
@@ -1439,12 +1447,12 @@ function renderSummary() {
     (miss ? '<button class="btn sm" id="copyMissing">' + icon('copy') + 'คัดลอกรายชื่อ</button>' : '') + '</div>';
   html += miss ? keys.filter(function (k) { return rooms[k].miss.length; }).map(function (k) {
     return '<div class="room-title"><span>' + esc(k) + '</span><span class="muted small">' + rooms[k].miss.length + ' คน</span></div>' +
-      '<div class="zebra">' + rooms[k].miss.map(function (s) { return '<div class="name-line"><span class="muted" style="min-width:52px">' + esc(s.id) + '</span><span>' + esc(s.name) + '</span></div>'; }).join('') + '</div>';
+      '<div class="zebra">' + rooms[k].miss.map(function (s) { return '<div class="name-line"><span class="muted" style="min-width:34px;text-align:right" title="เลขที่">' + esc(numLabel(s)) + '</span><span class="grow">' + esc(s.name) + '</span><span class="xs faint">' + esc(s.id) + '</span></div>'; }).join('') + '</div>';
   }).join('') : (total ? '<div class="empty" style="color:var(--accent)">ส่งครบทุกคนแล้ว 🎉</div>' : '<div class="empty">ยังไม่มีนักเรียนในห้องที่สั่งงานนี้</div>');
   html += '<details style="margin-top:12px"' + (scored ? ' open' : '') + '><summary>ส่งแล้ว ' + done + ' คน' + (scored ? ' · แตะคะแนนเพื่อให้/แก้' : '') + '</summary><div class="zebra">' + keys.map(function (k) {
     return rooms[k].done.map(function (s) {
       var x = m[norm(s.id)];
-      return '<div class="name-line" style="align-items:center"><span class="muted" style="min-width:52px">' + esc(s.id) + '</span><span class="grow">' + esc(s.name) + '</span><span class="xs muted">' + esc(thDate(x[0])) + (x[2] ? ' · ช้า' : '') + '</span>' +
+      return '<div class="name-line" style="align-items:center"><span class="muted" style="min-width:34px;text-align:right" title="เลขที่">' + esc(numLabel(s)) + '</span><span class="grow">' + esc(s.name) + '</span><span class="xs muted">' + esc(thDate(x[0])) + (x[2] ? ' · ช้า' : '') + '</span>' +
         (scored ? scoreChip(a.assignment_id, s.id) : '') + '</div>';
     }).join('');
   }).join('') + '</div></details>';
@@ -1454,7 +1462,7 @@ function renderSummary() {
   var cp = $('copyMissing');
   if (cp) cp.onclick = function () {
     var text = 'ยังไม่ส่ง: ' + a.assignment_name + ' (' + a.subject + ')\n' + keys.filter(function (k) { return rooms[k].miss.length; }).map(function (k) {
-      return '\n' + k + '\n' + rooms[k].miss.map(function (s, i) { return (i + 1) + '. ' + s.id + ' ' + s.name; }).join('\n');
+      return '\n' + k + '\n' + rooms[k].miss.map(function (s) { return 'เลขที่ ' + numLabel(s) + '  ' + s.name; }).join('\n');
     }).join('\n');
     copyText(text).then(function () { toast('คัดลอกแล้ว — วางในกลุ่ม LINE ได้เลย'); });
   };
@@ -1509,7 +1517,7 @@ function gbModel() {
   var cls = $('gbClass').value, subj = $('gbSubject').value;
   var list = GB.assignments.map(function (a) { return findTask(a.assignment_id) || a; });
   var rows = students().filter(function (s) { return !cls || s.className === cls; })
-    .sort(function (x, y) { return natCmp(x.className, y.className) || natCmp(x.id, y.id); });
+    .sort(stuCmp);
   var cols = list.filter(function (a) { return (!subj || a.subject === subj) && rows.some(function (s) { return isTarget(a, s); }); });
   return { rows: rows, cols: cols, cls: cls, subj: subj };
 }
@@ -1533,7 +1541,7 @@ function renderGradebook() {
   var md = gbModel();
   $('gbTitle').textContent = 'ตารางคะแนน' + (md.subj ? ' · ' + md.subj : '') + (md.cls ? ' · ' + md.cls : '') + ' · ' + (DATA.school || '');
   if (!md.rows.length || !md.cols.length) { $('gbPager').innerHTML = ''; $('gbTable').innerHTML = '<tbody><tr><td class="empty" style="border:0">' + (md.rows.length ? 'ยังไม่มีงานของห้องนี้' : 'ยังไม่มีนักเรียน') + '</td></tr></tbody>'; return; }
-  var head = '<thead><tr><th class="c-id">รหัส</th><th class="c-name">ชื่อ</th>' + (md.cls ? '' : '<th>ห้อง</th>') + md.cols.map(function (a) {
+  var head = '<thead><tr><th class="c-id">เลขที่</th><th class="c-name">ชื่อ</th>' + (md.cls ? '' : '<th>ห้อง</th>') + md.cols.map(function (a) {
     return '<th title="' + esc(a.assignment_id + ' · ' + a.subject + ' · ' + a.assignment_name) + '"><div class="xs muted">' + esc(a.assignment_id) + '</div>' + esc(a.assignment_name) + '<div class="xs muted">' + (md.subj ? '' : esc(a.subject) + ' · ') + (hasScore(a) ? 'เต็ม ' + esc(a.max_score) : 'ไม่มีคะแนน') + '</div></th>';
   }).join('') + '<th>ส่งแล้ว</th><th>คะแนนรวม</th><th>%</th></tr></thead>';
   var pageRows = STATE.gbPrintAll ? md.rows : paginate('grade', md.rows, 'gbPager');
@@ -1550,7 +1558,7 @@ function renderGradebook() {
       if (hasScore(a) && hasVal(v)) sum += Number(v);
       return '<td class="done' + (c[1] ? ' late' : '') + edit + '">' + (hasScore(a) && hasVal(v) ? fmtScore(v) : '✓') + '</td>';
     }).join('');
-    return '<tr><td class="c-id">' + esc(s.id) + '</td><td class="c-name" title="' + esc(s.name) + '">' + esc(s.name) + '</td>' + (md.cls ? '' : '<td>' + esc(s.className) + '</td>') + tds +
+    return '<tr><td class="c-id" title="รหัส ' + esc(s.id) + '">' + esc(numLabel(s)) + '</td><td class="c-name" title="' + esc(s.name) + ' · รหัส ' + esc(s.id) + '">' + esc(s.name) + '</td>' + (md.cls ? '' : '<td>' + esc(s.className) + '</td>') + tds +
       '<td class="tot">' + sent + '/' + target + '</td><td class="tot">' + (full ? fmtScore(sum) + '/' + fmtScore(full) : '-') + '</td><td class="tot">' + (full ? Math.round(sum / full * 100) : '-') + '</td></tr>';
   }).join('');
   $('gbTable').innerHTML = head + '<tbody>' + body + '</tbody>';
@@ -1572,7 +1580,7 @@ $('gbTable').addEventListener('click', function (e) {
 /** ตารางเป็นแถว ๆ สำหรับ Excel */
 function gbMatrix() {
   var md = gbModel();
-  var out = [['รหัส', 'ชื่อ-สกุล', 'ห้อง'].concat(md.cols.map(function (a) { return a.subject + ' - ' + a.assignment_name + (hasScore(a) ? ' (' + a.max_score + ')' : ''); }), ['ส่งแล้ว', 'งานทั้งหมด', 'คะแนนรวม', 'คะแนนเต็ม'])];
+  var out = [['เลขที่', 'รหัส', 'ชื่อ-สกุล', 'ห้อง'].concat(md.cols.map(function (a) { return a.subject + ' - ' + a.assignment_name + (hasScore(a) ? ' (' + a.max_score + ')' : ''); }), ['ส่งแล้ว', 'งานทั้งหมด', 'คะแนนรวม', 'คะแนนเต็ม'])];
   md.rows.forEach(function (s) {
     var sent = 0, target = 0, sum = 0, full = 0;
     var cells = md.cols.map(function (a) {
@@ -1585,7 +1593,7 @@ function gbMatrix() {
       if (hasScore(a) && hasVal(c[0])) { sum += Number(c[0]); return fmtScore(c[0]); }
       return 'ส่ง';
     });
-    out.push([s.id, s.name, s.className].concat(cells, [sent, target, full ? fmtScore(sum) : '', full || '']));
+    out.push([s.num, s.id, s.name, s.className].concat(cells, [sent, target, full ? fmtScore(sum) : '', full || '']));
   });
   return out;
 }
@@ -1986,13 +1994,13 @@ function renderStudents() {
   $('stuClass').innerHTML = '<option value="">ทุกห้อง</option>' + cls.map(function (c) { return '<option>' + esc(c) + '</option>'; }).join('');
   $('stuClass').value = cls.indexOf(cur) >= 0 ? cur : '';
   var c = $('stuClass').value, q = $('stuSearch').value.trim().toLowerCase();
-  var list = students().filter(function (s) { return (!c || s.className === c) && (!q || (s.id + ' ' + s.name).toLowerCase().indexOf(q) >= 0); })
-    .sort(function (x, y) { return natCmp(x.className, y.className) || natCmp(x.id, y.id); });
+  var list = students().filter(function (s) { return (!c || s.className === c) && (!q || (s.id + ' ' + s.name + ' ' + s.num).toLowerCase().indexOf(q) >= 0); })
+    .sort(stuCmp);
   $('stuCount').textContent = list.length + ' คน';
   var rows = paginate('students', list, 'stuPager');
   $('stuList').innerHTML = rows.length ? rows.map(function (s) {
-    return '<div class="list-item tap" data-stu="' + esc(s.id) + '"><div class="grow"><div class="ellipsis" style="font-weight:600">' + esc(s.name) + '</div>' +
-      '<div class="small muted">' + esc(s.id) + ' · ' + esc(s.className) + '</div></div><span class="faint"><svg style="width:20px;height:20px"><use href="#i-more"/></svg></span></div>';
+    return '<div class="list-item tap" data-stu="' + esc(s.id) + '"><span class="stu-no" title="เลขที่">' + esc(numLabel(s)) + '</span><div class="grow"><div class="ellipsis" style="font-weight:600">' + esc(s.name) + '</div>' +
+      '<div class="small muted">' + esc(s.className) + ' · รหัส ' + esc(s.id) + '</div></div><span class="faint"><svg style="width:20px;height:20px"><use href="#i-more"/></svg></span></div>';
   }).join('') : '<div class="empty">' + (students().length ? 'ไม่พบนักเรียนที่ค้นหา' : 'ยังไม่มีนักเรียน<br>กด "เพิ่ม" หรือ "วางจาก Excel"') + '</div>';
 }
 $('stuClass').onchange = function () { resetPage('students'); renderStudents(); };
@@ -2003,38 +2011,67 @@ $('stuList').addEventListener('click', function (e) {
   if (r) studentForm(BY_ID[norm(r.dataset.stu)]);
 });
 
+/** เลขที่ถัดไปของห้อง (มากสุด + 1) */
+function nextNumber(className) {
+  var max = 0;
+  students().forEach(function (x) { if (x.className === className && Number(x.num) > max) max = Number(x.num); });
+  return String(max + 1);
+}
+/** นักเรียนในห้องเดียวกันที่ใช้เลขที่นี้แล้ว (ไม่นับตัวเอง) */
+function numberOwner(className, num, selfId) {
+  return students().filter(function (x) { return x.className === className && x.num !== '' && Number(x.num) === Number(num) && norm(x.id) !== norm(selfId || ''); })[0] || null;
+}
+/**
+ * ฟอร์มนักเรียน — รหัสนักเรียนระบบรันให้อัตโนมัติ · ครูกรอก ชั้น/ห้อง + เลขที่ + ชื่อ
+ * เลขที่: ห้องเดียวกันห้ามซ้ำ (ต่างห้องซ้ำได้)
+ */
 function studentForm(s) {
   var lv = levels();
   var preset = !s && $('stuClass').value ? $('stuClass').value.split('/') : null;
+  var cls0 = s ? s.cls : (preset ? preset[0] : (lv[0] || '')), room0 = s ? s.room : (preset ? preset[1] || '' : '');
   openSheet('<h2>' + (s ? 'แก้ไขนักเรียน' : 'เพิ่มนักเรียน') + '</h2><form id="sf">' +
-    '<div class="grid2"><label class="field"><span>รหัสนักเรียน *</span><input class="input" name="sid" required autocomplete="off" value="' + esc(s ? s.id : '') + '"></label>' +
-    '<label class="field"><span>ชั้น / ห้อง *</span><div class="row" style="gap:6px"><input class="input" name="cls" required list="lvList" placeholder="ป.4" value="' + esc(s ? s.cls : (preset ? preset[0] : (lv[0] || ''))) + '">' +
-    '<input class="input" name="room" placeholder="ห้อง" inputmode="numeric" style="max-width:70px" value="' + esc(s ? s.room : (preset ? preset[1] || '' : '')) + '"></div></label></div>' +
+    '<div class="grid2"><label class="field"><span>ชั้น / ห้อง *</span><div class="row" style="gap:6px"><input class="input" name="cls" required list="lvList" placeholder="ป.4" value="' + esc(cls0) + '">' +
+    '<input class="input" name="room" placeholder="ห้อง" inputmode="numeric" style="max-width:70px" value="' + esc(room0) + '"></div></label>' +
+    '<label class="field"><span>เลขที่ *</span><input class="input" name="num" required inputmode="numeric" pattern="[0-9]{1,4}" autocomplete="off" value="' + esc(s ? s.num : '') + '"></label></div>' +
+    '<div class="xs" id="numHint" style="margin:-6px 0 10px;min-height:1em"></div>' +
     '<datalist id="lvList">' + lv.map(function (l) { return '<option value="' + esc(l) + '">'; }).join('') + '</datalist>' +
     '<label class="field"><span>ชื่อ-สกุล *</span><input class="input" name="name" required autocomplete="off" value="' + esc(s ? s.name : '') + '"></label>' +
+    '<p class="xs muted" style="margin:-4px 0 12px">รหัสนักเรียน (ใช้ใน QR): ' + (s ? '<b>' + esc(s.id) + '</b>' : 'ระบบสร้างให้อัตโนมัติ') + '</p>' +
     '<button class="btn primary block lg" type="submit">' + (s ? 'บันทึก' : 'บันทึกและเพิ่มคนถัดไป') + '</button>' +
     (s ? '<button class="btn danger block" type="button" id="sDel" style="margin-top:8px">ลบนักเรียนคนนี้</button>' : '') + '</form>', function () {
       var f = $('sf');
-      setTimeout(function () { (s ? f.name : f.sid).focus(); }, 250);
+      var cn = function () { var c = f.cls.value.trim(), r = f.room.value.trim(); return r ? c + '/' + r : c; };
+      /** แจ้งทันทีถ้าเลขที่ซ้ำในห้องเดียวกัน */
+      var checkNum = function () {
+        var owner = f.num.value.trim() && numberOwner(cn(), f.num.value.trim(), s && s.id);
+        $('numHint').innerHTML = owner ? '<span style="color:var(--bad)">เลขที่ ' + esc(f.num.value.trim()) + ' ห้อง ' + esc(cn()) + ' เป็นของ ' + esc(owner.name) + ' แล้ว</span>'
+          : '<span class="muted">เลขที่ห้ามซ้ำในห้องเดียวกัน (ต่างห้องซ้ำได้)</span>';
+        return !owner;
+      };
+      /** เพิ่มคนใหม่: เติมเลขที่ถัดไปของห้องให้ (ครูแก้ได้) */
+      var suggest = function () { if (!s) f.num.value = nextNumber(cn()); checkNum(); };
+      f.cls.oninput = f.room.oninput = suggest;
+      f.num.oninput = checkNum;
+      suggest();
+      setTimeout(function () { f.name.focus(); }, 250);
       f.onsubmit = function (ev) {
         ev.preventDefault();
+        if (!checkNum()) { toast('เลขที่ซ้ำในห้องเดียวกัน', 'err'); f.num.focus(); return; }
         var btn = f.querySelector('[type=submit]'), label = btn.textContent;
-        var stu = { student_id: f.sid.value.trim(), name: f.name.value.trim(), class: f.cls.value.trim(), room: f.room.value.trim() };
-        var clash = BY_ID[norm(stu.student_id)];
-        if (clash && (!s || norm(s.id) !== norm(stu.student_id))) { toast('รหัส ' + stu.student_id + ' เป็นของ ' + clash.name + ' แล้ว', 'err', 3500); return; }
+        var stu = { name: f.name.value.trim(), class: f.cls.value.trim(), room: f.room.value.trim(), number: f.num.value.trim() };
         btn.disabled = true; btn.textContent = 'กำลังบันทึก…';
         api('saveStudent', { student: stu, oldId: s ? s.id : '' }).then(function (r) {
           btn.disabled = false; btn.textContent = label;
           if (!r.ok) { toast(r.message, 'err', 3500); return; }
-          DATA.students = DATA.students.filter(function (x) { return norm(x[0]) !== norm(r.student[0]) && (!s || norm(x[0]) !== norm(s.id)); });
+          DATA.students = DATA.students.filter(function (x) { return norm(x[0]) !== norm(r.student[0]); });
           DATA.students.push(r.student);
           setData(DATA);
           if (s) { closeSheet(); toast('บันทึกแล้ว'); }
-          else { toast('เพิ่ม ' + r.student[1] + ' แล้ว'); f.sid.value = nextId(r.student[0]); f.name.value = ''; f.name.focus(); }
+          else { toast('เพิ่ม ' + r.student[1] + ' (รหัส ' + r.student[0] + ') แล้ว'); f.name.value = ''; suggest(); f.name.focus(); }
         }).catch(function (e) { btn.disabled = false; btn.textContent = label; netError(e); });
       };
       if ($('sDel')) $('sDel').onclick = function () {
-        confirmSheet('ลบนักเรียน?', s.id + ' ' + s.name + ' (ประวัติการส่งงานเดิมยังอยู่)', 'ลบ', true).then(function (y) {
+        confirmSheet('ลบนักเรียน?', 'เลขที่ ' + numLabel(s) + ' ' + s.name + ' (' + s.className + ') — ประวัติการส่งงานเดิมยังอยู่', 'ลบ', true).then(function (y) {
           if (!y) return;
           api('deleteStudent', { studentId: s.id }).then(function (r) {
             if (!r.ok) { toast(r.message, 'err'); return; }
@@ -2046,30 +2083,23 @@ function studentForm(s) {
       };
     });
 }
-/** เดารหัสคนถัดไป (0001 → 0002) เพื่อกรอกเร็วขึ้น */
-function nextId(id) {
-  var m = String(id).match(/^(.*?)(\d+)$/);
-  if (!m) return '';
-  var n = String(Number(m[2]) + 1);
-  while (n.length < m[2].length) n = '0' + n;
-  return BY_ID[norm(m[1] + n)] ? '' : m[1] + n;
-}
 
 $('stuImport').onclick = function () {
-  openSheet('<h2>วางรายชื่อจาก Excel</h2><p class="small muted" style="margin-top:-4px">คัดลอกคอลัมน์ <b>รหัส · ชื่อ-สกุล · ชั้น · ห้อง</b> (หรือ รหัส · ชื่อ · ป.4/5) แล้ววาง — รหัสที่มีอยู่แล้วจะถูกแก้ให้ตรง</p>' +
-    '<textarea class="input" id="impText" placeholder="0001&#9;ด.ช.ใจดี มีโชค&#9;ป.4&#9;5"></textarea>' +
+  openSheet('<h2>วางรายชื่อจาก Excel</h2><p class="small muted" style="margin-top:-4px">คัดลอกคอลัมน์ <b>เลขที่ · ชื่อ-สกุล · ชั้น · ห้อง</b> (หรือ เลขที่ · ชื่อ · ป.4/5) แล้ววาง<br>' +
+    'รหัสนักเรียนระบบสร้างให้อัตโนมัติ · ห้องและเลขที่ตรงกับคนเดิม = แก้ชื่อให้</p>' +
+    '<textarea class="input" id="impText" placeholder="1&#9;ด.ช.ใจดี มีโชค&#9;ป.4&#9;5&#10;2&#9;ด.ญ.สมศรี ดีใจ&#9;ป.4&#9;5"></textarea>' +
     '<div class="small muted" id="impPrev" style="margin:6px 0 10px"></div>' +
     '<button class="btn primary block lg" id="impGo" disabled>นำเข้า</button>', function () {
       var ta = $('impText');
       setTimeout(function () { ta.focus(); }, 250);
       ta.oninput = function () {
-        var n = ta.value.split(/\r?\n/).filter(function (l) { var c = l.split(/\t|,/); return c[0] && c[0].trim() && c[1] && c[1].trim() && !/รหัส|student/i.test(c[0]); }).length;
+        var n = ta.value.split(/\r?\n/).filter(function (l) { var c = l.split(/\t|,/); return c[1] && c[1].trim() && !/เลขที่|ลำดับ|no\.?|number/i.test(c[0]); }).length;
         $('impPrev').textContent = n ? 'พบ ' + n + ' คน' : '';
         $('impGo').disabled = !n;
       };
       $('impGo').onclick = function () {
         var b = this; b.disabled = true; b.textContent = 'กำลังนำเข้า…';
-        api('importStudents', { text: ta.value }).then(function (r) {
+        api('importStudents', { text: ta.value, format: 'number' }).then(function (r) {
           if (!r.ok) { toast(r.message, 'err'); b.disabled = false; b.textContent = 'นำเข้า'; return; }
           DATA.students = r.students;
           setData(DATA);
@@ -2089,12 +2119,12 @@ function renderQr() {
   $('qrClass').innerHTML = '<option value="">ทุกห้อง</option>' + cls.map(function (c) { return '<option>' + esc(c) + '</option>'; }).join('');
   $('qrClass').value = cls.indexOf(cur) >= 0 ? cur : (cur === '' && $('qrClass').dataset.touched ? '' : (cls[0] || ''));
   var c = $('qrClass').value, size = Number($('qrSize').value);
-  var list = students().filter(function (s) { return !c || s.className === c; }).sort(function (x, y) { return natCmp(x.className, y.className) || natCmp(x.id, y.id); });
+  var list = students().filter(function (s) { return !c || s.className === c; }).sort(stuCmp);
   var fs = size <= 30 ? 7 : size <= 38 ? 8.5 : 10;
   var cols = Math.floor(198 / (size + 4)); // กว้างที่พิมพ์ได้บน A4 ≈ 194 มม. (ตรงกับตัวเลือก 5 / 4 / 3 ดวงต่อแถว)
   var sticker = function (s, i) {
     return '<td><div class="sticker" style="width:' + size + 'mm;font-size:' + fs + 'pt"><div class="q" id="qr' + i + '"></div>' +
-      '<div class="sid">' + esc(s.id) + '</div><div class="nm">' + esc(s.name) + '</div><div class="cl">' + esc(s.className) + '</div></div></td>';
+      '<div class="sid">' + esc(s.id) + '</div><div class="nm">' + esc(s.name) + '</div><div class="cl">' + esc(s.className) + (s.num ? ' · เลขที่ ' + esc(s.num) : '') + '</div></div></td>';
   };
   // แยกตามห้อง: แต่ละห้องเป็นตาราง มีหัว "ห้อง …" (ตอนพิมพ์ หัวตารางซ้ำทุกหน้า และห้องใหม่ขึ้นหน้าใหม่)
   var rooms = [];

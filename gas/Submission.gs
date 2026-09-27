@@ -24,7 +24,7 @@ function isStudentActive_(s) {
 function publicStudent_(s) {
   if (!s) return null;
   return {
-    student_id: String(s.student_id), name: s.name, class: s.class, room: s.room,
+    student_id: String(s.student_id), name: s.name, class: s.class, room: s.room, number: String(s.number || ''),
     class_name: className_(s), status: s.status
   };
 }
