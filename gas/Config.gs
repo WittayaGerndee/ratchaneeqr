@@ -89,6 +89,7 @@ var DEFAULT_SETTINGS = [
   ['REQUIRE_ID_TOKEN', 'TRUE', 'ตรวจ LINE ID Token ทุกคำขอจาก LIFF (ควรเป็น TRUE เสมอบน production)'],
   ['ALLOW_LATE_SUBMISSION', 'TRUE', 'อนุญาตส่งหลังกำหนด (จะถูกทำเครื่องหมายว่าส่งช้า)'],
   ['REMINDER_HOURS_BEFORE', '24', 'แจ้งเตือนครู (รายชื่อคนที่ยังไม่ส่ง) ก่อนกำหนดส่งกี่ชั่วโมง (0 = ปิด)'],
+  ['DAILY_SUMMARY_ENABLED', 'FALSE', 'ส่งสรุปการส่งงานรายวันทาง LINE เวลา 18:00 (TRUE = เปิด, ค่าเริ่มต้นปิด)'],
   ['MAX_FILE_MB', '10', 'ขนาดไฟล์แนบสูงสุด (MB)'],
   ['QR_STUDENT_PREFIX', 'STU-', 'คำนำหน้า QR นักเรียน'],
   ['QR_TASK_PREFIX', 'TASK-', 'คำนำหน้า QR งาน (ใช้เมื่อยังไม่ได้ตั้ง LIFF_ID)']

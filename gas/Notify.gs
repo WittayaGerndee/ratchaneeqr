@@ -65,8 +65,9 @@ function sendDueRemindersForTenant_() {
   });
 }
 
-/** สรุปรายวันส่งให้ผู้ดูแลบัญชี */
+/** สรุปรายวันส่งให้ผู้ดูแลบัญชี — ส่งเฉพาะบัญชีที่เปิดไว้ในหน้าตั้งค่า (ค่าเริ่มต้นปิด) */
 function sendDailySummaryForTenant_() {
+  if (!getBoolSetting_('DAILY_SUMMARY_ENABLED', false)) return;
   var admin = getSetting_('ADMIN_LINE_ID');
   if (!admin) return;
   var d = buildDashboard_('');

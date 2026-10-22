@@ -340,6 +340,24 @@ let denied=false; try{ R("adminDashboard('')"); }catch(e){denied=true;} assert(d
 // reminders
 pushed.length=0; R('sendDueReminders()');
 assert(pushed.length===1 && pushed[0].to.includes('U1') && pushed[0].messages[0].text.includes('ยังไม่ส่ง'), 'due reminder → teachers with missing list');
+// สรุปรายวัน 18:00: ค่าเริ่มต้นปิด · เปิด/ปิดได้จากหน้าตั้งค่า (ผู้ดูแลบัญชี)
+const isDaily = p => p.messages && p.messages[0] && /สรุปการส่งงาน/.test(p.messages[0].text || '');
+pushed.length=0; R('sendDailySummary()');
+assert(!pushed.some(isDaily), 'daily summary is OFF by default (no LINE push)');
+r = call('bootstrap');
+assert(r.notify && r.notify.dailySummary===false && r.notify.reminderHours===24, 'bootstrap returns notify settings (daily off, reminder 24h)');
+r = call('saveSettings', {settings:{DAILY_SUMMARY_ENABLED:true}});
+assert(r.ok && r.notify.dailySummary===true, 'admin turns daily summary on');
+pushed.length=0; R('sendDailySummary()');
+assert(pushed.some(p=>isDaily(p) && p.to==='U1'), 'daily summary sent to account admin when ON');
+r = call('saveSettings', {settings:{DAILY_SUMMARY_ENABLED:false}});
+pushed.length=0; R('sendDailySummary()');
+assert(r.ok && r.notify.dailySummary===false && !pushed.some(isDaily), 'turning it off stops the daily summary');
+r = call('saveSettings', {settings:{REMINDER_HOURS_BEFORE:'500'}});
+assert(!r.ok, 'reminder hours out of range rejected');
+r = call('saveSettings', {settings:{REMINDER_HOURS_BEFORE:0}});
+assert(r.ok && r.notify.reminderHours===0, 'due reminder can be turned off (0 h)');
+call('saveSettings', {settings:{REMINDER_HOURS_BEFORE:24}});
 R("PropertiesService.getScriptProperties().setProperty('MIGRATION_VERSION','0')"); R("setSettingValue_('SCHOOL_NAME','โรงเรียนตัวอย่าง')"); R('runMigrations_()');
 assert(R("getSetting_('SCHOOL_NAME')")==='โรงเรียนอนุบาลศรีสุทโธ', 'migration sets school name');
 console.log(R("fmtDateTimeTH_(new Date())"), R("parseStudentCode_('STU-2026-00125')"));

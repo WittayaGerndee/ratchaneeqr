@@ -101,6 +101,7 @@ var API_ACTIONS = {
       taskPrefix: getSetting_('QR_TASK_PREFIX', 'TASK-'),
       liffId: getSetting_('LIFF_ID', '')
     };
+    if (actor.isTeacher) out.notify = notifySettings_();
     if (!actor.isTeacher) {
       useTenant_(null);
       out.registered = false;
@@ -241,11 +242,18 @@ var API_ACTIONS = {
 
   saveSettings: function (b, actor) {
     if (!actor.isAdmin) return { ok: false, message: 'เฉพาะผู้ดูแลระบบ' };
-    var allowed = { SCHOOL_NAME: true, ADMIN_NAME: true };
-    Object.keys(b.settings || {}).forEach(function (k) {
-      if (allowed[k]) saveRecord_('Settings', { key: k, value: String(b.settings[k] || '').trim() }, !findOne_('Settings', 'key', k));
+    var s = b.settings || {};
+    var allowed = { SCHOOL_NAME: true, ADMIN_NAME: true, DAILY_SUMMARY_ENABLED: true, REMINDER_HOURS_BEFORE: true };
+    if (s.DAILY_SUMMARY_ENABLED !== undefined) s.DAILY_SUMMARY_ENABLED = isTrue_(s.DAILY_SUMMARY_ENABLED) ? 'TRUE' : 'FALSE';
+    if (s.REMINDER_HOURS_BEFORE !== undefined) {
+      var h = Number(s.REMINDER_HOURS_BEFORE);
+      if (isNaN(h) || h < 0 || h > 168) return { ok: false, message: 'ชั่วโมงแจ้งเตือนต้องอยู่ระหว่าง 0–168' };
+      s.REMINDER_HOURS_BEFORE = String(Math.round(h));
+    }
+    Object.keys(s).forEach(function (k) {
+      if (allowed[k]) saveRecord_('Settings', { key: k, value: String(s[k] || '').trim() }, !findOne_('Settings', 'key', k));
     });
-    return { ok: true, school: getSetting_('SCHOOL_NAME', ''), adminName: getSetting_('ADMIN_NAME', '') };
+    return { ok: true, school: getSetting_('SCHOOL_NAME', ''), adminName: getSetting_('ADMIN_NAME', ''), notify: notifySettings_() };
   },
 
   /**
@@ -270,6 +278,14 @@ var API_ACTIONS = {
     return { ok: true, removedSubmissions: removed };
   }
 };
+
+/** การแจ้งเตือนทาง LINE ของบัญชีนี้ (หน้า "ตั้งค่า") */
+function notifySettings_() {
+  return {
+    dailySummary: getBoolSetting_('DAILY_SUMMARY_ENABLED', false),
+    reminderHours: getNumberSetting_('REMINDER_HOURS_BEFORE', 24)
+  };
+}
 
 /** ลบรายการส่งงานทั้งหมดของใบงาน (อ่าน/เขียนทั้งแผ่นครั้งเดียว) — ผู้เรียกถือ lock */
 function deleteSubmissionsOf_(aid) {

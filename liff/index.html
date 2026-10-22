@@ -180,6 +180,12 @@
   .set-card h3 { display: flex; align-items: center; gap: 8px; } .set-card h3 svg { width: 20px; height: 20px; color: var(--accent); }
   .set-actions { display: grid; gap: 8px; }
   .manual-card { border: 2px solid var(--accent-weak); }
+  .sw-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); cursor: pointer; }
+  .sw-row:last-of-type { border-bottom: 0; }
+  .sw { appearance: none; -webkit-appearance: none; width: 50px; height: 30px; border-radius: 99px; background: #cbd5e1; position: relative; flex: none; cursor: pointer; transition: background .15s; margin: 0; }
+  .sw::after { content: ''; position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.25); transition: transform .15s; }
+  .sw:checked { background: var(--accent); } .sw:checked::after { transform: translateX(20px); }
+  .sw:disabled { opacity: .5; cursor: not-allowed; }
   .manual-ic { width: 48px; height: 48px; border-radius: 14px; background: var(--accent-weak); color: var(--accent); display: flex; align-items: center; justify-content: center; flex: none; }
   .manual-ic svg { width: 26px; height: 26px; }
   .link-row { margin-bottom: 14px; } .link-row b { display: block; font-size: .92rem; margin-bottom: 4px; }
@@ -510,6 +516,16 @@
           <p class="small muted" style="margin:-2px 0 12px">ข้อมูลทั้งหมดของบัญชีนี้ (นักเรียน · งาน · การส่งและคะแนน) และไฟล์ PDF QR</p>
           <div id="setGoogle"></div>
         </div>
+        <div class="card set-card" id="notifyCard">
+          <h3><svg><use href="#i-bell"/></svg>การแจ้งเตือนทาง LINE</h3>
+          <label class="sw-row"><div class="grow"><b>สรุปการส่งงานประจำวัน</b><div class="small muted">ส่งทุกวันเวลา 18:00 ถึงผู้ดูแลบัญชี</div></div>
+            <input type="checkbox" class="sw" id="nDaily"></label>
+          <label class="sw-row"><div class="grow"><b>เตือนก่อนครบกำหนดส่ง</b><div class="small muted">ส่งรายชื่อคนที่ยังไม่ส่งถึงครูในบัญชี (เฉพาะใบงานที่ตั้งกำหนดส่ง)</div></div>
+            <input type="checkbox" class="sw" id="nRemind"></label>
+          <div class="row" id="nHoursRow" style="gap:8px;margin:2px 0 4px"><span class="small muted">แจ้งก่อนครบกำหนด</span>
+            <select class="input" id="nHours" style="width:auto;min-height:38px;padding:6px 10px"><option value="6">6 ชั่วโมง</option><option value="12">12 ชั่วโมง</option><option value="24">1 วัน (24 ชม.)</option><option value="48">2 วัน</option><option value="72">3 วัน</option></select></div>
+          <p class="xs muted" id="nNote" style="margin:6px 0 0"></p>
+        </div>
         <div class="card set-card hidden" id="setAdminCard">
           <h3><svg><use href="#i-gear"/></svg>ข้อมูลโรงเรียน</h3>
           <form id="stf">
@@ -564,6 +580,7 @@
     <symbol id="i-monitor" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></symbol>
     <symbol id="i-send" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 3L10 14M21 3l-7 18-4-7-7-4z"/></symbol>
     <symbol id="i-book" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 21V5M8 7h7M8 11h7"/></symbol>
+    <symbol id="i-bell" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20a2 2 0 0 0 4 0"/></symbol>
     <symbol id="i-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></symbol>
   </defs>
 </svg>
@@ -723,7 +740,7 @@ function setData(d) {
   DATA = {
     students: d.students || [], assignments: d.assignments || [], subs: subs, subjects: d.subjects || subjectsFromTasks(d.assignments || []),
     school: d.school || '', adminName: d.adminName || '', user: d.user || {}, studentPrefix: d.studentPrefix || 'STU-',
-    sheetUrl: d.sheetUrl || '', driveUrl: d.driveUrl || ''
+    sheetUrl: d.sheetUrl || '', driveUrl: d.driveUrl || '', notify: d.notify || { dailySummary: false, reminderHours: 24 }
   };
   QUEUE.forEach(function (q) { // รายการที่ยังไม่ขึ้น server: การส่งยังแสดงว่าส่งแล้ว · คะแนนที่รอบันทึกทับค่าจาก server
     var m = subsOf(q.assignmentId), k = norm(q.studentId);
@@ -2210,6 +2227,7 @@ function renderSettings() {
   $('setGoogle').innerHTML = g.length ? linkRowsHtml(g) : '<div class="small muted">กำลังโหลดลิงก์… (กดโหลดใหม่ที่หน้า "สรุป" ถ้ายังไม่ขึ้น)</div>';
   bindLinkRows($('setGoogle'), g);
   var admin = !!(DATA.user && DATA.user.isAdmin);
+  renderNotify(admin);
   show('setAdminCard', admin);
   show('openAccounts', !!(DATA.user && DATA.user.isSuper));
   if (admin && !$('stf').contains(document.activeElement)) { $('stf').school.value = DATA.school || ''; $('stf').admin.value = DATA.adminName || ''; }
@@ -2226,6 +2244,39 @@ $('stf').onsubmit = function (ev) {
   }).catch(function (e) { b.disabled = false; b.textContent = 'บันทึก'; netError(e); });
 };
 $('openAccounts').onclick = function () { accountsSheet({}); };
+
+/* ---------- การแจ้งเตือนทาง LINE (ผู้ดูแลบัญชีเปิด/ปิด) ---------- */
+function renderNotify(admin) {
+  var n = DATA.notify || { dailySummary: false, reminderHours: 24 };
+  $('nDaily').checked = !!n.dailySummary;
+  $('nRemind').checked = Number(n.reminderHours) > 0;
+  if (Number(n.reminderHours) > 0) setSelect($('nHours'), String(n.reminderHours));
+  show('nHoursRow', Number(n.reminderHours) > 0);
+  ['nDaily', 'nRemind', 'nHours'].forEach(function (id) { $(id).disabled = !admin || notifySaving; });
+  $('nNote').textContent = admin ? 'เปลี่ยนแล้วมีผลทันที' : 'เฉพาะผู้ดูแลบัญชีเปิด/ปิดได้';
+}
+var notifySaving = false;
+/** บันทึกทันทีที่สลับ — ถ้าไม่สำเร็จ คืนค่าเดิม */
+function saveNotify(settings, okMsg) {
+  notifySaving = true; renderNotify(true);
+  api('saveSettings', { settings: settings }).then(function (r) {
+    notifySaving = false;
+    if (!r.ok) { toast(r.message, 'err'); renderNotify(true); return; }
+    DATA.notify = r.notify; saveLocal(); renderNotify(true);
+    toast(okMsg);
+  }).catch(function (e) { notifySaving = false; renderNotify(true); netError(e); });
+}
+$('nDaily').onchange = function () {
+  var on = this.checked;
+  saveNotify({ DAILY_SUMMARY_ENABLED: on }, on ? 'เปิดสรุปประจำวันแล้ว — ส่งทาง LINE ทุกวัน 18:00' : 'ปิดสรุปประจำวันแล้ว');
+};
+$('nRemind').onchange = function () {
+  var on = this.checked;
+  saveNotify({ REMINDER_HOURS_BEFORE: on ? Number($('nHours').value) || 24 : 0 }, on ? 'เปิดเตือนก่อนครบกำหนดส่งแล้ว' : 'ปิดเตือนก่อนครบกำหนดส่งแล้ว');
+};
+$('nHours').onchange = function () {
+  saveNotify({ REMINDER_HOURS_BEFORE: Number(this.value) }, 'จะเตือนก่อนครบกำหนด ' + $('nHours').selectedOptions[0].text);
+};
 $('setPrintQr').onclick = function () { go('qr'); };
 $('setPrintGrade').onclick = function () { STATE.seg = 'grade'; go('summary'); };
 $('stuQr').onclick = function () { go('qr'); };
