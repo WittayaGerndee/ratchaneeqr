@@ -124,6 +124,9 @@ Apps Script → **Deploy → New deployment → Web app**
 ```
 อัปเดตทั้ง API และ Admin deployment โดย URL เดิม ส่วนหน้า LIFF อัปเดตอัตโนมัติเมื่อ push ขึ้น GitHub (GitHub Pages)
 
+**ทุกครั้งที่แก้หน้า LIFF:** เปลี่ยนเลขเวอร์ชันให้ตรงกันสองที่ — `APP_BUILD` ใน `liff/index.html` และไฟล์ `liff/version.txt` (เช่น `2026-10-22.3`)
+มือถือที่ยังจำหน้าเก่าไว้ (GitHub Pages ให้ cache 10 นาที) จะโหลดหน้าใหม่ให้เองตอนเปิดแอป
+
 ## จัดการนักเรียน / งาน / พิมพ์ QR (ในหน้า LIFF)
 
 เปิดหน้า LIFF (มือถือหรือคอมพิวเตอร์: `https://liff.line.me/2011746825-S9XJTTnb`) แล้วใช้แท็บด้านล่าง

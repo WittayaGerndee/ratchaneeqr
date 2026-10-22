@@ -597,6 +597,25 @@
    - เรียก API ซ้ำอัตโนมัติ + reqId กันบันทึกซ้ำ
    ============================================================ */
 var CFG = window.APP_CONFIG || {};
+/** เวอร์ชันของหน้านี้ — ต้องตรงกับ liff/version.txt (แก้ทั้งสองที่ทุกครั้งที่อัปเดตหน้าแอป) */
+var APP_BUILD = '2026-10-22.2';
+
+/**
+ * อัปเดตหน้าแอปอัตโนมัติ: GitHub Pages ให้เบราว์เซอร์/LINE จำหน้าเก่าได้ถึง 10 นาที
+ * ตอนเปิดแอป อ่าน version.txt แบบไม่ใช้ cache ถ้าไม่ตรงกับหน้านี้ → ดึงหน้าใหม่ทับ cache แล้วโหลดใหม่ (ครั้งเดียวต่อเวอร์ชัน)
+ * คิวที่ยังไม่ได้บันทึกเก็บใน localStorage จึงไม่หาย
+ */
+(function checkUpdate() {
+  if (!window.fetch) return;
+  fetch('version.txt?ts=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.text() : ''; }).then(function (v) {
+    v = String(v || '').trim();
+    if (!v || v === APP_BUILD) return;
+    var key = 'rq_update_try';
+    try { if (sessionStorage.getItem(key) === v) return; sessionStorage.setItem(key, v); } catch (e) { return; }
+    var go = function () { location.reload(); };
+    fetch(location.pathname + location.search, { cache: 'reload' }).then(go, go);
+  }).catch(function () {});
+})();
 var LS_DATA = 'rq_data_v4', LS_QUEUE = 'rq_queue_v4';
 var STATE = { idToken: '', uid: '', view: 'scan', seg: 'task', task: null, log: [], camWanted: false };
 var DATA = null, BY_ID = {}, QUEUE = [], GB = null;
